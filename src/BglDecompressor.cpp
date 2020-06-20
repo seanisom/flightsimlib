@@ -27,7 +27,7 @@
 
 //******************************************************************************
 //
-// File:     Decompression.cpp
+// File:     BglDecompressor.cpp
 //
 // Summary:  Implementation of FSX BGL decompression routines through
 //           a DLL interface.
@@ -292,6 +292,7 @@ int CBglDecompressor::DecompressDelta(
 		++p_compressed;
 		++p_uncompressed;
 	}
+	
 	if (uncompressed_size == 0 || uncompressed_size == 1)
 	{
 		return uncompressed_size;
@@ -305,17 +306,17 @@ int CBglDecompressor::DecompressDelta(
 
 	for (auto i = 0; i < count; ++i)
 	{
-		if (*p_compressed == 0x80)
+		if (*p_compressed == 0x80) // -128
 		{
 			*p_dest = *reinterpret_cast<const short*>(p_compressed + 1);
 			p_compressed += 3;
 		}
-		else if (*p_compressed == 0x81)
+		else if (*p_compressed == 0x81) // -127
 		{
 			*p_dest = previous - *(p_compressed + 1) - 126;
 			p_compressed += 2;
 		}
-		else if (*p_compressed == 0x82)
+		else if (*p_compressed == 0x82) // -126
 		{
 			*p_dest = previous + *(p_compressed + 1) + 128;
 			p_compressed += 2;

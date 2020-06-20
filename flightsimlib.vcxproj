@@ -152,6 +152,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BglCompressor.h" />
     <ClInclude Include="include\BglDecompressor.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
@@ -159,6 +160,7 @@
     <ResourceCompile Include="flightsimlib.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BglCompressor.cpp" />
     <ClCompile Include="src\BglDecompressor.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
