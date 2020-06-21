@@ -20,6 +20,8 @@ More features are coming, starting with BGL-file functions and structures.
 ## Documentation
 Please [see the wiki](https://github.com/seanisom/flightsimlib/wiki) for basic usage.
 
+You can grab a precompiled binary release with headers from the `releases` tab, or clone and build from source.
+
 Minimal sample code is provided in the `examples` folder.
 
 
