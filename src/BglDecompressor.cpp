@@ -41,7 +41,6 @@
 
 
 #include "BglDecompressor.h"
-#include "PTC.h"
 
 #include <cstring>
 
@@ -52,22 +51,36 @@ using namespace flightsimlib::io;
 // ReSharper disable CppInitializedValueIsAlwaysRewritten
 
 
-#ifdef PTC_LIB
-	#ifdef _DEBUG
-		#ifdef _WIN64
-			#pragma comment(lib, "x64/ptclibD.lib")
-		#else
-			#pragma comment(lib, "Win32/ptclibD.lib")
+#ifdef _MSC_VER
+	extern "C" int __cdecl PTCDEC(
+		uintptr_t wrapper, 
+		unsigned int min_mip, 
+		unsigned int max_mip, 
+		unsigned int left_pixel, 
+		unsigned int top_pixel, 
+		unsigned int width, 
+		unsigned int height, 
+		unsigned int bit_depth, 
+		uintptr_t p_dest, 
+		uintptr_t p_row_length);
+
+	#ifdef PTC_LIB
+		#ifdef _DEBUG
+			#ifdef _WIN64
+				#pragma comment(lib, "x64/ptclibD.lib")
+			#else
+				#pragma comment(lib, "Win32/ptclibD.lib")
+			#endif
+		#else // release
+			#ifdef _WIN64
+				#pragma comment(lib, "x64/ptclib.lib")
+			#else
+				#pragma comment(lib, "Win32/ptclib.lib")
+			#endif
 		#endif
-	#else // release
-		#ifdef _WIN64
-			#pragma comment(lib, "x64/ptclib.lib")
-		#else
-			#pragma comment(lib, "Win32/ptclib.lib")
-		#endif
+	#else
+		#pragma comment(lib, "ptclib.lib") // DLL PTC Build
 	#endif
-#else
-#pragma comment(lib, "ptclib.lib") // DLL PTC Build
 #endif
 
 
@@ -376,7 +389,7 @@ int CBglDecompressor::DecompressPtc(
 	int bpp)
 {
 	// PTC_LIB - static lib is only currently implemented for Windows!
-#ifndef _WIN32
+#ifndef _MSC_VER
 	return 0;
 #endif
 	auto length = bpp * 0x100;

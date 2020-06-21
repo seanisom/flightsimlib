@@ -24,7 +24,7 @@
     <ClInclude Include="include\BglDecompressor.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="BglCompressor.h">
+    <ClInclude Include="include\BglCompressor.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -32,7 +32,7 @@
     <ClCompile Include="src\BglDecompressor.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="BglCompressor.cpp">
+    <ClCompile Include="src\BglCompressor.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
