@@ -37,12 +37,10 @@
 
 
 #include "BglFile.h"
+#include "BinaryIStream.h"
 
 
-using namespace flightsimlib::io;
-
-
-bool IsTrq1BglLayer(EBglLayerType layer_type)
+bool flightsimlib::io::IsTrq1BglLayer(EBglLayerType layer_type)
 {
     if (layer_type == EBglLayerType::TerrainIndex ||
         layer_type == EBglLayerType::TerrainLandClass ||
@@ -59,7 +57,7 @@ bool IsTrq1BglLayer(EBglLayerType layer_type)
 }
 
 
-bool IsRcs1BglLayer(EBglLayerType layer_type)
+bool flightsimlib::io::IsRcs1BglLayer(EBglLayerType layer_type)
 {
     if (layer_type == EBglLayerType::TerrainElevation)
     {
