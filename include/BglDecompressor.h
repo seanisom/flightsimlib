@@ -29,43 +29,9 @@
 #define FLIGHTSIMLIB_IO_BGLDECOMPRESSOR_H
 
 
+#include "Export.h"
+
 #include <cstdint>
-
-
-// Define FLIGHTSIMLIB_EXPORTED for any platform
-#if defined _WIN32 || defined __CYGWIN__
-	#ifdef FLIGHTSIMLIB_EXPORTS
-		#ifdef __GNUC__
-			#define FLIGHTSIMLIB_EXPORTED  __attribute__ ((dllexport))
-		#else
-			#define FLIGHTSIMLIB_EXPORTED  __declspec(dllexport) 
-		#endif
-	#else
-		#ifdef __GNUC__
-			#define FLIGHTSIMLIB_EXPORTED __attribute__ ((dllimport))
-		#else
-			#define FLIGHTSIMLIB_EXPORTED __declspec(dllimport)
-		#endif
-	#endif
-	#define FLIGHTSIMLIB_NOT_EXPORTED
-#else
-	#if __GNUC__ >= 4
-		#define FLIGHTSIMLIB_EXPORTED __attribute__ ((visibility ("default")))
-		#define FLIGHTSIMLIB_NOT_EXPORTED  __attribute__ ((visibility ("hidden")))
-	#else
-		#define FLIGHTSIMLIB_EXPORTED
-		#define FLIGHTSIMLIB_NOT_EXPORTED
-	#endif
-#endif
-
-
-#ifndef CDECL
-	#if defined _WIN32 || defined __CYGWIN__
-		#define CDECL __cdecl
-	#else
-		#define CDECL
-	#endif
-#endif
 
 
 #define PTC_LIB // Use PTC codec from static lib

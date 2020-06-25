@@ -170,6 +170,7 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClInclude Include="include\BglDecompressor.h" />
     <ClInclude Include="include\BglFile.h" />
     <ClInclude Include="include\BinaryIStream.h" />
+    <ClInclude Include="include\Export.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

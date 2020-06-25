@@ -29,6 +29,13 @@
 #define FLIGHTSIMLIB_IO_BGLFILE_H
 
 
+#include "Export.h"
+
+#include <string>
+#include <memory>
+#include <vector>
+
+
 namespace flightsimlib
 {
 	namespace io
@@ -106,9 +113,59 @@ namespace flightsimlib
 			Unknown = -1
 		};
 
-		bool IsTrq1BglLayer(EBglLayerType layer_type);
-		bool IsRcs1BglLayer(EBglLayerType layer_type);
+		FLIGHTSIMLIB_EXPORTED bool IsTrq1BglLayer(EBglLayerType layer_type);
+		FLIGHTSIMLIB_EXPORTED bool IsRcs1BglLayer(EBglLayerType layer_type);
+
+
+		class CBglHeader
+		{
+			uint16_t Version;
+			uint16_t Magic;
+			uint32_t HeaderSize;
+			uint32_t BGLMagic;
+			uint32_t SectionCount;
+			uint32_t PackedQMIDParent0;
+			uint32_t PackedQMIDParent1;
+			uint32_t PackedQMIDParent2;
+			uint32_t PackedQMIDParent3;
+			uint32_t PackedQMIDParent4;
+			uint32_t PackedQMIDParent5;
+			uint32_t PackedQMIDParent6;
+			uint32_t PackedQMIDParent7;
+		};
+
+		class CBglLayer
+		{
+		public:
+			explicit CBglLayer(EBglLayerType layer_type)
+				: m_layer_type(layer_type)
+			{
+			}
+
+		private:
+			EBglLayerType m_layer_type;
+		};
+		
+		class CBglFile
+		{
+			CBglFile();
+			explicit CBglFile(std::wstring& file_name);
+
+			bool AddLayer(CBglLayer* layer);
+			bool RemoveLayer(CBglLayer* layer);
+			const std::wstring& FileName() const;
+
+		private:
+			std::wstring m_file_name;
+			std::unique_ptr<CBglHeader> m_header;
+			std::vector<CBglLayer*> m_layers;
+			bool m_dirty;
+		};
 	}
+
+
+	
+
 }
 
 
