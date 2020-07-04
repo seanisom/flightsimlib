@@ -40,28 +40,40 @@
 #include "BinaryIStream.h"
 
 
-bool flightsimlib::io::IsTrq1BglLayer(EBglLayerType layer_type)
+namespace flightsimlib
 {
-    if (layer_type == EBglLayerType::TerrainIndex ||
-        layer_type == EBglLayerType::TerrainLandClass ||
-        layer_type == EBglLayerType::TerrainWaterClass ||
-        layer_type == EBglLayerType::TerrainRegion ||
-        layer_type == EBglLayerType::PopulationDensity ||
-        (layer_type >= EBglLayerType::TerrainSeasonJan && layer_type <= EBglLayerType::TerrainSeasonDec) ||
-        (layer_type >= EBglLayerType::TerrainPhotoJan && layer_type <= EBglLayerType::TerrainPhotoNight) ||
-        (layer_type >= EBglLayerType::TerrainPhoto32Jan && layer_type <= EBglLayerType::TerrainPhoto32Night))
-    {
-        return true;
-    }
-    return false;
+
+namespace io
+{
+	
+
+bool CBglLayer::IsTrq1BglLayer(EBglLayerType layer_type)
+{
+	if (layer_type == EBglLayerType::TerrainIndex ||
+		layer_type == EBglLayerType::TerrainLandClass ||
+		layer_type == EBglLayerType::TerrainWaterClass ||
+		layer_type == EBglLayerType::TerrainRegion ||
+		layer_type == EBglLayerType::PopulationDensity ||
+		(layer_type >= EBglLayerType::TerrainSeasonJan && layer_type <= EBglLayerType::TerrainSeasonDec) ||
+		(layer_type >= EBglLayerType::TerrainPhotoJan && layer_type <= EBglLayerType::TerrainPhotoNight) ||
+		(layer_type >= EBglLayerType::TerrainPhoto32Jan && layer_type <= EBglLayerType::TerrainPhoto32Night))
+	{
+		return true;
+	}
+	return false;
 }
 
 
-bool flightsimlib::io::IsRcs1BglLayer(EBglLayerType layer_type)
+bool CBglLayer::IsRcs1BglLayer(EBglLayerType layer_type)
 {
-    if (layer_type == EBglLayerType::TerrainElevation)
-    {
-        return true;
-    }
-    return false;
+	if (layer_type == EBglLayerType::TerrainElevation)
+	{
+		return true;
+	}
+	return false;
 }
+
+	
+} // namespace io
+
+} // namespace flightsimlib

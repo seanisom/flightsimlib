@@ -122,10 +122,8 @@ namespace flightsimlib
 			Max = 0x2712
 		};
 
-		FLIGHTSIMLIB_EXPORTED bool IsTrq1BglLayer(EBglLayerType layer_type);
-		FLIGHTSIMLIB_EXPORTED bool IsRcs1BglLayer(EBglLayerType layer_type);
 
-
+		// TODO - fstream leaky abstractions!
 		class BinaryFileStream
 		{
 		public:
@@ -153,14 +151,14 @@ namespace flightsimlib
 			template <class T>
 			BinaryFileStream& operator>> (T& val)
 			{
-				m_stream.read((char*)&val, sizeof(val));
+				m_stream.read(reinterpret_cast<char*>(&val), sizeof(val));
 				return *this;
 			}
 
 			template <class T>
 			BinaryFileStream& operator<< (T& val)
 			{
-				m_stream.write((char*)&val, sizeof(val));
+				m_stream.write(reinterpret_cast<const char*>(&val), sizeof(val));
 				return *this;
 			}
 
@@ -298,6 +296,8 @@ namespace flightsimlib
 			}
 		};
 
+#pragma pack(push)
+#pragma pack(1)
 		struct SBglAirportTileData
 		{
 			uint16_t Type;
@@ -368,7 +368,8 @@ namespace flightsimlib
 				    << data.Flags;
 			}
 		};
-
+#pragma pack(pop)
+		
 		class IBglTile
 		{
 		public:
@@ -378,8 +379,6 @@ namespace flightsimlib
 			virtual bool WriteBinary(BinaryFileStream& out) = 0;
 			virtual int CalculateDataSize() = 0;
 			virtual int GetRecordCount() const = 0;
-			virtual int ReadInt() = 0; //test data
-			virtual void SetInt(int val) = 0; //test data
 			virtual std::unique_ptr<IBglTile> Clone() const = 0;
 			virtual void PrintValue() const = 0;
 			virtual EBglLayerType Type() = 0;
@@ -401,6 +400,12 @@ namespace flightsimlib
 				return out ? true : false;
 			}
 
+		protected:
+			stlab::copy_on_write<SBglTilePointer> GetTilePointer() const
+			{
+				return m_tile_pointer;
+			}
+			
 		private:
 			stlab::copy_on_write<SBglTilePointer> m_tile_pointer;
 		};
@@ -409,30 +414,19 @@ namespace flightsimlib
 		class CBglAirportTile : public IBglTile
 		{
 		public:
-			CBglAirportTile() : IBglTile(SBglTilePointer{}), m_value(0) { }
+			CBglAirportTile() : IBglTile(SBglTilePointer{}) { }
 
-			explicit CBglAirportTile(int value) : IBglTile(SBglTilePointer{}), m_value(value) { }
-
-			explicit CBglAirportTile(const SBglTilePointer& pointer) : IBglTile(pointer), m_value(0) { }
-			
-			int ReadInt() override
-			{
-				return m_value;
-			};
-			
-			void SetInt(int value) override
-			{
-				m_value = value;
-			}
+			explicit CBglAirportTile(const SBglTilePointer& pointer) : IBglTile(pointer) { }
 			
 			std::unique_ptr<IBglTile> Clone() const override
 			{
-				return std::make_unique<CBglAirportTile>(m_value);
+				return std::make_unique<CBglAirportTile>(*this);
 			}
 			
 			void PrintValue() const override
 			{
-				std::cout << m_value << std::endl;
+				// TODO
+				std::cout << std::endl;
 			}
 			
 			EBglLayerType Type() override
@@ -501,7 +495,6 @@ namespace flightsimlib
 			}
 			
 		private:
-			int m_value;
 			std::vector<stlab::copy_on_write<SBglAirportTileData>> m_data;
 		};
 
@@ -514,28 +507,13 @@ namespace flightsimlib
 		class CBglRunwayTile final : public IBglTile
 		{
 		public:
-			CBglRunwayTile() : IBglTile(SBglTilePointer{}), m_value(0) { }
+			CBglRunwayTile() : IBglTile(SBglTilePointer{}) { }
 			
-			explicit CBglRunwayTile(int value) : IBglTile(SBglTilePointer{}), m_value(value)
-			{
-				SetInt(value);
-			}
+			explicit CBglRunwayTile(const SBglTilePointer& pointer) : IBglTile(pointer) { }
 			
 			CBglRunwayTile(const CBglRunwayTile& other):
 				IBglTile(SBglTilePointer{}),
-				m_value(other.m_value),
 				m_data(other.m_data) { }
-			
-			int ReadInt() override
-			{
-				return m_value;
-			};
-			
-			void SetInt(int value) override
-			{
-				m_value = value;
-				m_data.write().Id = value * 3;
-			}
 			
 			std::unique_ptr<IBglTile> Clone() const override
 			{
@@ -544,8 +522,7 @@ namespace flightsimlib
 			
 			void PrintValue() const override
 			{
-				std::cout << m_value << " : " << m_data->Id << std::endl;
-				std::cout << "Is Data Unique? " << m_data.unique() << std::endl;
+				std::cout << std::endl;
 			}
 			
 			EBglLayerType Type() override
@@ -574,7 +551,6 @@ namespace flightsimlib
 			}
 			
 		private:
-			int m_value;
 			stlab::copy_on_write<SBglRunway> m_data;
 		};
 
@@ -658,7 +634,7 @@ namespace flightsimlib
 						return nullptr;
 					}
 				}
-				if (in.GetPosition() != layer_pointer.StreamOffset + layer_pointer.SizeBytes)
+				if (in.GetPosition() != static_cast<int>(layer_pointer.StreamOffset + layer_pointer.SizeBytes))
 				{
 					return nullptr;
 				}
@@ -727,7 +703,7 @@ namespace flightsimlib
 				m_data.write().Type = m_type;
 				m_data.write().TileCount = m_tiles.size();
 				m_data.write().HasQmidLow = 1;
-				if (tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
+				if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
 				{
 					m_data.write().HasQmidHigh = 1;
 				}
@@ -780,6 +756,9 @@ namespace flightsimlib
 				return m_type;
 			}
 
+			FLIGHTSIMLIB_EXPORTED static bool IsTrq1BglLayer(EBglLayerType layer_type);
+			FLIGHTSIMLIB_EXPORTED static bool IsRcs1BglLayer(EBglLayerType layer_type);
+
 		private:
 			EBglLayerType m_type;
 			std::map<CPackedQmid, std::unique_ptr<IBglTile>> m_tiles;
@@ -790,7 +769,7 @@ namespace flightsimlib
 		struct SBglHeader
 		{
 			uint16_t Version;
-			uint16_t Magic;
+			uint16_t FileMagic;
 			uint32_t HeaderSize;
 			uint64_t FileTime;
 			uint32_t QmidMagic;
@@ -808,7 +787,7 @@ namespace flightsimlib
 			{
 				auto header =  SBglHeader{};
 				in >> header.Version
-				   >> header.Magic
+				   >> header.FileMagic
 				   >> header.HeaderSize
 				   >> header.FileTime
 				   >> header.QmidMagic
@@ -827,7 +806,7 @@ namespace flightsimlib
 			static void WriteBinary(BinaryFileStream& out, const SBglHeader& header)
 			{
 				out << header.Version
-				    << header.Magic
+				    << header.FileMagic
 				    << header.HeaderSize
 				    << header.FileTime
 				    << header.QmidMagic
@@ -1010,11 +989,11 @@ namespace flightsimlib
 			bool WriteAllLayers()
 			{
 				if (m_layers.size() != m_header.LayerCount ||
-					m_stream.GetPosition() != m_header.HeaderSize)
+					m_stream.GetPosition() != static_cast<int>(m_header.HeaderSize))
 				{
 					return false;
 				}
-				auto data_size = 0x38; // TODO - header data size
+				auto data_size = HeaderSize();
 				data_size += CBglLayer::CalculateLayerPointerSize() * m_header.LayerCount;
 				for (const auto& layer : m_layers)
 				{
@@ -1058,19 +1037,19 @@ namespace flightsimlib
 				{
 					return false;
 				}
-				if (m_header.Version != 0x0201)
+				if (m_header.Version != Version())
 				{
 					return false;
 				}
-				if (m_header.Magic != 0x1992)
+				if (m_header.FileMagic != FileMagic())
 				{
 					return false;
 				}
-				if (m_header.HeaderSize != 0x38)
+				if (m_header.HeaderSize != HeaderSize())
 				{
 					return false;
 				}
-				if (m_header.QmidMagic != 0x08051803)
+				if (m_header.QmidMagic != QmidMagic())
 				{
 					return false;
 				}
@@ -1084,6 +1063,7 @@ namespace flightsimlib
 
 			bool WriteHeader()
 			{
+				m_stream.SetPosition(0, std::fstream::beg);
 				if (!m_stream)
 				{
 					return false;
@@ -1092,25 +1072,32 @@ namespace flightsimlib
 				{
 					BuildHeader();
 				}
-				m_stream.SetPosition(0, std::fstream::beg);
-				// TODO
 				SBglHeader::WriteBinary(m_stream, m_header);
-				return false;
+				return m_stream ? true : false;
 			}
 
 			bool BuildHeader()
 			{
-				m_header.Version = 0x0201;
-				m_header.HeaderSize = 0x38;
+				m_header.Version = Version();
+				m_header.FileMagic = FileMagic();
+				m_header.HeaderSize = HeaderSize();
 				m_header.FileTime = 0; // TODO FILETIME library
-				m_header.QmidMagic = 0x08051803;
+				m_header.QmidMagic = QmidMagic();
 				m_header.LayerCount = m_layers.size();
 				return ComputeHeaderQmids();
 			}
 			
 			bool ComputeHeaderQmids() // TODO Build Qmid Algorithm
 			{
-				return false;
+				m_header.PackedQMIDParent0 = 0;
+				m_header.PackedQMIDParent1 = 0;
+				m_header.PackedQMIDParent2 = 0;
+				m_header.PackedQMIDParent3 = 0;
+				m_header.PackedQMIDParent4 = 0;
+				m_header.PackedQMIDParent5 = 0;
+				m_header.PackedQMIDParent6 = 0;
+				m_header.PackedQMIDParent7 = 0;
+				return true;
 			}
 			
 
@@ -1121,6 +1108,26 @@ namespace flightsimlib
 			bool m_dirty;
 			std::map<EBglLayerType, std::unique_ptr<CBglLayer>> m_layers;
 			BinaryFileStream m_stream;
+
+			static constexpr uint16_t Version()
+			{
+				return 0x0201; // FSX+
+			}
+			
+			static constexpr uint32_t HeaderSize()
+			{
+				return sizeof(SBglHeader);
+			}
+			
+			static constexpr uint16_t FileMagic()
+			{
+				return 0x1992;
+			}
+			
+			static constexpr uint32_t QmidMagic()
+			{
+				return 0x08051803;
+			}
 			
 		};
 	}
