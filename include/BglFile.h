@@ -295,10 +295,54 @@ namespace flightsimlib
 				    << pointer.SizeBytes;
 			}
 		};
+		
+		class IBglTile
+		{
+		public:
+			IBglTile(const SBglTilePointer& tile_pointer) : m_tile_pointer(tile_pointer) { }
+			virtual ~IBglTile() = default;
+			virtual bool ReadBinary(BinaryFileStream& in) = 0;
+			virtual bool WriteBinary(BinaryFileStream& out) = 0;
+			virtual int CalculateDataSize() const = 0;
+			virtual int GetRecordCount() const = 0;
+			virtual std::unique_ptr<IBglTile> Clone() const = 0;
+			virtual EBglLayerType Type() const = 0;
+
+			const SBglTilePointer& Pointer() const
+			{
+				return m_tile_pointer.read();
+			}
+
+			// TODO - currently we just support moving offset within a file
+			// This needs to be extended to allow  clones, merges, etc
+			bool UpdateTilePointer(BinaryFileStream& out, const CPackedQmid& qmid)
+			{
+				m_tile_pointer.write().StreamOffset = out.GetPosition();
+				m_tile_pointer.write().SizeBytes = CalculateDataSize();
+				m_tile_pointer.write().RecordCount = GetRecordCount();
+				m_tile_pointer.write().QmidLow = qmid.Low();
+				m_tile_pointer.write().QmidHigh = qmid.High();
+				return out ? true : false;
+			}
+			
+		private:
+			stlab::copy_on_write<SBglTilePointer> m_tile_pointer;
+		};
+
+
+		class IBglData
+		{
+		public:
+			virtual ~IBglData() = default;
+			virtual void ReadBinary(BinaryFileStream& in) = 0;
+			virtual void WriteBinary(BinaryFileStream& out) = 0;
+			virtual bool Validate() const = 0;
+			virtual int CalculateSize() const = 0;
+		};
 
 #pragma pack(push)
 #pragma pack(1)
-		struct SBglAirportTileData
+		struct SBglAirportData
 		{
 			uint16_t Type;
 			uint32_t Length;
@@ -319,119 +363,171 @@ namespace flightsimlib
 			uint32_t RegionIdent;
 			uint32_t FuelTypes;
 			uint32_t Flags;
-
-			static SBglAirportTileData ReadBinary(BinaryFileStream& in)
-			{
-				auto data = SBglAirportTileData{};
-				in >> data.Type
-				   >> data.Length
-				   >> data.RunwayCount
-				   >> data.FrequencyCount
-				   >> data.StartCount
-				   >> data.ApproachCount
-				   >> data.ApronCount
-				   >> data.HelipadCount
-				   >> data.ReferenceLat
-				   >> data.ReferenceLon
-				   >> data.ReferenceAlt
-				   >> data.TowerLat
-				   >> data.TowerLon
-				   >> data.TowerAlt
-				   >> data.MagVar
-				   >> data.Icao
-				   >> data.RegionIdent
-				   >> data.FuelTypes
-				   >> data.Flags;
-				return data;
-			}
-
-			static void WriteBinary(BinaryFileStream& out, const SBglAirportTileData& data)
-			{
-				out << data.Type
-				    << data.Length
-				    << data.RunwayCount
-				    << data.FrequencyCount
-				    << data.StartCount
-				    << data.ApproachCount
-				    << data.ApronCount
-				    << data.HelipadCount
-				    << data.ReferenceLat
-				    << data.ReferenceLon
-				    << data.ReferenceAlt
-				    << data.TowerLat
-				    << data.TowerLon
-				    << data.TowerAlt
-				    << data.MagVar
-				    << data.Icao
-				    << data.RegionIdent
-				    << data.FuelTypes
-				    << data.Flags;
-			}
 		};
 #pragma pack(pop)
-		
-		class IBglTile
+
+		class CBglAirportData final : public IBglData
 		{
 		public:
-			IBglTile(const SBglTilePointer& tile_pointer) : m_tile_pointer(tile_pointer) { }
-			virtual ~IBglTile() = default;
-			virtual bool ReadBinary(BinaryFileStream& in) = 0;
-			virtual bool WriteBinary(BinaryFileStream& out) = 0;
-			virtual int CalculateDataSize() = 0;
-			virtual int GetRecordCount() const = 0;
-			virtual std::unique_ptr<IBglTile> Clone() const = 0;
-			virtual void PrintValue() const = 0;
-			virtual EBglLayerType Type() = 0;
-
-			const SBglTilePointer& Pointer() const
+			void ReadBinary(BinaryFileStream& in) override
 			{
-				return m_tile_pointer.read();
+				in >> m_data.write().Type
+					>> m_data.write().Length
+					>> m_data.write().RunwayCount
+					>> m_data.write().FrequencyCount
+					>> m_data.write().StartCount
+					>> m_data.write().ApproachCount
+					>> m_data.write().ApronCount
+					>> m_data.write().HelipadCount
+					>> m_data.write().ReferenceLat
+					>> m_data.write().ReferenceLon
+					>> m_data.write().ReferenceAlt
+					>> m_data.write().TowerLat
+					>> m_data.write().TowerLon
+					>> m_data.write().TowerAlt
+					>> m_data.write().MagVar
+					>> m_data.write().Icao
+					>> m_data.write().RegionIdent
+					>> m_data.write().FuelTypes
+					>> m_data.write().Flags;
 			}
 
-			// TODO - currently we just support moving offset within a file
-			// This needs to be extended to allow  clones, merges, etc
-			bool UpdateTilePointer(BinaryFileStream& out, const CPackedQmid& qmid)
+			void WriteBinary(BinaryFileStream& out) override
 			{
-				m_tile_pointer.write().StreamOffset = out.GetPosition();
-				m_tile_pointer.write().SizeBytes = CalculateDataSize();
-				m_tile_pointer.write().RecordCount = GetRecordCount();
-				m_tile_pointer.write().QmidLow = qmid.Low();
-				m_tile_pointer.write().QmidHigh = qmid.High();
-				return out ? true : false;
+				m_data.write().Length = sizeof(SBglAirportData);
+				out << m_data->Type
+					<< m_data->Length
+					<< m_data->RunwayCount
+					<< m_data->FrequencyCount
+					<< m_data->StartCount
+					<< m_data->ApproachCount
+					<< m_data->ApronCount
+					<< m_data->HelipadCount
+					<< m_data->ReferenceLat
+					<< m_data->ReferenceLon
+					<< m_data->ReferenceAlt
+					<< m_data->TowerLat
+					<< m_data->TowerLon
+					<< m_data->TowerAlt
+					<< m_data->MagVar
+					<< m_data->Icao
+					<< m_data->RegionIdent
+					<< m_data->FuelTypes
+					<< m_data->Flags;
 			}
 
-		protected:
-			stlab::copy_on_write<SBglTilePointer> GetTilePointer() const
+			bool Validate() const override
 			{
-				return m_tile_pointer;
+				return m_data->Type == 0x3C;
 			}
-			
+
+			int CalculateSize() const override
+			{
+				return m_data->Length;
+			}
+
 		private:
-			stlab::copy_on_write<SBglTilePointer> m_tile_pointer;
+			stlab::copy_on_write<SBglAirportData> m_data;
 		};
 
 		
-		class CBglAirportTile : public IBglTile
+		// Exclusions are always 0,0 QMID!
+		struct SBglExclusionData
+		{
+			uint16_t Type;
+			uint16_t Size;
+			uint32_t LonWest;
+			uint32_t LatNorth;
+			uint32_t LonEast;
+			uint32_t LatSouth;
+		};
+
+		class CBglExclusionData final : public IBglData
 		{
 		public:
-			CBglAirportTile() : IBglTile(SBglTilePointer{}) { }
+			void ReadBinary(BinaryFileStream& in) override
+			{
+				in >> m_data.write().Type
+					>> m_data.write().Size
+					>> m_data.write().LonWest
+					>> m_data.write().LatNorth
+					>> m_data.write().LonEast
+					>> m_data.write().LatSouth;
+			}
 
-			explicit CBglAirportTile(const SBglTilePointer& pointer) : IBglTile(pointer) { }
+			void WriteBinary(BinaryFileStream& out) override
+			{
+				out << m_data->Type
+					<< m_data->Size
+					<< m_data->LonWest
+					<< m_data->LatNorth
+					<< m_data->LonEast
+					<< m_data->LatSouth;
+			}
+
+			bool IsGenericBuilding() const
+			{
+				return m_data->Type & GenericBuilding;
+			}
+
+			void SetGenericBuilding(bool value)
+			{
+				if (value)
+				{
+					m_data.write().Type |= GenericBuilding;
+				}
+				else
+				{
+					m_data.write().Type &= ~GenericBuilding;
+				}
+			}
+
+			bool Validate() const override
+			{
+				return true;
+			}
+
+			int CalculateSize() const override
+			{
+				return sizeof(SBglExclusionData);
+			}
+
+		private:
+			enum EType : uint16_t {
+				None = 0,
+				All = 1 << 3,
+				Beacon = 1 << 4,
+				Effect = 1 << 5,
+				GenericBuilding = 1 << 6,
+				LibraryObject = 1 << 7,
+				TaxiwaySign = 1 << 8,
+				Trigger = 1 << 9,
+				Windsock = 1 << 10,
+				ExtrusionBridge = 1 << 11,
+			};
+
+			stlab::copy_on_write<SBglExclusionData> m_data;
+		};
+		
+		
+		class CBglTile final : public IBglTile
+		{
+		public:
+			explicit CBglTile(EBglLayerType type, const SBglTilePointer& pointer) :
+				 IBglTile(pointer), m_type(type)  { }
+
+			//CBglTile(const CBglTile& other) = default;
 			
 			std::unique_ptr<IBglTile> Clone() const override
 			{
-				return std::make_unique<CBglAirportTile>(*this);
+				//return std::make_unique<CBglTile>(*this);
+				// TODO copying?
+				return nullptr;
 			}
 			
-			void PrintValue() const override
+			EBglLayerType Type() const override
 			{
-				// TODO
-				std::cout << std::endl;
-			}
-			
-			EBglLayerType Type() override
-			{
-				return EBglLayerType::Airport;
+				return m_type;
 			}
 
 			bool ReadBinary(BinaryFileStream& in) override
@@ -453,13 +549,26 @@ namespace flightsimlib
 				for (auto i = 0; i < count; ++i)
 				{
 					const auto pos = in.GetPosition();
-					auto record = SBglAirportTileData::ReadBinary(in);
-					if (!in || record.Type != 0x3C) // TODO Constant
+					std::unique_ptr<IBglData> record;
+					switch (m_type)
+					{
+					case EBglLayerType::Airport:
+						record = std::make_unique<CBglAirportData>();
+						break;
+					case EBglLayerType::Exclusion:
+						record = std::make_unique<CBglExclusionData>();
+						break;
+					default:
+						continue;
+					}
+					record->ReadBinary(in);
+					if (!record->Validate())
 					{
 						return false;
 					}
-					m_data.emplace_back(record);
-					in.SetPosition(pos + static_cast<int>(record.Length));
+					const auto size = record->CalculateSize();
+					m_data.push_back(std::move(record));
+					in.SetPosition(pos + static_cast<int>(size));
 					if (!in)
 					{
 						return false;
@@ -472,9 +581,9 @@ namespace flightsimlib
 			// Invariant - UpdateTilePointer shall have already been called
 			bool WriteBinary(BinaryFileStream& out) override
 			{
-				for (const auto& data : m_data)
+				for (auto& data : m_data)
 				{
-					SBglAirportTileData::WriteBinary(out, data);
+					data->WriteBinary(out);
 					if (!out)
 					{
 						return false;
@@ -483,10 +592,9 @@ namespace flightsimlib
 				return true;
 			}
 
-			int CalculateDataSize() override
+			int CalculateDataSize() const override
 			{
-				// TODO - this should be dynamic, based on children
-				return static_cast<int>(sizeof(SBglAirportTileData)) * GetRecordCount();
+				return static_cast<int>(sizeof(SBglAirportData)) * GetRecordCount();
 			}
 
 			int GetRecordCount() const override
@@ -495,63 +603,8 @@ namespace flightsimlib
 			}
 			
 		private:
-			std::vector<stlab::copy_on_write<SBglAirportTileData>> m_data;
-		};
-
-
-		struct SBglRunway
-		{
-			uint32_t Id;
-		};
-		
-		class CBglRunwayTile final : public IBglTile
-		{
-		public:
-			CBglRunwayTile() : IBglTile(SBglTilePointer{}) { }
-			
-			explicit CBglRunwayTile(const SBglTilePointer& pointer) : IBglTile(pointer) { }
-			
-			CBglRunwayTile(const CBglRunwayTile& other):
-				IBglTile(SBglTilePointer{}),
-				m_data(other.m_data) { }
-			
-			std::unique_ptr<IBglTile> Clone() const override
-			{
-				return std::make_unique<CBglRunwayTile>(*this);
-			}
-			
-			void PrintValue() const override
-			{
-				std::cout << std::endl;
-			}
-			
-			EBglLayerType Type() override
-			{
-				return EBglLayerType::IcaoRunway;
-			}
-
-			bool ReadBinary(BinaryFileStream& in) override
-			{
-				return false;
-			}
-
-			bool WriteBinary(BinaryFileStream& out) override
-			{
-				return false;
-			}
-
-			int CalculateDataSize() override
-			{
-				return sizeof(SBglRunway);
-			}
-
-			int GetRecordCount() const override
-			{
-				return 1;
-			}
-			
-		private:
-			stlab::copy_on_write<SBglRunway> m_data;
+			std::vector<std::unique_ptr<IBglData>> m_data;
+			EBglLayerType m_type;
 		};
 
 
@@ -588,14 +641,6 @@ namespace flightsimlib
 			IBglTile& operator[](const CPackedQmid index)
 			{
 				return *m_tiles[index];
-			}
-
-			void Print() const 
-			{
-				for (const auto& tile : m_tiles)
-				{
-					tile.second->PrintValue();
-				}
 			}
 
 			// Factory function
@@ -641,16 +686,7 @@ namespace flightsimlib
 				for (const auto& tile_pointer : tile_pointers)
 				{
 					std::unique_ptr<IBglTile> tile;
-					switch (layer_type)
-					{
-					case EBglLayerType::Airport:
-						tile = std::make_unique<CBglAirportTile>(tile_pointer);
-						break;
-					case EBglLayerType::IcaoRunway:
-						tile = std::make_unique<CBglRunwayTile>();
-					default:
-						continue;
-					}
+					tile = std::make_unique<CBglTile>(layer_type, tile_pointer);
 					if (!tile->ReadBinary(in))
 					{
 						return nullptr;
@@ -1005,7 +1041,7 @@ namespace flightsimlib
 					{
 						return false;
 					}
-					data_size += layer.second->CalculateLayerPointerSize();
+					data_size += layer.second->CalculateTilePointersSize();
 				}
 				for (const auto& layer : m_layers)
 				{
