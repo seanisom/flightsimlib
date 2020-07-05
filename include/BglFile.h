@@ -174,7 +174,7 @@ namespace flightsimlib
 
 			int GetPosition()
 			{
-				return m_stream.tellg();
+				return static_cast<int>(m_stream.tellg());
 			}
 
 			void SetPosition(int pos, std::fstream::_Seekdir dir = std::fstream::beg)
@@ -736,7 +736,7 @@ namespace flightsimlib
 
 			int GetRecordCount() const override
 			{
-				return m_data.size();
+				return static_cast<int>(m_data.size());
 			}
 			
 		private:
@@ -752,9 +752,9 @@ namespace flightsimlib
 
 			explicit CBglLayer(EBglLayerType type, const SBglLayerPointer& data) : m_type(type), m_data(data) { }
 
-			explicit CBglLayer(CPackedQmid qmid, std::unique_ptr<IBglTile> tile) : m_type(tile->Type())
+			explicit CBglLayer(CPackedQmid qmid, std::shared_ptr<IBglTile> tile) : m_type(tile->Type())
 			{
-				AddData(qmid, std::move(tile));
+				AddTile(qmid, std::move(tile));
 			}
 
 			CBglLayer(const CBglLayer& other) : m_type(other.m_type)
@@ -765,7 +765,7 @@ namespace flightsimlib
 				}
 			}
 
-			bool AddData(CPackedQmid qmid, std::unique_ptr<IBglTile>&& tile)
+			bool AddTile(CPackedQmid qmid, std::shared_ptr<IBglTile> tile)
 			{
 				if(tile->Type() != Type())
 				{
@@ -781,7 +781,8 @@ namespace flightsimlib
 			}
 
 			// Factory function
-			static std::unique_ptr<CBglLayer> ReadBinary(BinaryFileStream& in)
+			static std::unique_ptr<CBglLayer> ReadBinary(BinaryFileStream& in, 
+				const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers)
 			{
 				const auto layer_pointer = SBglLayerPointer::ReadBinary(in);
 				if (!in)
@@ -800,37 +801,60 @@ namespace flightsimlib
 				auto layer_type = EBglLayerType::None;
 				switch(layer_pointer.Type)
 				{
+				case EBglLayerType::TerrainPhoto32Jan:
+					layer_type = EBglLayerType::Tacan;
+					break;
+				case EBglLayerType::TerrainPhoto32Feb:
+					layer_type = EBglLayerType::TacanIndex;
+					break;
 				default:
 					layer_type = layer_pointer.Type;
 					break;
 				}
 				auto layer = std::make_unique<CBglLayer>(layer_type, layer_pointer);
-
 				const auto count = static_cast<int>(layer_pointer.TileCount);
-				std::vector<SBglTilePointer> tile_pointers(count);
-				for (auto i = 0; i < count; ++i)
+
+				auto existing = false;
+				for (const auto& other_layer : layers)
 				{
-					tile_pointers[i] = SBglTilePointer::ReadBinary(in, layer_pointer);
-					if (!in)
+					if (other_layer.second->Offset() == static_cast<int>(layer_pointer.StreamOffset))
+					{
+						existing = true;
+						for (const auto& tile : other_layer.second->Tiles())
+						{
+							const auto tile_pointer(tile.second);
+							layer->AddTile(tile.first, tile_pointer);
+						}
+						break;
+					}
+				}
+
+				if (existing == false)
+				{
+					std::vector<SBglTilePointer> tile_pointers(count);
+					for (auto i = 0; i < count; ++i)
+					{
+						tile_pointers[i] = SBglTilePointer::ReadBinary(in, layer_pointer);
+						if (!in)
+						{
+							return nullptr;
+						}
+					}
+					if (in.GetPosition() != static_cast<int>(layer_pointer.StreamOffset + layer_pointer.SizeBytes))
 					{
 						return nullptr;
 					}
-				}
-				if (in.GetPosition() != static_cast<int>(layer_pointer.StreamOffset + layer_pointer.SizeBytes))
-				{
-					return nullptr;
-				}
-				for (const auto& tile_pointer : tile_pointers)
-				{
-					std::unique_ptr<IBglTile> tile;
-					tile = std::make_unique<CBglTile>(layer_type, tile_pointer);
-					if (!tile->ReadBinary(in))
+					for (const auto& tile_pointer : tile_pointers)
 					{
-						return nullptr;
+						auto tile = std::make_shared<CBglTile>(layer_type, tile_pointer);
+						if (!tile->ReadBinary(in))
+						{
+							return nullptr;
+						}
+						layer->AddTile(
+							CPackedQmid(tile_pointer.QmidLow, tile_pointer.QmidHigh),
+							tile);
 					}
-					layer->AddData(
-						CPackedQmid(tile_pointer.QmidLow, tile_pointer.QmidHigh),
-						std::move(tile));
 				}
 				
 				in.SetPosition(next_position);
@@ -874,7 +898,7 @@ namespace flightsimlib
 			{
 				const auto tile_pointers_size = CalculateTilePointersSize();
 				m_data.write().Type = m_type;
-				m_data.write().TileCount = m_tiles.size();
+				m_data.write().TileCount = static_cast<uint32_t>(m_tiles.size());
 				m_data.write().HasQmidLow = 1;
 				if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
 				{
@@ -923,10 +947,20 @@ namespace flightsimlib
 				}
 				return true;
 			}
+
+			int Offset() const
+			{
+				return static_cast<int>(m_data->StreamOffset);
+			}
 			
 			EBglLayerType Type() const
 			{
 				return m_type;
+			}
+
+			const std::map<CPackedQmid, std::shared_ptr<IBglTile>>& Tiles() const
+			{
+				return m_tiles;
 			}
 
 			FLIGHTSIMLIB_EXPORTED static bool IsTrq1BglLayer(EBglLayerType layer_type);
@@ -934,7 +968,7 @@ namespace flightsimlib
 
 		private:
 			EBglLayerType m_type;
-			std::map<CPackedQmid, std::unique_ptr<IBglTile>> m_tiles;
+			std::map<CPackedQmid, std::shared_ptr<IBglTile>> m_tiles;
 			stlab::copy_on_write<SBglLayerPointer> m_data;
 		};
 
@@ -1145,7 +1179,7 @@ namespace flightsimlib
 				const auto count = static_cast<int>(m_header.LayerCount);
 				for (auto i = 0; i < count; ++i)
 				{
-					auto layer = CBglLayer::ReadBinary(m_stream);
+					auto layer = CBglLayer::ReadBinary(m_stream, m_layers);
 					if (layer == nullptr)
 					{
 						return false;
@@ -1256,7 +1290,7 @@ namespace flightsimlib
 				m_header.HeaderSize = HeaderSize();
 				m_header.FileTime = 0; // TODO FILETIME library
 				m_header.QmidMagic = QmidMagic();
-				m_header.LayerCount = m_layers.size();
+				m_header.LayerCount = static_cast<uint32_t>(m_layers.size());
 				return ComputeHeaderQmids();
 			}
 			
