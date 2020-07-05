@@ -336,16 +336,17 @@ namespace flightsimlib
 			virtual ~IBglData() = default;
 			virtual void ReadBinary(BinaryFileStream& in) = 0;
 			virtual void WriteBinary(BinaryFileStream& out) = 0;
-			virtual bool Validate() const = 0;
+			virtual bool Validate() = 0;
 			virtual int CalculateSize() const = 0;
 		};
 
 #pragma pack(push)
 #pragma pack(1)
+
 		struct SBglAirportData
 		{
 			uint16_t Type;
-			uint32_t Length;
+			uint32_t Size;
 			uint8_t RunwayCount;
 			uint8_t FrequencyCount;
 			uint8_t StartCount;
@@ -355,24 +356,117 @@ namespace flightsimlib
 			uint32_t ReferenceLat;
 			uint32_t ReferenceLon;
 			uint32_t ReferenceAlt;
-			uint32_t TowerLat;
-			uint32_t TowerLon;
-			uint32_t TowerAlt;
+			uint32_t TowerLatitude;
+			uint32_t TowerLongitude;
+			uint32_t TowerAltitude;
 			float MagVar;
 			uint32_t Icao;
 			uint32_t RegionIdent;
 			uint32_t FuelTypes;
 			uint32_t Flags;
 		};
+
+
+		struct SBglRunwayData
+		{
+			uint16_t Type;
+			uint32_t Size;
+			uint16_t SurfaceType;
+			uint8_t NumberPrimary;
+			uint8_t DesignatorPrimary;
+			uint8_t NumberSecondary;
+			uint8_t DesignatorSecondary;
+			uint32_t IlsIcaoPrimary;
+			uint32_t IlsIcaoSecondary;
+			uint32_t Latitude;
+			uint32_t Longitude;
+			uint32_t Altitude;
+			float Length;
+			float Width;
+			float Heading;
+			float PatternAltitude;
+			uint16_t MarkingFlags;
+			uint8_t LightingFlags;
+			uint8_t PatternFlags;
+		};
+		
 #pragma pack(pop)
 
-		class CBglAirportData final : public IBglData
+		class CBglRunway final : public IBglData
 		{
 		public:
 			void ReadBinary(BinaryFileStream& in) override
 			{
 				in >> m_data.write().Type
+					>> m_data.write().Size
+					>> m_data.write().SurfaceType
+					>> m_data.write().NumberPrimary
+					>> m_data.write().DesignatorPrimary
+					>> m_data.write().NumberSecondary
+					>> m_data.write().DesignatorSecondary
+					>> m_data.write().IlsIcaoPrimary
+					>> m_data.write().IlsIcaoSecondary
+					>> m_data.write().Latitude
+					>> m_data.write().Longitude
+					>> m_data.write().Altitude
 					>> m_data.write().Length
+					>> m_data.write().Width
+					>> m_data.write().Heading
+					>> m_data.write().PatternAltitude
+					>> m_data.write().MarkingFlags
+					>> m_data.write().LightingFlags
+					>> m_data.write().PatternFlags;
+			}
+			
+			void WriteBinary(BinaryFileStream& out) override
+			{
+				
+				out << m_data->Type
+					<< m_data->Size
+					<< m_data->SurfaceType
+					<< m_data->NumberPrimary
+					<< m_data->DesignatorPrimary
+					<< m_data->NumberSecondary
+					<< m_data->DesignatorSecondary
+					<< m_data->IlsIcaoPrimary
+					<< m_data->IlsIcaoSecondary
+					<< m_data->Latitude
+					<< m_data->Longitude
+					<< m_data->Altitude
+					<< m_data->Length
+					<< m_data->Width
+					<< m_data->Heading
+					<< m_data->PatternAltitude
+					<< m_data->MarkingFlags
+					<< m_data->LightingFlags
+					<< m_data->PatternFlags;
+			}
+			
+			bool Validate() override
+			{
+				m_data.write().Size = sizeof(SBglRunwayData);
+				
+				return m_data->Type == 0x4;
+			}
+			
+			int CalculateSize() const override
+			{
+				return m_data->Size;
+			}
+			
+		private:
+			stlab::copy_on_write<SBglRunwayData> m_data;
+		};
+		
+		class CBglAirportData final : public IBglData
+		{
+		public:
+			void ReadBinary(BinaryFileStream& in) override
+			{
+				const auto initial_pos = in.GetPosition();
+				
+				in >> m_data.write().Type
+					>> m_data.write().Size
 					>> m_data.write().RunwayCount
 					>> m_data.write().FrequencyCount
 					>> m_data.write().StartCount
@@ -382,21 +476,47 @@ namespace flightsimlib
 					>> m_data.write().ReferenceLat
 					>> m_data.write().ReferenceLon
 					>> m_data.write().ReferenceAlt
-					>> m_data.write().TowerLat
-					>> m_data.write().TowerLon
-					>> m_data.write().TowerAlt
+					>> m_data.write().TowerLatitude
+					>> m_data.write().TowerLongitude
+					>> m_data.write().TowerAltitude
 					>> m_data.write().MagVar
 					>> m_data.write().Icao
 					>> m_data.write().RegionIdent
 					>> m_data.write().FuelTypes
 					>> m_data.write().Flags;
+				
+				const auto final_position = initial_pos + static_cast<int>(m_data->Size);
+				while(in.GetPosition() < final_position)
+				{
+					const auto child_pos = in.GetPosition();
+					uint16_t type = 0;
+					uint32_t size = 0;
+					in >> type >> size;
+					in.SetPosition(child_pos);
+
+					// TODO enum
+					switch (type)
+					{
+					case 0x4: // runway
+						{
+							auto runway = CBglRunway{};
+							runway.ReadBinary(in);
+							m_runways.emplace_back(runway);
+						}
+						break;
+					default:
+						break;
+					}
+
+					in.SetPosition(child_pos + static_cast<int>(size));
+				}
+				
 			}
 
 			void WriteBinary(BinaryFileStream& out) override
 			{
-				m_data.write().Length = sizeof(SBglAirportData);
 				out << m_data->Type
-					<< m_data->Length
+					<< m_data->Size
 					<< m_data->RunwayCount
 					<< m_data->FrequencyCount
 					<< m_data->StartCount
@@ -406,27 +526,37 @@ namespace flightsimlib
 					<< m_data->ReferenceLat
 					<< m_data->ReferenceLon
 					<< m_data->ReferenceAlt
-					<< m_data->TowerLat
-					<< m_data->TowerLon
-					<< m_data->TowerAlt
+					<< m_data->TowerLatitude
+					<< m_data->TowerLongitude
+					<< m_data->TowerAltitude
 					<< m_data->MagVar
 					<< m_data->Icao
 					<< m_data->RegionIdent
 					<< m_data->FuelTypes
 					<< m_data->Flags;
+
+				for (auto& runway : m_runways)
+				{
+					runway.WriteBinary(out);
+				}
 			}
 
-			bool Validate() const override
+			bool Validate() override
 			{
+				// TODO - static size
+				m_data.write().Size = sizeof(SBglAirportData) +
+					sizeof(SBglRunwayData) * m_data->RunwayCount;
+				
 				return m_data->Type == 0x3C;
 			}
 
 			int CalculateSize() const override
 			{
-				return m_data->Length;
+				return m_data->Size;
 			}
 
 		private:
+			std::vector<CBglRunway> m_runways;
 			stlab::copy_on_write<SBglAirportData> m_data;
 		};
 
@@ -482,7 +612,7 @@ namespace flightsimlib
 				}
 			}
 
-			bool Validate() const override
+			bool Validate() override
 			{
 				return true;
 			}
@@ -562,11 +692,11 @@ namespace flightsimlib
 						continue;
 					}
 					record->ReadBinary(in);
+					const auto size = record->CalculateSize();
 					if (!record->Validate())
 					{
 						return false;
 					}
-					const auto size = record->CalculateSize();
 					m_data.push_back(std::move(record));
 					in.SetPosition(pos + static_cast<int>(size));
 					if (!in)
@@ -594,7 +724,14 @@ namespace flightsimlib
 
 			int CalculateDataSize() const override
 			{
-				return static_cast<int>(sizeof(SBglAirportData)) * GetRecordCount();
+				//return static_cast<int>(sizeof(SBglAirportData)) * GetRecordCount();
+
+				auto size = 0;
+				for (const auto& data : m_data)
+				{
+					size += data->CalculateSize();
+				}
+				return size;
 			}
 
 			int GetRecordCount() const override
