@@ -167,9 +167,10 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\BglCompressor.h" />
+    <ClInclude Include="include\BglData.h" />
     <ClInclude Include="include\BglDecompressor.h" />
     <ClInclude Include="include\BglFile.h" />
-    <ClInclude Include="include\BinaryIStream.h" />
+    <ClInclude Include="include\BinaryStream.h" />
     <ClInclude Include="include\Export.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
@@ -178,9 +179,10 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BglCompressor.cpp" />
+    <ClCompile Include="src\BglData.cpp" />
     <ClCompile Include="src\BglDecompressor.cpp" />
     <ClCompile Include="src\BglFile.cpp" />
-    <ClCompile Include="src\BinaryIStream.cpp" />
+    <ClCompile Include="src\BinaryStream.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

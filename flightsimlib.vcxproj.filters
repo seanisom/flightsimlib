@@ -30,10 +30,13 @@
     <ClInclude Include="include\BglFile.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\BinaryIStream.h">
+    <ClInclude Include="include\Export.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\Export.h">
+    <ClInclude Include="include\BglData.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\BinaryStream.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -47,7 +50,10 @@
     <ClCompile Include="src\BglFile.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\BinaryIStream.cpp">
+    <ClCompile Include="src\BglData.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BinaryStream.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

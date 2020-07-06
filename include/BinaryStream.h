@@ -29,6 +29,7 @@
 
 
 #include <cstdint>
+#include <fstream>
 #include <istream>
 
 
@@ -84,6 +85,70 @@ public:
 	{
 		return read(reinterpret_cast<char*>(&val), sizeof(val));
 	}
+};
+
+
+// TODO - fstream leaky abstractions!
+class BinaryFileStream
+{
+public:
+	BinaryFileStream() = default;
+
+	explicit BinaryFileStream(const std::wstring& filename) :
+		m_stream(filename, std::fstream::out | std::fstream::in | std::fstream::binary) {}
+
+	void Open(const std::wstring& filename, std::ios_base::openmode mode =
+		std::fstream::out | std::fstream::in | std::fstream::binary)
+	{
+		m_stream.open(filename, mode);
+	}
+
+	bool IsOpen() const
+	{
+		return m_stream.is_open();
+	}
+
+	void Close()
+	{
+		m_stream.close();
+	}
+
+	template <class T>
+	BinaryFileStream& operator>> (T& val)
+	{
+		m_stream.read(reinterpret_cast<char*>(&val), sizeof(val));
+		return *this;
+	}
+
+	template <class T>
+	BinaryFileStream& operator<< (T& val)
+	{
+		m_stream.write(reinterpret_cast<const char*>(&val), sizeof(val));
+		return *this;
+	}
+
+	bool operator!() const
+	{
+		return !m_stream;
+	}
+
+	explicit operator bool() const
+	{
+		return m_stream.operator bool();
+	}
+
+	int GetPosition()
+	{
+		return static_cast<int>(m_stream.tellg());
+	}
+
+	void SetPosition(int pos, std::fstream::_Seekdir dir = std::fstream::beg)
+	{
+		m_stream.seekg(pos, dir);
+		m_stream.seekp(pos, dir);
+	}
+
+	std::fstream m_stream;
 };
 
 	

@@ -27,7 +27,7 @@
 
 //******************************************************************************
 //
-// File:     BinaryIStream.cpp
+// File:     BinaryStream.cpp
 //
 // Summary:  Utility class for reading a streambuf as binary
 //           Allows stream extract operator to be used on arbitrary byte array
@@ -37,7 +37,7 @@
 //******************************************************************************       
 
 
-#include "BinaryIStream.h"
+#include "BinaryStream.h"
 
 #include <cassert>
 
