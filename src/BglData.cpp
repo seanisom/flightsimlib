@@ -41,6 +41,8 @@
 #include "BinaryStream.h"
 #include "BglData.h"
 
+#include "BglDecompressor.h"
+
 
 //******************************************************************************
 // CBglRunway
@@ -260,6 +262,16 @@ void flightsimlib::io::CBglExclusion::WriteBinary(BinaryFileStream& out)
 		<< m_data->LatSouth;
 }
 
+bool flightsimlib::io::CBglExclusion::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglExclusion::CalculateSize() const
+{
+	return sizeof(SBglExclusionData);
+}
+
 bool flightsimlib::io::CBglExclusion::IsGenericBuilding() const
 {
 	return m_data->Type & GenericBuilding;
@@ -277,12 +289,183 @@ void flightsimlib::io::CBglExclusion::SetGenericBuilding(bool value)
 	}
 }
 
-bool flightsimlib::io::CBglExclusion::Validate()
+
+//******************************************************************************
+// CTerrainRasterQuad1
+//******************************************************************************  
+
+
+std::shared_ptr<uint8_t[]> flightsimlib::io::CRasterBlock::GetCompressedData()
 {
-	return true;
+	return nullptr;
 }
 
-int flightsimlib::io::CBglExclusion::CalculateSize() const
+void flightsimlib::io::CTerrainRasterQuad1::ReadBinary(BinaryFileStream& in)
 {
-	return sizeof(SBglExclusionData);
+	in >> m_header.write().Version
+		>> m_header.write().Size
+		>> m_header.write().DataType
+		>> m_header.write().CompressionTypeData
+		>> m_header.write().CompressionTypeMask
+		>> m_header.write().QmidLow
+		>> m_header.write().QmidHigh
+		>> m_header.write().Variations
+		>> m_header.write().Rows
+		>> m_header.write().Cols
+		>> m_header.write().SizeData
+		>> m_header.write().SizeMask;
+	
+	if (in)
+	{
+		m_data.write().DataOffset = in.GetPosition();
+		m_data.write().DataLength = m_header->SizeData; // TODO consistent naming!
+		if(m_header->SizeMask > 0)
+		{
+			m_data.write().MaskOffset = m_data->DataOffset + m_data->DataLength;
+			m_data.write().MaskLength = m_header->SizeMask;
+		}
+	}
+}
+
+void flightsimlib::io::CTerrainRasterQuad1::WriteBinary(BinaryFileStream& out)
+{
+	// if dirty
+	m_header.write().SizeData = m_data->DataLength;
+	m_header.write().SizeMask = m_data->MaskLength;
+	out << m_header->Version
+		<< m_header->Size
+		<< m_header->DataType
+		<< m_header->CompressionTypeData
+		<< m_header->CompressionTypeMask
+		<< m_header->QmidLow
+		<< m_header->QmidHigh
+		<< m_header->Variations
+		<< m_header->Rows
+		<< m_header->Cols
+		<< m_header->SizeData
+		<< m_header->SizeMask;
+	
+	m_data.write().DataOffset = out.GetPosition();
+	if (m_data->MaskLength)
+	{
+		m_data.write().MaskOffset = m_data->DataOffset + m_data->DataLength;
+	}
+	else
+	{
+		m_data.write().MaskOffset = 0;
+	}
+	//std::shared_ptr<int[]> sp(new int[10]);
+}
+
+bool flightsimlib::io::CTerrainRasterQuad1::Validate()
+{
+	return m_header->Version == 0x31515254; // TRQ1
+}
+
+int flightsimlib::io::CTerrainRasterQuad1::CalculateSize() const
+{
+	return m_header->Size + m_data->DataLength + m_data->MaskLength;
+}
+
+int flightsimlib::io::CTerrainRasterQuad1::Rows() const
+{
+	return m_header->Rows;
+}
+
+int flightsimlib::io::CTerrainRasterQuad1::Cols() const
+{
+	return m_header->Cols;
+}
+
+std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(uint8_t compression_type, int UncompressedLength)
+{
+	unsigned int stage1Size;
+	uint8_t* secondary = nullptr;
+	int status1 = 0;
+	int status2 = 0;
+
+	enum ERasterCompressionType
+	{
+		Not_Compressed = 0x0,
+		LZ1_Compressed = 0x1,
+		Delta_Compressed = 0x2,
+		Delta_And_LZ1_Compressed = 0x3,
+		LZ2_Compressed = 0x4,
+		Delta_And_LZ2_Compressed = 0x5,
+		BitPack_Compressed = 0x6,
+		BitPack_And_LZ1 = 0x7,
+		Solid_Block = 0x8,
+		BitPack_And_LZ2 = 0x9,
+		PTC = 0xA,
+		DXT1 = 0xB,
+		DXT3 = 0xC,
+		DXT5 = 0xD
+	};
+	
+	// TODO finish port from bgldec vars
+	const auto CompressionType = (ERasterCompressionType)compression_type;
+	auto Uncompressed = std::shared_ptr<uint8_t[]>(new uint8_t[UncompressedLength]);
+	auto CompressedLength = m_data->DataLength;
+	auto Compressed = m_data.write().GetCompressedData();
+	auto N = 256;
+	auto Depth = 1;
+	auto BPP = 2;
+
+	switch (CompressionType)
+	{
+	case Delta_Compressed:
+		status1 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, Compressed.get());
+		break;
+	case BitPack_Compressed:
+		status1 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength, N, N);
+		break;
+	case LZ1_Compressed:
+		status1 = CBglDecompressor::DecompressLz1(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength);
+		break;
+	case LZ2_Compressed:
+		status1 = CBglDecompressor::DecompressLz2(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength);
+		break;
+	case Delta_And_LZ1_Compressed:
+		stage1Size = *(unsigned int*)(Compressed.get());
+		secondary = new uint8_t[stage1Size];
+		status1 = CBglDecompressor::DecompressLz1(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
+		status2 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, secondary);
+		break;
+	case Delta_And_LZ2_Compressed:
+		stage1Size = *(unsigned int*)(Compressed.get());
+		secondary = new uint8_t[stage1Size];
+		status1 = CBglDecompressor::DecompressLz2(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
+		status2 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, secondary);
+		break;
+	case BitPack_And_LZ1:
+		stage1Size = *(unsigned int*)(Compressed.get());
+		secondary = new uint8_t[stage1Size];
+		status1 = CBglDecompressor::DecompressLz1(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
+		status2 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, secondary, stage1Size, N, N);
+		break;
+	case BitPack_And_LZ2:
+		stage1Size = *(unsigned int*)(Compressed.get());
+		secondary = new uint8_t[stage1Size];
+		status1 = CBglDecompressor::DecompressLz2(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
+		status2 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, secondary, stage1Size, N, N);
+		break;
+	case PTC:
+		status1 = CBglDecompressor::DecompressPtc(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength, N, N, Depth, BPP);
+		break;
+	case DXT1:
+	case DXT3:
+	case DXT5:
+	case Not_Compressed:
+	case Solid_Block:
+		
+	default:
+		throw "Unsupported Compression Type";
+	}
+
+	if (secondary)
+	{
+		delete[] secondary;
+	}
+
+	return Uncompressed;
 }

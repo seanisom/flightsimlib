@@ -58,6 +58,14 @@ public:
 	virtual void SetGenericBuilding(bool value) = 0;
 };
 
+
+class ITerrainRasterQuad1
+{
+public:
+	virtual int Rows() const = 0;
+	virtual int Cols() const = 0;
+};
+
 }
 
 }

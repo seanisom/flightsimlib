@@ -213,6 +213,66 @@ private:
 	stlab::copy_on_write<SBglExclusionData> m_data;
 };
 
+
+//******************************************************************************
+// CTerrainRasterQuad1
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+// Exclusions are always 0,0 QMID!
+struct SBglTerrainRasterQuad1Data
+{
+	uint32_t Version;
+	uint32_t Size;
+	uint16_t DataType;
+	uint8_t CompressionTypeData;
+	uint8_t CompressionTypeMask;
+	uint32_t QmidLow;
+	uint32_t QmidHigh;
+	uint32_t Variations;
+	uint32_t Rows;
+	uint32_t Cols;
+	uint32_t SizeData;
+	uint32_t SizeMask;
+};
+
+#pragma pack(pop)
+
+
+// Out-Of-Core compressed raster block
+class CRasterBlock
+{
+public:
+	int DataOffset;
+	int DataLength;
+	int MaskOffset;
+	int MaskLength;
+
+	std::shared_ptr<uint8_t[]> GetCompressedData();
+};
+
+
+class CTerrainRasterQuad1 : public IBglSerializable,  ITerrainRasterQuad1
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	int Rows() const override;
+	int Cols() const override;
+
+private:
+	std::shared_ptr<uint8_t[]>DecompressData(uint8_t compression_type, int UncompressedLength);
+	
+	stlab::copy_on_write<SBglTerrainRasterQuad1Data> m_header;
+	stlab::copy_on_write<CRasterBlock> m_data;
+};
+
 } // namespace io
 	
 } // namespace flightsimlib
