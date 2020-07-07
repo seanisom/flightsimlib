@@ -39,7 +39,6 @@
 //******************************************************************************
 
 
-#include "BglData.h"
 #include "BinaryStream.h"
 #include "Export.h"
 
@@ -50,12 +49,16 @@
 #include <string>
 #include <vector>
 
-
 namespace flightsimlib
 {
 
 namespace io
 {
+
+// Forward declarations
+class IBglSerializable;
+class IBglExclusion;
+
 
 enum class EBglLayerType
 {
@@ -392,6 +395,9 @@ public:
 	std::unique_ptr<CBglLayer> RemoveLayer(EBglLayerType type);
 	bool IsDirty() const;
 	int GetFileSize() const;
+
+	// Test method!
+	std::vector<const IBglExclusion*> GetExclusions();
 
 private:
 	bool ReadAllLayers();

@@ -34,19 +34,18 @@
 // Author:   Sean Isom
 //
 // TODO list:
-// * Copy-on-write pointer needs to be hidden from users
-//    - Either PIMPL or opaque m_data through unique_ptr
-//    - This allows all raw structs to remain private
 // * Factories need to be refactored to standalone
 // * Iteration, copy, and move semantics for Layers and Tiles
 //    - Should allow seamless reversible edits and moves across files
 // * Layers and Tiles should conform to IBglSerializable
+// * Observable model
 // * History Stack
 //
 //******************************************************************************       
 
 
 #include "BglFile.h"
+#include "BglData.h"
 
 
 namespace flightsimlib
@@ -543,6 +542,12 @@ bool CBglFile::IsDirty() const
 int CBglFile::GetFileSize() const
 {
 	return m_file_size;
+}
+
+// Test method!
+std::vector<const IBglExclusion*> CBglFile::GetExclusions()
+{
+	return { nullptr };
 }
 
 bool CBglFile::ReadAllLayers()

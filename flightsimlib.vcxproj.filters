@@ -39,6 +39,9 @@
     <ClInclude Include="include\BinaryStream.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\BglTypes.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BglDecompressor.cpp">

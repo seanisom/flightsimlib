@@ -27,12 +27,12 @@
 #ifndef FLIGHTSIMLIB_IO_BGLDATA_H
 #define FLIGHTSIMLIB_IO_BGLDATA_H
 
-
-#include <cstdint>
-#include <vector>
-
+#include "BglTypes.h"
 #include "../external/stlab/copy_on_write.hpp"
 
+#include <cstdint>
+#include <memory>
+#include <vector>
 
 namespace flightsimlib
 {
@@ -40,32 +40,33 @@ namespace flightsimlib
 namespace io
 {
 
-#pragma pack(push)
-#pragma pack(1)
-	
-struct SBglAirportData
+//******************************************************************************
+// IBglSerializable
+//******************************************************************************  
+
+
+// Forward Declarations
+class BinaryFileStream;
+
+
+class IBglSerializable
 {
-	uint16_t Type;
-	uint32_t Size;
-	uint8_t RunwayCount;
-	uint8_t FrequencyCount;
-	uint8_t StartCount;
-	uint8_t ApproachCount;
-	uint8_t ApronCount;
-	uint8_t HelipadCount;
-	uint32_t ReferenceLat;
-	uint32_t ReferenceLon;
-	uint32_t ReferenceAlt;
-	uint32_t TowerLatitude;
-	uint32_t TowerLongitude;
-	uint32_t TowerAltitude;
-	float MagVar;
-	uint32_t Icao;
-	uint32_t RegionIdent;
-	uint32_t FuelTypes;
-	uint32_t Flags;
+public:
+	virtual ~IBglSerializable() = default;
+	virtual void ReadBinary(BinaryFileStream& in) = 0;
+	virtual void WriteBinary(BinaryFileStream& out) = 0;
+	virtual bool Validate() = 0;
+	virtual int CalculateSize() const = 0;
 };
 
+
+//******************************************************************************
+// CBglRunway
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
 
 struct SBglRunwayData
 {
@@ -90,6 +91,85 @@ struct SBglRunwayData
 	uint8_t PatternFlags;
 };
 
+#pragma pack(pop)
+
+
+class CBglRunway final : public IBglSerializable, public IBglRunway
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	float GetLength() const override;
+	float GetWidth() const override;
+	float GetHeading() const override;
+	float GetPatternAltitude() const override;
+	
+private:
+	stlab::copy_on_write<SBglRunwayData> m_data;
+};
+
+
+//******************************************************************************
+// CBglAirport
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglAirportData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t RunwayCount;
+	uint8_t FrequencyCount;
+	uint8_t StartCount;
+	uint8_t ApproachCount;
+	uint8_t ApronCount;
+	uint8_t HelipadCount;
+	uint32_t ReferenceLat;
+	uint32_t ReferenceLon;
+	uint32_t ReferenceAlt;
+	uint32_t TowerLatitude;
+	uint32_t TowerLongitude;
+	uint32_t TowerAltitude;
+	float MagVar;
+	uint32_t Icao;
+	uint32_t RegionIdent;
+	uint32_t FuelTypes;
+	uint32_t Flags;
+};
+
+#pragma pack(pop)
+
+
+class CBglAirport final : public IBglSerializable, public IBglAirport
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	float GetMagVar() const override;
+	void SetMagVar(float value) override;
+
+private:
+	std::vector<CBglRunway> m_runways;
+	stlab::copy_on_write<SBglAirportData> m_data;
+};
+
+
+//******************************************************************************
+// CBglExclusion
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
 
 // Exclusions are always 0,0 QMID!
 struct SBglExclusionData
@@ -104,23 +184,8 @@ struct SBglExclusionData
 
 #pragma pack(pop)
 
-	
-// Forward Declarations
-class BinaryFileStream;
 
-	
-class IBglSerializable
-{
-public:
-	virtual ~IBglSerializable() = default;
-	virtual void ReadBinary(BinaryFileStream& in) = 0;
-	virtual void WriteBinary(BinaryFileStream& out) = 0;
-	virtual bool Validate() = 0;
-	virtual int CalculateSize() const = 0;
-};
-
-
-class CBglRunway final : public IBglSerializable
+class CBglExclusion final : public IBglSerializable, public IBglExclusion
 {
 public:
 	void ReadBinary(BinaryFileStream& in) override;
@@ -128,34 +193,8 @@ public:
 	bool Validate() override;
 	int CalculateSize() const override;
 
-private:
-	stlab::copy_on_write<SBglRunwayData> m_data;
-};
-
-class CBglAirport final : public IBglSerializable
-{
-public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
-
-private:
-	std::vector<CBglRunway> m_runways;
-	stlab::copy_on_write<SBglAirportData> m_data;
-};
-
-
-class CBglExclusion final : public IBglSerializable
-{
-public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
-	
-	bool IsGenericBuilding() const;
-	void SetGenericBuilding(bool value);
+	bool IsGenericBuilding() const override;
+	void SetGenericBuilding(bool value) override;
 
 private:
 	enum EType : uint16_t {

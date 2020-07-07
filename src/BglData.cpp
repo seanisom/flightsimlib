@@ -31,7 +31,7 @@
 //
 // Summary:  Implementation of actual stored data types from an FSX+ Bgl file
 //
-//           These are for consumption by clients of BglFile.h
+//           These are for internal consumption by clients of BglFile.h
 //           
 // Author:   Sean Isom
 //
@@ -40,6 +40,11 @@
 
 #include "BinaryStream.h"
 #include "BglData.h"
+
+
+//******************************************************************************
+// CBglRunway
+//******************************************************************************  
 
 
 void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
@@ -99,6 +104,32 @@ int flightsimlib::io::CBglRunway::CalculateSize() const
 {
 	return m_data->Size;
 }
+
+float flightsimlib::io::CBglRunway::GetLength() const
+{
+	return m_data->Length;
+}
+
+float flightsimlib::io::CBglRunway::GetWidth() const
+{
+	return m_data->Width;
+}
+
+float flightsimlib::io::CBglRunway::GetHeading() const
+{
+	return m_data->Heading;
+}
+
+float flightsimlib::io::CBglRunway::GetPatternAltitude() const
+{
+	return m_data->PatternAltitude;
+}
+
+
+//******************************************************************************
+// CBglAirport
+//******************************************************************************  
+
 
 void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
 {
@@ -192,6 +223,22 @@ int flightsimlib::io::CBglAirport::CalculateSize() const
 {
 	return m_data->Size;
 }
+
+float flightsimlib::io::CBglAirport::GetMagVar() const
+{
+	return m_data->MagVar;
+}
+
+void flightsimlib::io::CBglAirport::SetMagVar(float value)
+{
+	m_data.write().MagVar = value;
+}
+
+
+//******************************************************************************
+// CBglExclusion
+//******************************************************************************  
+
 
 void flightsimlib::io::CBglExclusion::ReadBinary(BinaryFileStream& in)
 {
