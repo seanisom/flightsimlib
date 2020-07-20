@@ -364,7 +364,7 @@ bool flightsimlib::io::CTerrainRasterQuad1::Validate()
 
 int flightsimlib::io::CTerrainRasterQuad1::CalculateSize() const
 {
-	return m_header->Size + m_data->DataLength + m_data->MaskLength;
+	return static_cast<int>(m_header->Size) + m_data->DataLength + m_data->MaskLength;
 }
 
 int flightsimlib::io::CTerrainRasterQuad1::Rows() const
@@ -377,95 +377,195 @@ int flightsimlib::io::CTerrainRasterQuad1::Cols() const
 	return m_header->Cols;
 }
 
-std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(uint8_t compression_type, int UncompressedLength)
+std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(
+	ERasterCompressionType compression_type, 
+	int uncompressed_size)
 {
-	unsigned int stage1Size;
-	uint8_t* secondary = nullptr;
-	int status1 = 0;
-	int status2 = 0;
-
-	enum ERasterCompressionType
+	auto uncompressed = std::shared_ptr<uint8_t[]>(new uint8_t[uncompressed_size]);
+	const auto compressed_size = m_data->DataLength;
+	const auto compressed = m_data.write().GetCompressedData();
+	const auto bpp = GetBpp();
+	auto bit_depth = 0, num_channels = 0;
+	if (!GetImageFormat(bit_depth, num_channels))
 	{
-		Not_Compressed = 0x0,
-		LZ1_Compressed = 0x1,
-		Delta_Compressed = 0x2,
-		Delta_And_LZ1_Compressed = 0x3,
-		LZ2_Compressed = 0x4,
-		Delta_And_LZ2_Compressed = 0x5,
-		BitPack_Compressed = 0x6,
-		BitPack_And_LZ1 = 0x7,
-		Solid_Block = 0x8,
-		BitPack_And_LZ2 = 0x9,
-		PTC = 0xA,
-		DXT1 = 0xB,
-		DXT3 = 0xC,
-		DXT5 = 0xD
-	};
+		return nullptr;
+	}
+
+	auto intermediate_size = 0;
+	std::shared_ptr<uint8_t[]> p_intermediate = nullptr;
+	if (compression_type == ERasterCompressionType::DeltaLz1 || 
+		compression_type == ERasterCompressionType::DeltaLz2 ||
+		compression_type == ERasterCompressionType::BitPackLz1 ||
+		compression_type == ERasterCompressionType::BitPackLz2)
+	{
+		intermediate_size = *reinterpret_cast<int*>(compressed.get());
+		p_intermediate = std::shared_ptr<uint8_t[]>(new uint8_t[intermediate_size]);
+	}
+
+	// ReSharper disable once CppInitializedValueIsAlwaysRewritten
+	auto bytes_read = 0;
 	
-	// TODO finish port from bgldec vars
-	const auto CompressionType = (ERasterCompressionType)compression_type;
-	auto Uncompressed = std::shared_ptr<uint8_t[]>(new uint8_t[UncompressedLength]);
-	auto CompressedLength = m_data->DataLength;
-	auto Compressed = m_data.write().GetCompressedData();
-	auto N = 256;
-	auto Depth = 1;
-	auto BPP = 2;
-
-	switch (CompressionType)
+	switch (compression_type)
 	{
-	case Delta_Compressed:
-		status1 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, Compressed.get());
+	case ERasterCompressionType::Delta:
+		bytes_read = CBglDecompressor::DecompressDelta(
+			uncompressed.get(), 
+			uncompressed_size, 
+			compressed.get());
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
 		break;
-	case BitPack_Compressed:
-		status1 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength, N, N);
-		break;
-	case LZ1_Compressed:
-		status1 = CBglDecompressor::DecompressLz1(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength);
-		break;
-	case LZ2_Compressed:
-		status1 = CBglDecompressor::DecompressLz2(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength);
-		break;
-	case Delta_And_LZ1_Compressed:
-		stage1Size = *(unsigned int*)(Compressed.get());
-		secondary = new uint8_t[stage1Size];
-		status1 = CBglDecompressor::DecompressLz1(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
-		status2 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, secondary);
-		break;
-	case Delta_And_LZ2_Compressed:
-		stage1Size = *(unsigned int*)(Compressed.get());
-		secondary = new uint8_t[stage1Size];
-		status1 = CBglDecompressor::DecompressLz2(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
-		status2 = CBglDecompressor::DecompressDelta(Uncompressed.get(), UncompressedLength, secondary);
-		break;
-	case BitPack_And_LZ1:
-		stage1Size = *(unsigned int*)(Compressed.get());
-		secondary = new uint8_t[stage1Size];
-		status1 = CBglDecompressor::DecompressLz1(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
-		status2 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, secondary, stage1Size, N, N);
-		break;
-	case BitPack_And_LZ2:
-		stage1Size = *(unsigned int*)(Compressed.get());
-		secondary = new uint8_t[stage1Size];
-		status1 = CBglDecompressor::DecompressLz2(secondary, stage1Size, Compressed.get() + 4, CompressedLength);
-		status2 = CBglDecompressor::DecompressBitPack(Uncompressed.get(), UncompressedLength, secondary, stage1Size, N, N);
-		break;
-	case PTC:
-		status1 = CBglDecompressor::DecompressPtc(Uncompressed.get(), UncompressedLength, Compressed.get(), CompressedLength, N, N, Depth, BPP);
-		break;
-	case DXT1:
-	case DXT3:
-	case DXT5:
-	case Not_Compressed:
-	case Solid_Block:
 		
+	case ERasterCompressionType::BitPack:
+		bytes_read = CBglDecompressor::DecompressBitPack(
+			uncompressed.get(), 
+			uncompressed_size, 
+			compressed.get(), 
+			compressed_size,
+			Rows(), 
+			Cols());
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::Lz1:
+		bytes_read = CBglDecompressor::DecompressLz1(
+			uncompressed.get(), 
+			uncompressed_size, 
+			compressed.get(), 
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::Lz2:
+		bytes_read = CBglDecompressor::DecompressLz2(
+			uncompressed.get(), 
+			uncompressed_size, 
+			compressed.get(), 
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::DeltaLz1:
+		bytes_read = CBglDecompressor::DecompressLz1(
+			p_intermediate.get(), 
+			intermediate_size, 
+			compressed.get() + sizeof(int), 
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		bytes_read = CBglDecompressor::DecompressDelta(
+			uncompressed.get(), 
+			uncompressed_size,
+			p_intermediate.get());
+		if (bytes_read != intermediate_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::DeltaLz2:
+		bytes_read = CBglDecompressor::DecompressLz2(
+			p_intermediate.get(),
+			intermediate_size, 
+			compressed.get() + sizeof(int),
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		bytes_read = CBglDecompressor::DecompressDelta(
+			uncompressed.get(), 
+			uncompressed_size, 
+			p_intermediate.get());
+		if (bytes_read != intermediate_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::BitPackLz1:
+		bytes_read = CBglDecompressor::DecompressLz1(
+			p_intermediate.get(),
+			intermediate_size, 
+			compressed.get() + sizeof(int),
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		bytes_read = CBglDecompressor::DecompressBitPack(
+			uncompressed.get(), 
+			uncompressed_size, 
+			p_intermediate.get(),
+			intermediate_size, 
+			Rows(), 
+			Cols());
+		if (bytes_read != intermediate_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::BitPackLz2:
+		bytes_read = CBglDecompressor::DecompressLz2(
+			p_intermediate.get(),
+			intermediate_size, 
+			compressed.get() + sizeof(int),
+			compressed_size);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		bytes_read = CBglDecompressor::DecompressBitPack(
+			uncompressed.get(), 
+			uncompressed_size, 
+			p_intermediate.get(),
+			intermediate_size, 
+			Rows(), 
+			Cols());
+		if (bytes_read != intermediate_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::Ptc:
+		bytes_read = CBglDecompressor::DecompressPtc(
+			uncompressed.get(), 
+			uncompressed_size, 
+			compressed.get(), 
+			compressed_size, 
+			Rows(), 
+			Cols(), 
+			num_channels, 
+			bpp);
+		if (bytes_read != compressed_size)
+		{
+			return nullptr;
+		}
+		break;
+		
+	case ERasterCompressionType::Dxt1:
+	case ERasterCompressionType::Dxt3:
+	case ERasterCompressionType::Dxt5:
+	case ERasterCompressionType::None: // TODO - this should be implemented
+	case ERasterCompressionType::SolidBlock:
 	default:
-		throw "Unsupported Compression Type";
+		throw std::exception("Unsupported Compression Type");
 	}
 
-	if (secondary)
-	{
-		delete[] secondary;
-	}
-
-	return Uncompressed;
+	return uncompressed;
 }

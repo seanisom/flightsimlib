@@ -34,6 +34,8 @@
 #include <memory>
 #include <vector>
 
+#include "../../bgldec/FSNativeLib/TerrainRasterQuadType.h"
+
 namespace flightsimlib
 {
 	
@@ -219,6 +221,44 @@ private:
 //******************************************************************************  
 
 
+enum class ERasterCompressionType : uint8_t
+{
+	None = 0,
+	Lz1 = 1,
+	Delta = 2,
+	DeltaLz1 = 3,
+	Lz2 = 4,
+	DeltaLz2 = 5,
+	BitPack = 6,
+	BitPackLz1 = 7,
+	SolidBlock = 8,
+	BitPackLz2 = 9,
+	Ptc = 10,
+	Dxt1 = 11,
+	Dxt3 = 12,
+	Dxt5 = 13,
+	Max = 14
+};
+
+
+enum class ERasterDataType : uint8_t
+{
+	None = 0,
+	Photo = 1,
+	Elevation = 2,
+	LandClass = 3,
+	WaterClass = 4,
+	Region = 5,
+	Season = 6,
+	PopulationDensity = 7,
+	Reserved = 8,
+	TerrainIndex = 9,
+	ModifiedElevation = 10,
+	PhotoFlight = 11,
+	Max = 12
+};
+
+
 #pragma pack(push)
 #pragma pack(1)
 
@@ -227,12 +267,12 @@ struct SBglTerrainRasterQuad1Data
 {
 	uint32_t Version;
 	uint32_t Size;
-	uint16_t DataType;
-	uint8_t CompressionTypeData;
-	uint8_t CompressionTypeMask;
+	ERasterDataType DataType;
+	ERasterCompressionType CompressionTypeData;
+	ERasterCompressionType CompressionTypeMask;
 	uint32_t QmidLow;
 	uint32_t QmidHigh;
-	uint32_t Variations;
+	uint16_t Variations;
 	uint32_t Rows;
 	uint32_t Cols;
 	uint32_t SizeData;
@@ -265,9 +305,82 @@ public:
 
 	int Rows() const override;
 	int Cols() const override;
+	ERasterDataType GetDataType() const
+	{
+		return m_header->DataType;
+	}
 
 private:
-	std::shared_ptr<uint8_t[]>DecompressData(uint8_t compression_type, int UncompressedLength);
+
+	int GetBpp() const
+	{
+		switch (GetDataType())
+		{
+		case ERasterDataType::PopulationDensity:
+		case ERasterDataType::TerrainIndex:
+		case ERasterDataType::LandClass:
+		case ERasterDataType::Region:
+		case ERasterDataType::Season:
+		case ERasterDataType::WaterClass:
+			return 1;
+
+		case ERasterDataType::Elevation:
+		case ERasterDataType::ModifiedElevation:
+		case ERasterDataType::Photo:
+			return 2;
+		case ERasterDataType::PhotoFlight:
+			return 4;
+		default:
+			return 0;
+		}
+	}
+	
+	bool GetImageFormat(int& bit_depth, int& num_channels) const
+	{
+		switch (GetDataType())
+		{
+		case ERasterDataType::LandClass:
+		case ERasterDataType::WaterClass:
+		case ERasterDataType::Region:
+		case ERasterDataType::Season:
+		case ERasterDataType::PopulationDensity:
+			bit_depth = 8;
+			num_channels = 1;
+			break;
+		case ERasterDataType::Photo:
+			bit_depth = 16;
+			num_channels = 4;
+			break;
+		case ERasterDataType::PhotoFlight:
+			bit_depth = 32;
+			num_channels = 4;
+			break;
+		case ERasterDataType::TerrainIndex:
+		case ERasterDataType::Elevation:  // 32 is final float, but 16 compressed
+		case ERasterDataType::ModifiedElevation:
+			//bit_depth = 32;
+			bit_depth = 16;
+			num_channels = 1;
+			break;
+		default:
+			bit_depth = 0;
+			num_channels = 0;
+			return false;
+		}
+		return true;
+	}
+
+	int CalculateLength(bool mask) const
+	{
+		if (mask)
+		{
+			return static_cast<int>(sizeof(uint8_t)) * Cols() * Rows();
+		}
+
+		return  GetBpp() * Cols() * Rows();
+	}
+	
+	std::shared_ptr<uint8_t[]>DecompressData(ERasterCompressionType compression_type, int uncompressed_size);
 	
 	stlab::copy_on_write<SBglTerrainRasterQuad1Data> m_header;
 	stlab::copy_on_write<CRasterBlock> m_data;
