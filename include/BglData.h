@@ -34,7 +34,6 @@
 #include <memory>
 #include <vector>
 
-#include "../../bgldec/FSNativeLib/TerrainRasterQuadType.h"
 
 namespace flightsimlib
 {
@@ -215,6 +214,53 @@ private:
 	stlab::copy_on_write<SBglExclusionData> m_data;
 };
 
+//******************************************************************************
+// CBglMarker
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglMarkerData
+{
+	uint16_t SectionType;
+	uint16_t Size;
+	uint8_t UnusedType;
+	uint16_t Heading;
+	uint8_t MarkerType;
+	uint32_t Latitude;
+	uint32_t Longitude;
+	uint32_t Altitude;
+	uint32_t Identifier;
+	uint16_t Region;
+	uint16_t Unknown;
+};
+
+#pragma pack(pop)
+
+
+class CBglMarker final : public IBglSerializable, public IBglMarker
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	float GetHeading() const override;
+	void SetHeading(float value) override;
+
+private:
+	enum EType : uint8_t {
+		None = 0,
+		All = 1,
+		Beacon = 2,
+		Effect = 3
+	};
+
+	stlab::copy_on_write<SBglMarkerData> m_data;
+};
 
 //******************************************************************************
 // CTerrainRasterQuad1

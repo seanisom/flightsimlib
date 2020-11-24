@@ -291,6 +291,65 @@ void flightsimlib::io::CBglExclusion::SetGenericBuilding(bool value)
 
 
 //******************************************************************************
+// CBglMarker
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in)
+{
+	in >> m_data.write().SectionType
+		>> m_data.write().Size
+		>> m_data.write().UnusedType
+		>> m_data.write().Heading
+		>> m_data.write().MarkerType
+		>> m_data.write().Latitude
+		>> m_data.write().Longitude
+		>> m_data.write().Altitude
+		>> m_data.write().Identifier
+		>> m_data.write().Region
+		>> m_data.write().Unknown;
+}
+
+void flightsimlib::io::CBglMarker::WriteBinary(BinaryFileStream& out)
+{
+	out << m_data->SectionType
+		<< m_data->Size
+		<< m_data->UnusedType
+		<< m_data->Heading
+		<< m_data->MarkerType
+		<< m_data->Latitude
+		<< m_data->Longitude
+		<< m_data->Altitude
+		<< m_data->Identifier
+		<< m_data->Region
+		<< m_data->Unknown;
+}
+
+bool flightsimlib::io::CBglMarker::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglMarker::CalculateSize() const
+{
+	return sizeof(SBglExclusionData);
+}
+
+float flightsimlib::io::CBglMarker::GetHeading() const
+{
+	// TODO Heading Conversion
+	return (float)m_data->Heading;
+}
+
+void flightsimlib::io::CBglMarker::SetHeading(float value)
+{
+	// TODO Heading Conversion
+	m_data.write().Heading = (uint16_t)value;
+}
+
+
+
+//******************************************************************************
 // CTerrainRasterQuad1
 //******************************************************************************  
 

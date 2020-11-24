@@ -122,6 +122,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::Exclusion:
 			record = std::make_unique<CBglExclusion>();
 			break;
+		case EBglLayerType::Marker:
+			record = std::make_unique<CBglMarker>();
+			break;
 		default:
 			continue;
 		}

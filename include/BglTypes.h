@@ -58,6 +58,12 @@ public:
 	virtual void SetGenericBuilding(bool value) = 0;
 };
 
+class IBglMarker
+{
+public:
+	virtual float GetHeading() const = 0;
+	virtual void SetHeading(float value) = 0;
+};
 
 class ITerrainRasterQuad1
 {
