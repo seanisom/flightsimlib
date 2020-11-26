@@ -332,19 +332,127 @@ bool flightsimlib::io::CBglMarker::Validate()
 
 int flightsimlib::io::CBglMarker::CalculateSize() const
 {
-	return sizeof(SBglExclusionData);
+	return sizeof(SBglMarkerData);
 }
 
 float flightsimlib::io::CBglMarker::GetHeading() const
 {
-	// TODO Heading Conversion
-	return (float)m_data->Heading;
+	return ANGLE16::Value(m_data->Heading);
 }
 
 void flightsimlib::io::CBglMarker::SetHeading(float value)
 {
-	// TODO Heading Conversion
-	m_data.write().Heading = (uint16_t)value;
+	m_data.write().Heading = ANGLE16::FromDouble(value);
+}
+
+//******************************************************************************
+// CBglGeopol
+//******************************************************************************  
+
+void flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in)
+{
+	in >> m_data.write().SectionType
+		>> m_data.write().Size
+		>> m_data.write().GeopolType
+		>> m_data.write().MinLongitude
+		>> m_data.write().MaxLongitude
+		>> m_data.write().MinLatitude
+		>> m_data.write().MaxLatitude;
+
+	const auto count = GetNumVertices();
+	for (auto i = 0; i < count; ++i)
+	{
+		auto& vert = m_data->Vertices[i];
+		in >> vert.Longitude >> vert.Longitude;
+	}
+}
+
+void flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out)
+{
+	out << m_data->SectionType
+		<< m_data->Size
+		<< m_data->GeopolType
+		<< m_data->MinLongitude
+		<< m_data->MaxLongitude
+		<< m_data->MinLatitude
+		<< m_data->MaxLatitude;
+
+	const auto count = GetNumVertices();
+	for (auto i = 0; i < count; ++i)
+	{
+		const auto& vert = m_data->Vertices[i];
+		out << vert.Longitude << vert.Latitude;
+	}
+}
+
+bool flightsimlib::io::CBglGeopol::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglGeopol::CalculateSize() const
+{
+	return sizeof(SBglGeopolData);
+}
+
+double flightsimlib::io::CBglGeopol::GetMinLongitude() const
+{
+	return Longitude::Value(m_data->MinLongitude);
+}
+
+void flightsimlib::io::CBglGeopol::SetMinLongitude(double value)
+{
+	m_data.write().MinLongitude = Longitude::ToPacked(value);
+}
+
+double flightsimlib::io::CBglGeopol::GetMaxLongitude() const
+{
+	return Longitude::Value(m_data->MaxLongitude);
+}
+
+void flightsimlib::io::CBglGeopol::SetMaxLongitude(double value)
+{
+	m_data.write().MaxLongitude = Longitude::ToPacked(value);
+}
+
+double flightsimlib::io::CBglGeopol::GetMinLatitude() const
+{
+	return Latitude::Value(m_data->MinLatitude);
+}
+
+void flightsimlib::io::CBglGeopol::SetMinLatitude(double value)
+{
+	m_data.write().MinLatitude = Latitude::ToPacked(value);
+}
+
+double flightsimlib::io::CBglGeopol::GetMaxLatitude() const
+{
+	return Latitude::Value(m_data->MaxLatitude);
+}
+
+void flightsimlib::io::CBglGeopol::SetMaxLatitude(double value)
+{
+	m_data.write().MaxLatitude = Latitude::ToPacked(value);
+}
+
+flightsimlib::io::IBglGeopol::EType flightsimlib::io::CBglGeopol::GetGeopolType() const
+{
+	return static_cast<EType>((m_data->GeopolType << 14) & 0xF);
+}
+
+void flightsimlib::io::CBglGeopol::SetGeopolType(EType value)
+{
+	m_data.write().GeopolType = (m_data->GeopolType & 0xC000) | (static_cast<int>(value) << 14);
+}
+
+int flightsimlib::io::CBglGeopol::GetNumVertices() const
+{
+	return m_data->GeopolType & 0x3FFF;
+}
+
+void flightsimlib::io::CBglGeopol::SetNumVertices(int value)
+{
+	m_data.write().GeopolType = (m_data->GeopolType & 0x3FFF) | value;
 }
 
 

@@ -65,6 +65,34 @@ public:
 	virtual void SetHeading(float value) = 0;
 };
 
+class IBglGeopol
+{
+public:
+	virtual double GetMinLongitude() const = 0;
+	virtual void SetMinLongitude(double value) = 0;
+	virtual double GetMaxLongitude() const = 0;
+	virtual void SetMaxLongitude(double value) = 0;
+	virtual double GetMinLatitude() const = 0;
+	virtual void SetMinLatitude(double value) = 0;
+	virtual double GetMaxLatitude() const = 0;
+	virtual void SetMaxLatitude(double value) = 0;
+
+	enum class EType : uint8_t {
+		None = 0,
+		Coastline = 64,
+		BOUNDARY = 128,
+		DASHED_BOUNDARY = 129, // 0x00000081
+	};
+
+	virtual EType GetGeopolType() const = 0;
+	virtual void SetGeopolType(EType value) = 0;
+	virtual int GetNumVertices() const = 0;
+
+private:
+	virtual void SetNumVertices(int value) = 0;
+	// TODO - need Setter with realloc - need a better interface with this
+};
+
 class ITerrainRasterQuad1
 {
 public:

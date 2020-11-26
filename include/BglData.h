@@ -62,6 +62,108 @@ public:
 
 
 //******************************************************************************
+// Common
+//******************************************************************************  
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglVertexLL
+{
+	uint32_t Latitude;
+	uint32_t Longitude;
+};
+	
+#pragma pack(pop)
+
+// TODO: Move to Utility
+class ANGLE16
+{
+public:
+	ANGLE16(uint16_t value) : m_Value(value){}
+
+	static double Value(uint16_t value)
+	{
+		return value * 360.0 / 0x10000;
+	}
+
+	static uint16_t FromDouble(double value)
+	{
+		return static_cast<uint16_t>(0x10000 / 360.0 * value);
+	}
+	
+	double Value() const
+	{
+		return Value(m_Value);
+	}
+	
+private:
+	uint16_t m_Value;
+};
+
+
+class Latitude
+{
+public:
+	Latitude(uint32_t value) : m_Value(Value(value)) {}
+
+	Latitude(double value) : m_Value(value) {}
+
+	static double Value(uint32_t value)
+	{
+		return 90.0 - value * (180.0 / 0x20000000);
+	}
+
+	static uint32_t ToPacked(double value)
+	{
+		return static_cast<uint32_t>((90.0 - value) / (180.0 / 0x20000000));
+	}
+
+	double Value() const
+	{
+		return m_Value;
+	}
+
+	uint32_t ToPacked() const
+	{
+		return ToPacked(m_Value);
+	}
+	
+	double m_Value;
+};
+
+
+class Longitude
+{
+public:
+	Longitude(uint32_t value) : m_Value(Value(value)) {}
+
+	Longitude(double value) : m_Value(value) {}
+
+	static double Value(uint32_t value)
+	{
+		return (value * (360.0 / 0x30000000)) - 180.0;
+	}
+
+	static uint32_t ToPacked(double value)
+	{
+		return static_cast<uint32_t>((180.0 + value) / (360.0 / 0x30000000));
+	}
+
+	double Value() const
+	{
+		return m_Value;
+	}
+
+	uint32_t ToPacked() const
+	{
+		return ToPacked(m_Value);
+	}
+
+	double m_Value;
+};
+	
+//******************************************************************************
 // CBglRunway
 //******************************************************************************  
 
@@ -260,6 +362,56 @@ private:
 	};
 
 	stlab::copy_on_write<SBglMarkerData> m_data;
+};
+
+//******************************************************************************
+// CBglGeopol
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglGeopolData
+{
+	uint16_t SectionType;
+	uint32_t Size;
+	uint16_t GeopolType;
+	uint32_t MinLongitude;
+	uint32_t MaxLongitude;
+	uint32_t MinLatitude;
+	uint32_t MaxLatitude;
+	SBglVertexLL* Vertices;
+};
+
+#pragma pack(pop)
+
+
+class CBglGeopol final : public IBglSerializable, public IBglGeopol
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	double GetMinLongitude() const override;
+	void SetMinLongitude(double value) override;
+	double GetMaxLongitude() const override;
+	void SetMaxLongitude(double value) override;
+	double GetMinLatitude() const override;
+	void SetMinLatitude(double value) override;
+	double GetMaxLatitude() const override;
+	void SetMaxLatitude(double value) override;
+
+	EType GetGeopolType() const override;
+	void SetGeopolType(EType value) override;
+	int GetNumVertices() const override;
+
+private:
+	void SetNumVertices(int value) override;
+	
+	stlab::copy_on_write<SBglGeopolData> m_data;
 };
 
 //******************************************************************************
