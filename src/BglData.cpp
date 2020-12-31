@@ -65,8 +65,8 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 		>> data.DesignatorSecondary
 		>> data.IlsIcaoPrimary
 		>> data.IlsIcaoSecondary
-		>> data.Latitude
 		>> data.Longitude
+		>> data.Latitude
 		>> data.Altitude
 		>> data.Length
 		>> data.Width
@@ -124,8 +124,8 @@ void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 		<< m_data->DesignatorSecondary
 		<< m_data->IlsIcaoPrimary
 		<< m_data->IlsIcaoSecondary
-		<< m_data->Latitude
 		<< m_data->Longitude
+		<< m_data->Latitude
 		<< m_data->Altitude
 		<< m_data->Length
 		<< m_data->Width
@@ -559,8 +559,8 @@ void flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in)
 		>> data.UnusedType
 		>> data.Heading
 		>> data.MarkerType
-		>> data.Latitude
 		>> data.Longitude
+		>> data.Latitude
 		>> data.Altitude
 		>> data.Identifier
 		>> data.Region
@@ -574,8 +574,8 @@ void flightsimlib::io::CBglMarker::WriteBinary(BinaryFileStream& out)
 		<< m_data->UnusedType
 		<< m_data->Heading
 		<< m_data->MarkerType
-		<< m_data->Latitude
 		<< m_data->Longitude
+		<< m_data->Latitude
 		<< m_data->Altitude
 		<< m_data->Identifier
 		<< m_data->Region
@@ -641,7 +641,7 @@ void flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out)
 	for (auto i = 0; i < count; ++i)
 	{
 		const auto& vert = m_data->Vertices[i];
-		out << vert.Longitude << vert.Longitude;
+		out << vert.Longitude << vert.Latitude;
 	}
 }
 
@@ -947,6 +947,170 @@ flightsimlib::io::CBglSceneryObject::EImageComplexity flightsimlib::io::CBglScen
 void flightsimlib::io::CBglSceneryObject::SetImageComplexity(EImageComplexity value)
 {
 	m_data.write().ImageComplexity = static_cast<uint16_t>(value);
+}
+
+
+//******************************************************************************
+// CBglLibraryObject
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglLibraryObject::ReadBinary(BinaryFileStream& in)
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		in >> data.InstanceId
+			>> data.Name
+			>> data.Scale;
+	}
+}
+
+void flightsimlib::io::CBglLibraryObject::WriteBinary(BinaryFileStream& out)
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		out << m_data->InstanceId
+			<< m_data->Name
+			<< m_data->Scale;
+	}
+}
+
+bool flightsimlib::io::CBglLibraryObject::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglLibraryObject::CalculateSize() const
+{
+	return CBglSceneryObject::CalculateSize() + sizeof(SBglLibraryObjectData);
+}
+
+_GUID flightsimlib::io::CBglLibraryObject::GetName() const
+{
+	return m_data->Name;
+}
+
+void flightsimlib::io::CBglLibraryObject::SetName(_GUID value)
+{
+	m_data.write().Name = value;
+}
+
+float flightsimlib::io::CBglLibraryObject::GetScale() const
+{
+	return m_data->Scale;
+}
+
+void flightsimlib::io::CBglLibraryObject::SetScale(float value)
+{
+	m_data.write().Scale = value;
+}
+
+
+//******************************************************************************
+// CBglWindsock
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglWindsock::ReadBinary(BinaryFileStream& in)
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		in >> data.InstanceId
+			>> data.PoleHeight
+			>> data.WindsockLength
+			>> data.PoleColor
+			>> data.SockColor
+			>> data.Lighted;
+	}
+}
+
+void flightsimlib::io::CBglWindsock::WriteBinary(BinaryFileStream& out)
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		out << m_data->InstanceId
+			<< m_data->PoleHeight
+			<< m_data->WindsockLength
+			<< m_data->PoleColor
+			<< m_data->SockColor
+			<< m_data->Lighted;
+	}
+}
+
+bool flightsimlib::io::CBglWindsock::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglWindsock::CalculateSize() const
+{
+	return CBglSceneryObject::CalculateSize() + sizeof(SBglWindsockData);
+}
+
+_GUID flightsimlib::io::CBglWindsock::GetInstanceId() const
+{
+	return m_data->InstanceId;
+}
+
+void flightsimlib::io::CBglWindsock::SetInstanceId(_GUID value)
+{
+	m_data.write().InstanceId = value;
+}
+
+float flightsimlib::io::CBglWindsock::GetPoleHeight() const
+{
+	return m_data->PoleHeight;
+}
+
+void flightsimlib::io::CBglWindsock::SetPoleHeight(float value)
+{
+	m_data.write().PoleHeight = value;
+}
+
+float flightsimlib::io::CBglWindsock::GetSockLength() const
+{
+	return m_data->WindsockLength;
+}
+
+void flightsimlib::io::CBglWindsock::SetSockLength(float value)
+{
+	m_data.write().WindsockLength = value;
+}
+
+uint32_t flightsimlib::io::CBglWindsock::GetPoleColor() const
+{
+	return m_data->PoleColor;
+}
+
+void flightsimlib::io::CBglWindsock::SetPoleColor(uint32_t value)
+{
+	m_data.write().PoleColor = value;
+}
+
+uint32_t flightsimlib::io::CBglWindsock::GetSockColor() const
+{
+	return m_data->SockColor;
+}
+
+void flightsimlib::io::CBglWindsock::SetSockColor(uint32_t value)
+{
+	m_data.write().SockColor = value;
+}
+
+bool flightsimlib::io::CBglWindsock::IsLighted() const
+{
+	return m_data->Lighted == 1;
+}
+
+void flightsimlib::io::CBglWindsock::SetLighted(bool value)
+{
+	m_data.write().Lighted = static_cast<uint16_t>(value);
 }
 
 

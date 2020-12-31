@@ -70,8 +70,8 @@ public:
 
 struct SBglVertexLL
 {
-	uint32_t Latitude;
 	uint32_t Longitude;
+	uint32_t Latitude;
 };
 	
 #pragma pack(pop)
@@ -208,8 +208,8 @@ struct SBglRunwayData
 	uint8_t DesignatorSecondary;
 	uint32_t IlsIcaoPrimary;
 	uint32_t IlsIcaoSecondary;
-	uint32_t Latitude;
 	uint32_t Longitude;
+	uint32_t Latitude;
 	uint32_t Altitude;
 	float Length;
 	float Width;
@@ -361,8 +361,8 @@ struct SBglExclusionData
 	uint16_t Type;
 	uint16_t Size;
 	uint32_t MinLongitude;
-	uint32_t MaxLongitude;
 	uint32_t MinLatitude;
+	uint32_t MaxLongitude;
 	uint32_t MaxLatitude;
 };
 
@@ -423,8 +423,8 @@ struct SBglMarkerData
 	uint8_t UnusedType;
 	uint16_t Heading;
 	uint8_t MarkerType;
-	uint32_t Latitude;
 	uint32_t Longitude;
+	uint32_t Latitude;
 	uint32_t Altitude;
 	uint32_t Identifier;
 	uint16_t Region;
@@ -470,8 +470,8 @@ struct SBglGeopolData
 	uint32_t Size;
 	uint16_t GeopolType;
 	uint32_t MinLongitude;
-	uint32_t MaxLongitude;
 	uint32_t MinLatitude;
+	uint32_t MaxLongitude;
 	uint32_t MaxLatitude;
 	SBglVertexLL* Vertices;
 };
@@ -517,7 +517,7 @@ private:
 struct SBglSceneryObjectData
 {
 	uint16_t SectionType;
-	uint32_t Size;
+	uint16_t Size;
 	uint32_t Longitude;
 	uint32_t Latitude;
 	uint32_t Altitude;
@@ -583,6 +583,90 @@ private:
 
 	stlab::copy_on_write<SBglSceneryObjectData> m_data;
 };
+
+
+//******************************************************************************
+// CBglLibraryObject
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglLibraryObjectData
+{
+	_GUID InstanceId;
+	_GUID Name;
+	float Scale;
+};
+
+#pragma pack(pop)
+
+
+class CBglLibraryObject : public CBglSceneryObject, public IBglLibraryObject
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	_GUID GetName() const override;
+	void SetName(_GUID value) override;
+	float GetScale() const override;
+	void SetScale(float value) override;
+
+private:
+	stlab::copy_on_write<SBglLibraryObjectData> m_data;
+};
+
+
+//******************************************************************************
+// CBglWindsock
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglWindsockData
+{
+	_GUID InstanceId;
+	float PoleHeight;
+	float WindsockLength;
+	uint32_t PoleColor;
+	uint32_t SockColor;
+	uint16_t Lighted;
+};
+
+#pragma pack(pop)
+
+
+class CBglWindsock : public CBglSceneryObject, public IBglWindsock
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	_GUID GetInstanceId() const override;
+	void SetInstanceId(_GUID value) override;
+	float GetPoleHeight() const override;
+	void SetPoleHeight(float value) override;
+	float GetSockLength() const override;
+	void SetSockLength(float value) override;
+	uint32_t GetPoleColor() const override;
+	void SetPoleColor(uint32_t value) override;
+	uint32_t GetSockColor() const override;
+	void SetSockColor(uint32_t value) override;
+	bool IsLighted() const override;
+	void SetLighted(bool value) override;
+
+private:
+	stlab::copy_on_write<SBglWindsockData> m_data;
+};
+
 
 //******************************************************************************
 // CTerrainRasterQuad1

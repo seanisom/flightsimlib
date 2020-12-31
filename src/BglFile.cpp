@@ -128,8 +128,30 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::Marker:
 			record = std::make_unique<CBglMarker>();
 			break;
+		case EBglLayerType::SceneryObject:
+		{
+			const auto child_type = uint16_t{};
+			const auto child_size = uint16_t{};
+			in >> child_type;
+			in >> child_size;
+			in.SetPosition(pos);
+
+			switch(static_cast<EBglSceneryObjectType>(child_type))
+			{ 
+			case EBglSceneryObjectType::LibraryObject:
+				record = std::make_unique<CBglLibraryObject>();
+				break;
+			case EBglSceneryObjectType::Windsock:
+				record = std::make_unique<CBglWindsock>();
+				break;
+			default:
+				in.SetPosition(pos + static_cast<int>(child_size));
+				continue; 
+			}
+		}
+			break;
 		default:
-			continue;
+			continue; // TODO - do we need to set position????
 		}
 		record->ReadBinary(in);
 		const auto size = record->CalculateSize();

@@ -60,7 +60,7 @@ class IBglSerializable;
 class IBglExclusion;
 
 
-enum class EBglLayerType
+enum class EBglLayerType : uint16_t
 {
 	Unknown = -1,
 	None = 0x0,
@@ -149,6 +149,22 @@ enum class EBglLayerType
 	FakeTypes = 0x2710,
 	IcaoRunway = 0x2711,
 	Max = 0x2712
+};
+
+// TODO - shall we move this internal to CBglSceneryObject
+enum class EBglSceneryObjectType : uint16_t
+{
+	None = 0x0,
+	GenericBuilding = 0xA,
+	LibraryObject = 0xB,
+	Windsock = 0xC,
+	Effect = 0xD,
+	TaxiwaySign = 0xE,
+	Trigger = 0x10,
+	Beacon = 0x11,
+	ExtrusionBridge = 0x12,
+	AttachedObjectEnd = 0x1002,
+	AttachedObjectStart = 0x1003	
 };
 
 
