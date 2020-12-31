@@ -119,6 +119,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::Airport:
 			record = std::make_unique<CBglAirport>();
 			break;
+		case EBglLayerType::Geopol:
+			record = std::make_unique<CBglGeopol>();
+			break;
 		case EBglLayerType::Exclusion:
 			record = std::make_unique<CBglExclusion>();
 			break;

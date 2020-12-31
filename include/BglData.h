@@ -77,6 +77,31 @@ struct SBglVertexLL
 #pragma pack(pop)
 
 // TODO: Move to Utility
+
+class PackedAltitude
+{
+public:
+	PackedAltitude(uint32_t value) : m_Value(value) {}
+
+	static double Value(uint32_t value)
+	{
+		return value / 1000.0;
+	}
+
+	static uint32_t FromDouble(double value)
+	{
+		return static_cast<uint32_t>(value * 1000.0);
+	}
+
+	double Value() const
+	{
+		return Value(m_Value);
+	}
+
+private:
+	uint32_t m_Value;
+};
+
 class ANGLE16
 {
 public:
@@ -163,6 +188,7 @@ public:
 	double m_Value;
 };
 	
+	
 //******************************************************************************
 // CBglRunway
 //******************************************************************************  
@@ -196,22 +222,77 @@ struct SBglRunwayData
 
 #pragma pack(pop)
 
+#pragma pack(push)
+#pragma pack(1)
+	
+struct SBglRunwayPadData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t SurfaceType;
+	float Length;
+	float Width;
+};
 
+#pragma pack(pop)
+	
 class CBglRunway final : public IBglSerializable, public IBglRunway
 {
 public:
+	class CBglRunwayOffsetThreshold final : public IBglSerializable, public IBglRunwayOffsetThreshold
+	{
+	public:
+		void ReadBinary(BinaryFileStream& in) override;
+		void WriteBinary(BinaryFileStream& out) override;
+		bool Validate() override;
+		int CalculateSize() const override;
+		
+		ESurfaceType GetSurfaceType() override;
+		void SetSurfaceType(ESurfaceType value) override;
+		float GetLength() const override;
+		void SetLength(float value) override;
+		float GetWidth() const override;
+		void SetWidth(float value) override;
+
+		// public but not part of client interface:
+		bool IsEmpty();
+		void Clone(CBglRunwayOffsetThreshold& value);
+
+	private:
+		stlab::copy_on_write<SBglRunwayPadData> m_data;
+	};
+	
 	void ReadBinary(BinaryFileStream& in) override;
 	void WriteBinary(BinaryFileStream& out) override;
 	bool Validate() override;
 	int CalculateSize() const override;
 
+	double GetLongitude() const override;
+	void SetLongitude(double value) override;
+	double GetLatitude() const override;
+	void SetLatitude(double value) override;
+	double GetAltitude() const override;
+	void SetAltitude(double value) override;
+	
 	float GetLength() const override;
+	void SetLength(float value) override;
 	float GetWidth() const override;
+	void SetWidth(float value) override;
 	float GetHeading() const override;
+	void SetHeading(float value) override;
 	float GetPatternAltitude() const override;
+	void SetPatternAltitude(float value) override;
+
+	const IBglRunwayOffsetThreshold* GetPrimaryOffsetThreshold() override;
+	void SetPrimaryOffsetThreshold(IBglRunwayOffsetThreshold* value) override;
+	const IBglRunwayOffsetThreshold* GetSecondaryOffsetThreshold() override;
+	void SetSecondaryOffsetThreshold(IBglRunwayOffsetThreshold* value) override;
 	
 private:
 	stlab::copy_on_write<SBglRunwayData> m_data;
+
+	CBglRunwayOffsetThreshold m_primary_offset_threshold;
+	CBglRunwayOffsetThreshold m_secondary_offset_threshold;
 };
 
 
@@ -233,11 +314,11 @@ struct SBglAirportData
 	uint8_t ApproachCount;
 	uint8_t ApronCount;
 	uint8_t HelipadCount;
-	uint32_t ReferenceLat;
 	uint32_t ReferenceLon;
+	uint32_t ReferenceLat;
 	uint32_t ReferenceAlt;
-	uint32_t TowerLatitude;
 	uint32_t TowerLongitude;
+	uint32_t TowerLatitude;
 	uint32_t TowerAltitude;
 	float MagVar;
 	uint32_t Icao;
@@ -279,10 +360,10 @@ struct SBglExclusionData
 {
 	uint16_t Type;
 	uint16_t Size;
-	uint32_t LonWest;
-	uint32_t LatNorth;
-	uint32_t LonEast;
-	uint32_t LatSouth;
+	uint32_t MinLongitude;
+	uint32_t MaxLongitude;
+	uint32_t MinLatitude;
+	uint32_t MaxLatitude;
 };
 
 #pragma pack(pop)
@@ -296,6 +377,17 @@ public:
 	bool Validate() override;
 	int CalculateSize() const override;
 
+	double GetMinLongitude() const override;
+	void SetMinLongitude(double value) override;
+	double GetMaxLongitude() const override;
+	void SetMaxLongitude(double value) override;
+	double GetMinLatitude() const override;
+	void SetMinLatitude(double value) override;
+	double GetMaxLatitude() const override;
+	void SetMaxLatitude(double value)  override;
+
+	bool IsExcludeAll() const override;
+	void SetExcludeAll(bool value) override;
 	bool IsGenericBuilding() const override;
 	void SetGenericBuilding(bool value) override;
 
@@ -386,7 +478,7 @@ struct SBglGeopolData
 
 #pragma pack(pop)
 
-
+// TODO - Need mem management constructors around Vertices array
 class CBglGeopol final : public IBglSerializable, public IBglGeopol
 {
 public:
@@ -412,6 +504,84 @@ private:
 	void SetNumVertices(int value) override;
 	
 	stlab::copy_on_write<SBglGeopolData> m_data;
+};
+
+//******************************************************************************
+// CBglSceneryObject
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglSceneryObjectData
+{
+	uint16_t SectionType;
+	uint32_t Size;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	uint16_t Flags;
+	uint16_t Pitch;
+	uint16_t Bank;
+	uint16_t Heading;
+	uint16_t ImageComplexity;
+};
+
+#pragma pack(pop)
+
+
+class CBglSceneryObject : public IBglSerializable, public IBglSceneryObject
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	double GetLongitude() const override;
+	void SetLongitude(double value) override;
+	double GetLatitude() const override;
+	void SetLatitude(double value) override;
+	double GetAltitude() const override;
+	void SetAltitude(double value) override;
+	bool IsAboveAgl() const override;
+	void SetAboveAgl(bool value) override;
+	bool IsNoAutogenSuppression() const override;
+	void SetNoAutogenSuppression(bool value) override;
+	bool IsNoCrash() const override;
+	void SetNoCrash(bool value) override;
+	bool IsNoFog() const override;
+	void SetNoFog(bool value) override;
+	bool IsNoShadow() const override;
+	void SetNoShadow(bool value) override;
+	bool IsNoZWrite() const override;
+	void SetNoZWrite(bool value) override;
+	bool IsNoZTest() const override;
+	void SetNoZTest(bool value) override;
+	float GetPitch() const override;
+	void SetPitch(float value) override;
+	float GetBank() const override;
+	void SetBank(float value) override;
+	float GetHeading() const override;
+	void SetHeading(float value) override;
+	EImageComplexity GetImageComplexity() const override;
+	void SetImageComplexity(EImageComplexity value) override;
+
+private:
+	enum class Flags : uint16_t
+	{
+		None = 0,
+		AboveAgl = 1 << 0,
+		NoAutogenSuppression = 1 << 1,
+		NoCrash = 1 << 2,
+		NoFog = 1 << 3,
+		NoShadow = 1 << 4,
+		NoZWrite = 1 << 5,
+		NoZTest = 1 << 6
+	};
+
+	stlab::copy_on_write<SBglSceneryObjectData> m_data;
 };
 
 //******************************************************************************
