@@ -32,7 +32,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
+
+// This is because of the mixins for SceneryObject
+#pragma warning( disable : 4250 )
 
 
 namespace flightsimlib
@@ -531,42 +535,45 @@ struct SBglSceneryObjectData
 #pragma pack(pop)
 
 
-class CBglSceneryObject : public IBglSerializable, public IBglSceneryObject
+class CBglSceneryObject : public IBglSerializable, virtual public IBglSceneryObject
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	virtual void ReadBinary(BinaryFileStream& in) override;
+	virtual void WriteBinary(BinaryFileStream& out) override;
+	virtual bool Validate() override;
+	virtual int CalculateSize() const override;
 
-	double GetLongitude() const override;
-	void SetLongitude(double value) override;
-	double GetLatitude() const override;
-	void SetLatitude(double value) override;
-	double GetAltitude() const override;
-	void SetAltitude(double value) override;
-	bool IsAboveAgl() const override;
-	void SetAboveAgl(bool value) override;
-	bool IsNoAutogenSuppression() const override;
-	void SetNoAutogenSuppression(bool value) override;
-	bool IsNoCrash() const override;
-	void SetNoCrash(bool value) override;
-	bool IsNoFog() const override;
-	void SetNoFog(bool value) override;
-	bool IsNoShadow() const override;
-	void SetNoShadow(bool value) override;
-	bool IsNoZWrite() const override;
-	void SetNoZWrite(bool value) override;
-	bool IsNoZTest() const override;
-	void SetNoZTest(bool value) override;
-	float GetPitch() const override;
-	void SetPitch(float value) override;
-	float GetBank() const override;
-	void SetBank(float value) override;
-	float GetHeading() const override;
-	void SetHeading(float value) override;
-	EImageComplexity GetImageComplexity() const override;
-	void SetImageComplexity(EImageComplexity value) override;
+	virtual double GetLongitude() const override;
+	virtual void SetLongitude(double value) override;
+	virtual double GetLatitude() const override;
+	virtual void SetLatitude(double value) override;
+	virtual double GetAltitude() const override;
+	virtual void SetAltitude(double value) override;
+	virtual bool IsAboveAgl() const override;
+	virtual void SetAboveAgl(bool value) override;
+	virtual bool IsNoAutogenSuppression() const override;
+	virtual void SetNoAutogenSuppression(bool value) override;
+	virtual bool IsNoCrash() const override;
+	virtual void SetNoCrash(bool value) override;
+	virtual bool IsNoFog() const override;
+	virtual void SetNoFog(bool value) override;
+	virtual bool IsNoShadow() const override;
+	virtual void SetNoShadow(bool value) override;
+	virtual bool IsNoZWrite() const override;
+	virtual void SetNoZWrite(bool value) override;
+	virtual bool IsNoZTest() const override;
+	virtual void SetNoZTest(bool value) override;
+	virtual float GetPitch() const override;
+	virtual void SetPitch(float value) override;
+	virtual float GetBank() const override;
+	virtual void SetBank(float value) override;
+	virtual float GetHeading() const override;
+	virtual void SetHeading(float value) override;
+	virtual EImageComplexity GetImageComplexity() const override;
+	virtual void SetImageComplexity(EImageComplexity value) override;
+
+protected:
+	int RecordSize() const;
 
 private:
 	enum class Flags : uint16_t
@@ -603,7 +610,7 @@ struct SBglLibraryObjectData
 #pragma pack(pop)
 
 
-class CBglLibraryObject : public CBglSceneryObject, public IBglLibraryObject
+class CBglLibraryObject final : public CBglSceneryObject, public IBglLibraryObject
 {
 public:
 	void ReadBinary(BinaryFileStream& in) override;
@@ -618,6 +625,42 @@ public:
 
 private:
 	stlab::copy_on_write<SBglLibraryObjectData> m_data;
+};
+
+
+//******************************************************************************
+// CBglEffect
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglEffectData
+{
+	std::string Name;
+	std::string Params;
+};
+
+#pragma pack(pop)
+
+
+class CBglEffect final : public CBglSceneryObject, public IBglEffect
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	const char* GetName() const override;
+	void SetName(const char* value) override;
+	const char* GetParams() const override;
+	void SetParams(const char* value) override;
+
+private:
+	stlab::copy_on_write<SBglEffectData> m_data;
+	static constexpr int s_name_size = 80;
 };
 
 
@@ -642,7 +685,7 @@ struct SBglWindsockData
 #pragma pack(pop)
 
 
-class CBglWindsock : public CBglSceneryObject, public IBglWindsock
+class CBglWindsock final : public CBglSceneryObject, public IBglWindsock
 {
 public:
 	void ReadBinary(BinaryFileStream& in) override;

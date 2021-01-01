@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <fstream>
 #include <istream>
+#include <memory>
 
 
 namespace flightsimlib
@@ -125,6 +126,27 @@ public:
 	{
 		m_stream.write(reinterpret_cast<const char*>(&val), sizeof(val));
 		return *this;
+	}
+
+	BinaryFileStream& Read(void* val, int size)
+	{
+		m_stream.read(reinterpret_cast<char*>(&val), size);
+		return *this;
+	}
+
+	BinaryFileStream& Write(const void* val, int size)
+	{
+		m_stream.write(reinterpret_cast<const char*>(&val), size);
+		return *this;
+	}
+
+	std::string ReadString(int count)
+	{
+		auto bytes = std::unique_ptr<char[]>(new char[count]);
+
+		m_stream.read(bytes.get(), count);
+
+		return std::string(bytes.get(), count);
 	}
 
 	bool operator!() const

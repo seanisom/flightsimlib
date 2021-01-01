@@ -112,6 +112,10 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 
 	for (auto i = 0; i < count; ++i)
 	{
+		if (!in)
+		{
+			return false;
+		}
 		const auto pos = in.GetPosition();
 		std::unique_ptr<IBglSerializable> record;
 		switch (m_type)
@@ -130,14 +134,17 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			break;
 		case EBglLayerType::SceneryObject:
 		{
-			const auto child_type = uint16_t{};
-			const auto child_size = uint16_t{};
+			auto child_type = uint16_t{};
+			auto child_size = uint16_t{};
 			in >> child_type;
 			in >> child_size;
 			in.SetPosition(pos);
 
 			switch(static_cast<EBglSceneryObjectType>(child_type))
 			{ 
+			case EBglSceneryObjectType::Effect:
+				record = std::make_unique<CBglEffect>();
+				break;
 			case EBglSceneryObjectType::LibraryObject:
 				record = std::make_unique<CBglLibraryObject>();
 				break;

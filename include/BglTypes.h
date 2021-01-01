@@ -321,7 +321,8 @@ public:
 	virtual void SetImageComplexity(EImageComplexity value) = 0;
 };
 
-class IBglLibraryObject : public IBglSceneryObject
+
+class IBglLibraryObject : virtual public IBglSceneryObject
 {
 public:
 	virtual _GUID GetName() const = 0;
@@ -330,7 +331,18 @@ public:
 	virtual void SetScale(float value) = 0;
 };
 
-class IBglWindsock : public IBglSceneryObject
+
+class IBglEffect : virtual public IBglSceneryObject
+{
+public:
+	virtual const char* GetName() const = 0;
+	virtual void SetName(const char* value) = 0;
+	virtual const char* GetParams() const = 0;
+	virtual void SetParams(const char* value) = 0;
+};
+
+
+class IBglWindsock : virtual public IBglSceneryObject
 {
 public:
 	virtual _GUID GetInstanceId() const = 0;

@@ -949,6 +949,11 @@ void flightsimlib::io::CBglSceneryObject::SetImageComplexity(EImageComplexity va
 	m_data.write().ImageComplexity = static_cast<uint16_t>(value);
 }
 
+int flightsimlib::io::CBglSceneryObject::RecordSize() const
+{
+	return m_data->Size;
+}
+
 
 //******************************************************************************
 // CBglLibraryObject
@@ -1006,6 +1011,75 @@ float flightsimlib::io::CBglLibraryObject::GetScale() const
 void flightsimlib::io::CBglLibraryObject::SetScale(float value)
 {
 	m_data.write().Scale = value;
+}
+
+
+//******************************************************************************
+// CBglEffect
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglEffect::ReadBinary(BinaryFileStream& in)
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+
+		data.Name.resize(s_name_size);
+		char input[s_name_size];
+		in.Read(&input, s_name_size);
+		data.Name.assign(input, s_name_size);
+
+		const auto param_size = RecordSize() - CBglSceneryObject::CalculateSize() - s_name_size;
+		data.Params = in.ReadString(param_size);
+	}
+}
+
+void flightsimlib::io::CBglEffect::WriteBinary(BinaryFileStream& out)
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		if (m_data->Name.size() != s_name_size)
+		{
+			m_data.write().Name.resize(s_name_size);
+		}
+		out.Write(m_data->Name.data(), s_name_size);
+
+		const auto params = m_data->Params.c_str();
+		out.Write(params, strlen(params));
+	}
+}
+
+bool flightsimlib::io::CBglEffect::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglEffect::CalculateSize() const
+{
+	return CBglSceneryObject::CalculateSize() + s_name_size + strlen(m_data->Params.c_str());
+}
+
+const char* flightsimlib::io::CBglEffect::GetName() const
+{
+	return m_data->Name.c_str();
+}
+
+void flightsimlib::io::CBglEffect::SetName(const char* value)
+{
+	m_data.write().Name = { value };
+}
+
+const char* flightsimlib::io::CBglEffect::GetParams() const
+{
+	return m_data->Params.c_str();
+}
+
+void flightsimlib::io::CBglEffect::SetParams(const char* value)
+{
+	m_data.write().Params = { value };
 }
 
 
