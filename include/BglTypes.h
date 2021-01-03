@@ -252,8 +252,8 @@ public:
 	enum class EType : uint8_t {
 		None = 0,
 		Coastline = 64,
-		BOUNDARY = 128,
-		DASHED_BOUNDARY = 129, // 0x00000081
+		Boundary = 128,
+		DashedBoundary = 129
 	};
 
 	virtual EType GetGeopolType() const = 0;
@@ -274,6 +274,7 @@ public:
 
 class IModelData
 {
+public:
 	virtual void* Data() = 0;
 	virtual int Length() = 0;
 };
@@ -322,6 +323,84 @@ public:
 };
 
 
+class IBglGenericBuilding : virtual public IBglSceneryObject
+{
+public:
+	enum class EType : uint16_t
+	{
+		RectangularFlatRoof = 4,
+		RectangularRidgeRoof = 6,
+		RectangularPeakedRoof = 7,
+		RectangularSlantRoof = 8,
+		Pyramidal = 9,
+		Multisided = 10
+	};
+
+	virtual float GetScale() const = 0;
+	virtual void SetScale(float value) = 0;
+	virtual EType GetType() const = 0;
+	virtual void SetType(EType value) = 0;
+	virtual uint16_t GetBuildingSides() const = 0;
+	virtual void SetBuildingSides(uint16_t value) = 0;
+	virtual uint16_t GetSizeX() const = 0;
+	virtual void SetSizeX(uint16_t value) = 0;
+	virtual uint16_t GetSizeZ() const = 0;
+	virtual void SetSizeZ(uint16_t value) = 0;
+	virtual uint16_t GetSizeTopX() const = 0;
+	virtual void SetSizeTopX(uint16_t value) = 0;
+	virtual uint16_t GetSizeTopZ() const = 0;
+	virtual void SetSizeTopZ(uint16_t value) = 0;
+	virtual uint16_t GetBottomTexture() const = 0;
+	virtual void SetBottomTexture(uint16_t value) = 0;
+	virtual uint16_t GetSizeBottomY() const = 0;
+	virtual void SetSizeBottomY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexBottomX() const = 0;
+	virtual void SetTextureIndexBottomX(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexBottomZ() const = 0;
+	virtual void SetTextureIndexBottomZ(uint16_t value) = 0;
+	virtual uint16_t GetWindowTexture() const = 0;
+	virtual void SetWindowTexture(uint16_t value) = 0;
+	virtual uint16_t GetSizeWindowY() const = 0;
+	virtual void SetSizeWindowY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexWindowX() const = 0;
+	virtual void SetTextureIndexWindowX(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexWindowY() const = 0;
+	virtual void SetTextureIndexWindowY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexWindowZ() const = 0;
+	virtual void SetTextureIndexWindowZ(uint16_t value) = 0;
+	virtual uint16_t GetTopTexture() const = 0;
+	virtual void SetTopTexture(uint16_t value) = 0;
+	virtual uint16_t GetSizeTopY() const = 0;
+	virtual void SetSizeTopY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexTopX() const = 0;
+	virtual void SetTextureIndexTopX(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexTopZ() const = 0;
+	virtual void SetTextureIndexTopZ(uint16_t value) = 0;
+	virtual uint16_t GetRoofTexture() const = 0;
+	virtual void SetRoofTexture(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexRoofX() const = 0;
+	virtual void SetTextureIndexRoofX(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexRoofZ() const = 0;
+	virtual void SetTextureIndexRoofZ(uint16_t value) = 0;
+	virtual uint16_t GetSizeRoofY() const = 0;
+	virtual void SetSizeRoofY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexGableY() const = 0;
+	virtual void SetTextureIndexGableY(uint16_t value) = 0;
+	virtual uint16_t GetGableTexture() const = 0;
+	virtual void SetGableTexture(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexGableZ() const = 0;
+	virtual void SetTextureIndexGableZ(uint16_t value) = 0;
+	virtual uint16_t GetFaceTexture() const = 0;
+	virtual void SetFaceTexture(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexFaceX() const = 0;
+	virtual void SetTextureIndexFaceX(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexFaceY() const = 0;
+	virtual void SetTextureIndexFaceY(uint16_t value) = 0;
+	virtual uint16_t GetTextureIndexRoofY() const = 0;
+	virtual void SetTextureIndexRoofY(uint16_t value) = 0;
+};
+
+
 class IBglLibraryObject : virtual public IBglSceneryObject
 {
 public:
@@ -358,6 +437,31 @@ public:
 	virtual bool IsLighted() const = 0;
 	virtual void SetLighted(bool value) = 0;
 };
+
+
+class IBglBeacon : virtual public IBglSceneryObject
+{
+public:
+
+	enum class EType : uint8_t
+	{
+		Civilian,
+		Military
+	};
+
+	enum class EBaseType : uint8_t
+	{
+		Airport,
+		SeaBase,
+		Heliport
+	};
+
+	virtual EBaseType GetBaseType() const = 0;
+	virtual void SetBaseType(EBaseType value) = 0;
+	virtual EType GetType() const = 0;
+	virtual void SetType(EType value) = 0;
+};
+
 
 }
 

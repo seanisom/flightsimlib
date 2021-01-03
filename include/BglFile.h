@@ -62,7 +62,6 @@ class IBglExclusion;
 
 enum class EBglLayerType : uint16_t
 {
-	Unknown = -1,
 	None = 0x0,
 	Copyright = 0x1,
 	Guid = 0x2,

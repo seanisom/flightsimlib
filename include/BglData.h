@@ -530,6 +530,7 @@ struct SBglSceneryObjectData
 	uint16_t Bank;
 	uint16_t Heading;
 	uint16_t ImageComplexity;
+	_GUID InstanceId; // TODO: Assumes FSX, need to add FS9 types
 };
 
 #pragma pack(pop)
@@ -593,6 +594,135 @@ private:
 
 
 //******************************************************************************
+// CBglGenericBuilding
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+
+struct SBglGenericBuildingData
+{
+	float Scale;
+	uint16_t SubrecordStart;
+	uint16_t SubrecordSize;
+	uint16_t SubrecordType;
+	uint16_t BuildingSides;
+	uint16_t SizeX;
+	uint16_t SizeZ;
+	uint16_t SizeTopX;
+	uint16_t SizeTopZ;
+	uint16_t BottomTexture;
+	uint16_t SizeBottomY;
+	uint16_t TextureIndexBottomX;
+	uint16_t TextureIndexBottomZ;
+	uint16_t WindowTexture;
+	uint16_t SizeWindowY;
+	uint16_t TextureIndexWindowX;
+	uint16_t TextureIndexWindowY;
+	uint16_t TextureIndexWindowZ;
+	uint16_t TopTexture;
+	uint16_t SizeTopY;
+	uint16_t TextureIndexTopX;
+	uint16_t TextureIndexTopZ;
+	uint16_t RoofTexture;
+	uint16_t TextureIndexRoofX;
+	uint16_t TextureIndexRoofZ;
+	uint16_t SizeRoofY;
+	uint16_t TextureIndexGableY;
+	uint16_t GableTexture;
+	uint16_t TextureIndexGableZ;
+	uint16_t FaceTexture;
+	uint16_t TextureIndexFaceX;
+	uint16_t TextureIndexFaceY;
+	uint16_t TextureIndexRoofY;
+	uint16_t SubrecordEnd;
+	// Smoothing not implemented
+};
+
+#pragma pack(pop)
+
+
+class CBglGenericBuilding final : public CBglSceneryObject, public IBglGenericBuilding
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	float GetScale() const override;
+	void SetScale(float value) override;
+	EType GetType() const override;
+	void SetType(EType value) override;
+	uint16_t GetBuildingSides() const override;
+	void SetBuildingSides(uint16_t value) override;
+	uint16_t GetSizeX() const override;
+	void SetSizeX(uint16_t value) override;
+	uint16_t GetSizeZ() const override;
+	void SetSizeZ(uint16_t value) override;
+	uint16_t GetSizeTopX() const override;
+	void SetSizeTopX(uint16_t value) override;
+	uint16_t GetSizeTopZ() const override;
+	void SetSizeTopZ(uint16_t value) override;
+	uint16_t GetBottomTexture() const override;
+	void SetBottomTexture(uint16_t value) override;
+	uint16_t GetSizeBottomY() const override;
+	void SetSizeBottomY(uint16_t value) override;
+	uint16_t GetTextureIndexBottomX() const override;
+	void SetTextureIndexBottomX(uint16_t value) override;
+	uint16_t GetTextureIndexBottomZ() const override;
+	void SetTextureIndexBottomZ(uint16_t value) override;
+	uint16_t GetWindowTexture() const override;
+	void SetWindowTexture(uint16_t value) override;
+	uint16_t GetSizeWindowY() const override;
+	void SetSizeWindowY(uint16_t value) override;
+	uint16_t GetTextureIndexWindowX() const override;
+	void SetTextureIndexWindowX(uint16_t value) override;
+	uint16_t GetTextureIndexWindowY() const override;
+	void SetTextureIndexWindowY(uint16_t value) override;
+	uint16_t GetTextureIndexWindowZ() const override;
+	void SetTextureIndexWindowZ(uint16_t value) override;
+	uint16_t GetTopTexture() const override;
+	void SetTopTexture(uint16_t value) override;
+	uint16_t GetSizeTopY() const override;
+	void SetSizeTopY(uint16_t value) override;
+	uint16_t GetTextureIndexTopX() const override;
+	void SetTextureIndexTopX(uint16_t value) override;
+	uint16_t GetTextureIndexTopZ() const override;
+	void SetTextureIndexTopZ(uint16_t value) override;
+	uint16_t GetRoofTexture() const override;
+	void SetRoofTexture(uint16_t value) override;
+	uint16_t GetTextureIndexRoofX() const override;
+	void SetTextureIndexRoofX(uint16_t value) override;
+	uint16_t GetTextureIndexRoofZ() const override;
+	void SetTextureIndexRoofZ(uint16_t value) override;
+	uint16_t GetSizeRoofY() const override;
+	void SetSizeRoofY(uint16_t value) override;
+	uint16_t GetTextureIndexGableY() const override;
+	void SetTextureIndexGableY(uint16_t value) override;
+	uint16_t GetGableTexture() const override;
+	void SetGableTexture(uint16_t value) override;
+	uint16_t GetTextureIndexGableZ() const override;
+	void SetTextureIndexGableZ(uint16_t value) override;
+	uint16_t GetFaceTexture() const override;
+	void SetFaceTexture(uint16_t value) override;
+	uint16_t GetTextureIndexFaceX() const override;
+	void SetTextureIndexFaceX(uint16_t value) override;
+	uint16_t GetTextureIndexFaceY() const override;
+	void SetTextureIndexFaceY(uint16_t value) override;
+	uint16_t GetTextureIndexRoofY() const override;
+	void SetTextureIndexRoofY(uint16_t value) override;
+
+private:
+	int CalculateSubrecordSize() const;
+
+	stlab::copy_on_write<SBglGenericBuildingData> m_data;
+};
+
+
+//******************************************************************************
 // CBglLibraryObject
 //******************************************************************************  
 
@@ -602,7 +732,6 @@ private:
 
 struct SBglLibraryObjectData
 {
-	_GUID InstanceId;
 	_GUID Name;
 	float Scale;
 };
@@ -708,6 +837,41 @@ public:
 
 private:
 	stlab::copy_on_write<SBglWindsockData> m_data;
+};
+
+
+//******************************************************************************
+// CBglBeacon
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglBeaconData
+{
+	uint8_t BaseType;
+	uint8_t Type;
+};
+
+#pragma pack(pop)
+
+
+class CBglBeacon final : public CBglSceneryObject, public IBglBeacon
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	EBaseType GetBaseType() const override;
+	void SetBaseType(EBaseType value) override;
+	EType GetType() const override;
+	void SetType(EType value) override;
+
+private:
+	stlab::copy_on_write<SBglBeaconData> m_data;
 };
 
 

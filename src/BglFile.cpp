@@ -141,7 +141,10 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			in.SetPosition(pos);
 
 			switch(static_cast<EBglSceneryObjectType>(child_type))
-			{ 
+			{
+			case EBglSceneryObjectType::GenericBuilding:
+				record = std::make_unique<CBglGenericBuilding>();
+				break;
 			case EBglSceneryObjectType::Effect:
 				record = std::make_unique<CBglEffect>();
 				break;
@@ -150,6 +153,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 				break;
 			case EBglSceneryObjectType::Windsock:
 				record = std::make_unique<CBglWindsock>();
+				break;
+			case EBglSceneryObjectType::Beacon:
+				record = std::make_unique<CBglBeacon>();
 				break;
 			default:
 				in.SetPosition(pos + static_cast<int>(child_size));

@@ -733,7 +733,8 @@ void flightsimlib::io::CBglSceneryObject::ReadBinary(BinaryFileStream& in)
 		>> data.Pitch
 		>> data.Bank
 		>> data.Heading
-		>> data.ImageComplexity;
+		>> data.ImageComplexity
+		>> data.InstanceId;
 }
 
 void flightsimlib::io::CBglSceneryObject::WriteBinary(BinaryFileStream& out)
@@ -747,7 +748,8 @@ void flightsimlib::io::CBglSceneryObject::WriteBinary(BinaryFileStream& out)
 		<< m_data->Pitch
 		<< m_data->Bank
 		<< m_data->Heading
-		<< m_data->ImageComplexity;
+		<< m_data->ImageComplexity
+		<< m_data->InstanceId;
 }
 
 bool flightsimlib::io::CBglSceneryObject::Validate()
@@ -757,7 +759,7 @@ bool flightsimlib::io::CBglSceneryObject::Validate()
 
 int flightsimlib::io::CBglSceneryObject::CalculateSize() const
 {
-	return sizeof(SBglSceneryObjectData); // TODO how are subclasses handled
+	return sizeof(SBglSceneryObjectData);
 }
 
 double flightsimlib::io::CBglSceneryObject::GetLongitude() const
@@ -956,6 +958,519 @@ int flightsimlib::io::CBglSceneryObject::RecordSize() const
 
 
 //******************************************************************************
+// CBglGenericBuilding
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglGenericBuilding::ReadBinary(BinaryFileStream& in) -> void
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		
+		in >> data.Scale
+			>> data.SubrecordStart
+			>> data.SubrecordSize
+			>> data.SubrecordType;
+
+		const auto type = static_cast<EType>(m_data->SubrecordType);
+
+		if (type == EType::Multisided)
+		{
+			in >> data.BuildingSides;
+		}
+
+		in >> data.SizeX >> data.SizeZ;
+
+		if (type == EType::Pyramidal)
+		{
+			in >> data.SizeTopX >> data.SizeTopZ;
+		}
+
+		in >> data.BottomTexture
+			>> data.SizeBottomY
+			>> data.TextureIndexBottomX;
+
+		if (type != EType::Multisided)
+		{
+			in >> data.TextureIndexBottomZ;
+		}
+
+		in >> data.WindowTexture
+			>> data.SizeWindowY
+			>> data.TextureIndexWindowX
+			>> data.TextureIndexWindowY;
+
+		if (type != EType::Multisided)
+		{
+			in >> data.TextureIndexWindowZ;
+		}
+
+		in >> data.TopTexture
+			>> data.SizeTopY
+			>> data.TextureIndexTopX;
+
+		if (type != EType::Multisided)
+		{
+			in >> data.TextureIndexTopZ;
+		}
+
+		in >> data.RoofTexture
+			>> data.TextureIndexRoofX
+			>> data.TextureIndexRoofZ;
+
+		// At this point, Rectangular Flat is complete, as is Pyramidal.
+		// Multisided is also complete, as TextureIndexRoofZ is not output
+
+		if (type == EType::RectangularPeakedRoof)
+		{
+			in >> data.SizeRoofY >> data.TextureIndexRoofY;
+		}
+
+		if (type == EType::RectangularRidgeRoof || type == EType::RectangularSlantRoof)
+		{
+			in >> data.SizeRoofY
+				>> data.GableTexture
+				>> data.TextureIndexGableY
+				>> data.TextureIndexGableZ;
+
+			if (type == EType::RectangularSlantRoof)
+			{
+				in >> data.FaceTexture
+					>> data.TextureIndexFaceX
+					>> data.TextureIndexFaceY;
+			}
+		}
+
+		in >> data.SubrecordEnd;
+	}
+}
+
+auto flightsimlib::io::CBglGenericBuilding::WriteBinary(BinaryFileStream& out) -> void
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		const auto type = static_cast<EType>(m_data->SubrecordType);
+		
+		out << m_data->Scale
+			<< m_data->SubrecordStart
+			<< m_data->SubrecordSize
+			<< m_data->SubrecordType;
+
+		if (type == EType::Multisided)
+		{
+			out << m_data->BuildingSides;
+		}
+
+		out << m_data->SizeX << m_data->SizeZ;
+
+		if (type == EType::Pyramidal)
+		{
+			out << m_data->SizeTopX << m_data->SizeTopZ;
+		}
+
+		out << m_data->BottomTexture
+			<< m_data->SizeBottomY
+			<< m_data->TextureIndexBottomX;
+
+		if (type != EType::Multisided)
+		{
+			out << m_data->TextureIndexBottomZ;
+		}
+
+		out << m_data->WindowTexture
+			<< m_data->SizeWindowY
+			<< m_data->TextureIndexWindowX
+			<< m_data->TextureIndexWindowY;
+
+		if (type != EType::Multisided)
+		{
+			out << m_data->TextureIndexWindowZ;
+		}
+
+		out << m_data->TopTexture
+			<< m_data->SizeTopY
+			<< m_data->TextureIndexTopX;
+
+		if (type != EType::Multisided)
+		{
+			out << m_data->TextureIndexTopZ;
+		}
+
+		out << m_data->RoofTexture
+			<< m_data->TextureIndexRoofX
+			<< m_data->TextureIndexRoofZ;
+
+		if (type == EType::RectangularPeakedRoof)
+		{
+			out << m_data->SizeRoofY << m_data->TextureIndexRoofY;
+		}
+
+		if (type == EType::RectangularRidgeRoof || type == EType::RectangularSlantRoof)
+		{
+			out << m_data->SizeRoofY
+				<< m_data->GableTexture
+				<< m_data->TextureIndexGableY
+				<< m_data->TextureIndexGableZ;
+
+			if (type == EType::RectangularSlantRoof)
+			{
+				out << m_data->FaceTexture
+					<< m_data->TextureIndexFaceX
+					<< m_data->TextureIndexFaceY;
+			}
+		}
+
+		out << m_data->SubrecordEnd;
+	}
+}
+
+auto flightsimlib::io::CBglGenericBuilding::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::CalculateSize() const -> int
+{
+	return CBglSceneryObject::CalculateSize() + CalculateSubrecordSize();
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetScale() const -> float
+{
+	return m_data->Scale;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetScale(float value) -> void
+{
+	m_data.write().Scale = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetType() const-> EType
+{
+	return static_cast<EType>(m_data->SubrecordType);
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetType(EType value) -> void
+{
+	m_data.write().SubrecordType = static_cast<uint16_t>(value);
+	m_data.write().SubrecordSize = static_cast<uint16_t>(CalculateSubrecordSize());
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetBuildingSides() const -> uint16_t
+{
+	return m_data->BuildingSides;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetBuildingSides(uint16_t value) -> void
+{
+	m_data.write().BuildingSides = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeX() const -> uint16_t
+{
+	return m_data->SizeX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeX(uint16_t value) -> void
+{
+	m_data.write().SizeX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeZ() const -> uint16_t
+{
+	return m_data->SizeZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeZ(uint16_t value) -> void
+{
+	m_data.write().SizeZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeTopX() const -> uint16_t
+{
+	return m_data->SizeTopX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeTopX(uint16_t value) -> void
+{
+	m_data.write().SizeTopX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeTopZ() const -> uint16_t
+{
+	return m_data->SizeTopZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeTopZ(uint16_t value) -> void
+{
+	m_data.write().SizeTopZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetBottomTexture() const -> uint16_t
+{
+	return m_data->BottomTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetBottomTexture(uint16_t value) -> void
+{
+	m_data.write().BottomTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeBottomY() const -> uint16_t
+{
+	return m_data->SizeBottomY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeBottomY(uint16_t value) -> void
+{
+	m_data.write().SizeBottomY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexBottomX() const -> uint16_t
+{
+	return m_data->TextureIndexBottomX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexBottomX(uint16_t value) -> void
+{
+	m_data.write().TextureIndexBottomX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexBottomZ() const -> uint16_t
+{
+	return m_data->TextureIndexBottomZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexBottomZ(uint16_t value) -> void
+{
+	m_data.write().TextureIndexBottomZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetWindowTexture() const -> uint16_t
+{
+	return m_data->WindowTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetWindowTexture(uint16_t value) -> void
+{
+	m_data.write().WindowTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeWindowY() const -> uint16_t
+{
+	return m_data->SizeWindowY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeWindowY(uint16_t value) -> void
+{
+	m_data.write().SizeWindowY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexWindowX() const -> uint16_t
+{
+	return m_data->TextureIndexWindowX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexWindowX(uint16_t value) -> void
+{
+	m_data.write().TextureIndexWindowX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexWindowY() const -> uint16_t
+{
+	return m_data->TextureIndexWindowY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexWindowY(uint16_t value) -> void
+{
+	m_data.write().TextureIndexWindowY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexWindowZ() const -> uint16_t
+{
+	return m_data->TextureIndexWindowZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexWindowZ(uint16_t value) -> void
+{
+	m_data.write().TextureIndexWindowZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTopTexture() const -> uint16_t
+{
+	return m_data->TopTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTopTexture(uint16_t value) -> void
+{
+	m_data.write().TopTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeTopY() const -> uint16_t
+{
+	return m_data->SizeTopY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeTopY(uint16_t value) -> void
+{
+	m_data.write().SizeTopY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexTopX() const -> uint16_t
+{
+	return m_data->TextureIndexTopX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexTopX(uint16_t value) -> void
+{
+	m_data.write().TextureIndexTopX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexTopZ() const -> uint16_t
+{
+	return m_data->TextureIndexTopZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexTopZ(uint16_t value) -> void
+{
+	m_data.write().TextureIndexTopZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetRoofTexture() const -> uint16_t
+{
+	return m_data->RoofTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetRoofTexture(uint16_t value) -> void
+{
+	m_data.write().RoofTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexRoofX() const -> uint16_t
+{
+	return m_data->TextureIndexRoofX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexRoofX(uint16_t value) -> void
+{
+	m_data.write().TextureIndexRoofX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexRoofZ() const -> uint16_t
+{
+	return m_data->TextureIndexRoofZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexRoofZ(uint16_t value) -> void
+{
+	m_data.write().TextureIndexRoofZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetSizeRoofY() const -> uint16_t
+{
+	return m_data->SizeRoofY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetSizeRoofY(uint16_t value) -> void
+{
+	m_data.write().SizeRoofY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexGableY() const -> uint16_t
+{
+	return m_data->TextureIndexGableY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexGableY(uint16_t value) -> void
+{
+	m_data.write().TextureIndexGableY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetGableTexture() const -> uint16_t
+{
+	return m_data->GableTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetGableTexture(uint16_t value) -> void
+{
+	m_data.write().GableTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexGableZ() const -> uint16_t
+{
+	return m_data->TextureIndexGableZ;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexGableZ(uint16_t value) -> void
+{
+	m_data.write().TextureIndexGableZ = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetFaceTexture() const -> uint16_t
+{
+	return m_data->FaceTexture;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetFaceTexture(uint16_t value) -> void
+{
+	m_data.write().FaceTexture = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexFaceX() const -> uint16_t
+{
+	return m_data->TextureIndexFaceX;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexFaceX(uint16_t value) -> void
+{
+	m_data.write().TextureIndexFaceX = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexFaceY() const -> uint16_t
+{
+	return m_data->TextureIndexFaceY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexFaceY(uint16_t value) -> void
+{
+	m_data.write().TextureIndexFaceY = value;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::GetTextureIndexRoofY() const -> uint16_t
+{
+	return m_data->TextureIndexRoofY;
+}
+
+auto flightsimlib::io::CBglGenericBuilding::SetTextureIndexRoofY(uint16_t value) -> void
+{
+	m_data.write().TextureIndexRoofY = value;
+}
+
+int flightsimlib::io::CBglGenericBuilding::CalculateSubrecordSize() const
+{
+	switch (static_cast<EType>(m_data->SubrecordType))
+	{
+	case EType::RectangularFlatRoof: 
+		return 46;
+	case EType::RectangularRidgeRoof:
+		return 54;
+	case EType::RectangularPeakedRoof:
+		return 50;
+	case EType::RectangularSlantRoof:
+		return 60;
+	case EType::Pyramidal:
+		return 50;
+	case EType::Multisided: 
+		return 44;
+	default:   // NOLINT(clang-diagnostic-covered-switch-default)
+		return 0;
+	}
+}
+
+
+//******************************************************************************
 // CBglLibraryObject
 //******************************************************************************  
 
@@ -966,8 +1481,7 @@ void flightsimlib::io::CBglLibraryObject::ReadBinary(BinaryFileStream& in)
 	if (in)
 	{
 		auto data = m_data.write();
-		in >> data.InstanceId
-			>> data.Name
+		in >> data.Name
 			>> data.Scale;
 	}
 }
@@ -977,8 +1491,7 @@ void flightsimlib::io::CBglLibraryObject::WriteBinary(BinaryFileStream& out)
 	CBglSceneryObject::WriteBinary(out);
 	if (out)
 	{
-		out << m_data->InstanceId
-			<< m_data->Name
+		out << m_data->Name
 			<< m_data->Scale;
 	}
 }
@@ -1069,7 +1582,7 @@ const char* flightsimlib::io::CBglEffect::GetName() const
 
 void flightsimlib::io::CBglEffect::SetName(const char* value)
 {
-	m_data.write().Name = { value };
+	m_data.write().Name = value;
 }
 
 const char* flightsimlib::io::CBglEffect::GetParams() const
@@ -1079,7 +1592,7 @@ const char* flightsimlib::io::CBglEffect::GetParams() const
 
 void flightsimlib::io::CBglEffect::SetParams(const char* value)
 {
-	m_data.write().Params = { value };
+	m_data.write().Params = value;
 }
 
 
@@ -1185,6 +1698,111 @@ bool flightsimlib::io::CBglWindsock::IsLighted() const
 void flightsimlib::io::CBglWindsock::SetLighted(bool value)
 {
 	m_data.write().Lighted = static_cast<uint16_t>(value);
+}
+
+
+//******************************************************************************
+// CBglBeacon
+//****************************************************************************** 
+
+
+void flightsimlib::io::CBglBeacon::ReadBinary(BinaryFileStream& in)
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		auto packed = uint16_t{};
+		in >> packed;
+		
+		switch (packed)
+		{
+		case 501:
+			data.Type = static_cast<uint8_t>(EType::Civilian);
+			data.BaseType = static_cast<uint8_t>(EBaseType::Airport);
+			break;
+		case 502:
+			data.Type = static_cast<uint8_t>(EType::Civilian);
+			data.BaseType = static_cast<uint8_t>(EBaseType::Heliport);
+			break;
+		case 503:
+			data.Type = static_cast<uint8_t>(EType::Civilian);
+			data.BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
+			break;
+		case 504:
+			data.Type = static_cast<uint8_t>(EType::Military);
+			data.BaseType = static_cast<uint8_t>(EBaseType::Airport);
+			break;
+		case 505:
+			data.Type = static_cast<uint8_t>(EType::Military);
+			data.BaseType = static_cast<uint8_t>(EBaseType::Heliport);
+			break;
+		case 506:
+			data.Type = static_cast<uint8_t>(EType::Military);
+			data.BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void flightsimlib::io::CBglBeacon::WriteBinary(BinaryFileStream& out)
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		const auto type = static_cast<EType>(m_data->Type);
+		const auto base_type = static_cast<EBaseType>(m_data->BaseType);
+		auto data = uint16_t{};
+
+		switch (base_type)
+		{
+		case EBaseType::Airport:
+			data = type == EType::Civilian ? 501 : 504;
+			break;
+		case EBaseType::Heliport:
+			data = type == EType::Civilian ? 502 : 505;
+			break;
+		case EBaseType::SeaBase:
+			data = type == EType::Civilian ? 503 : 506;
+			break;
+		default:
+			break;
+		}
+
+		out << data;
+	}
+}
+
+bool flightsimlib::io::CBglBeacon::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglBeacon::CalculateSize() const
+{
+	return CBglSceneryObject::CalculateSize() + sizeof(SBglBeaconData);
+}
+
+auto flightsimlib::io::CBglBeacon::GetBaseType() const -> EBaseType
+{
+	return static_cast<EBaseType>(m_data->BaseType);
+}
+
+void flightsimlib::io::CBglBeacon::SetBaseType(EBaseType value)
+{
+	m_data.write().BaseType = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglBeacon::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->Type);
+}
+
+void flightsimlib::io::CBglBeacon::SetType(EType value)
+{
+	m_data.write().Type = static_cast<uint8_t>(value);
 }
 
 
