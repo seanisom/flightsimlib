@@ -158,7 +158,7 @@ enum class EBglSceneryObjectType : uint16_t
 	LibraryObject = 0xB,
 	Windsock = 0xC,
 	Effect = 0xD,
-	TaxiwaySign = 0xE,
+	TaxiwaySigns = 0xE,
 	Trigger = 0x10,
 	Beacon = 0x11,
 	ExtrusionBridge = 0x12,

@@ -37,12 +37,21 @@
 //
 //******************************************************************************          
 
-
-#include "BinaryStream.h"
 #include "BglData.h"
 
 #include "BglDecompressor.h"
 #include "BglFile.h"
+#include "BinaryStream.h"
+
+#include <type_traits>
+
+
+// TODO Move to Util
+template<typename T>
+constexpr auto to_integral(T e) -> typename std::underlying_type<T>::type
+{
+	return static_cast<typename std::underlying_type<T>::type>(e);
+}
 
 
 //******************************************************************************
@@ -85,7 +94,6 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 		in >> type >> size;
 		in.SetPosition(child_pos);
 
-		// TODO enum
 		switch (static_cast<EBglLayerType>(type))
 		{
 		case EBglLayerType::PrimaryOffsetThreshold:
@@ -109,7 +117,7 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 
 void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 {
-	const auto size = CalculateSize();
+	const auto size = static_cast<uint32_t>(CalculateSize());
 	if (size != m_data->Size)
 	{
 		m_data.write().Size = size;
@@ -142,7 +150,7 @@ void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 bool flightsimlib::io::CBglRunway::Validate()
 {
 	m_data.write().Size = sizeof(SBglRunwayData);
-
+	// TODO: This should be set by factory
 	return m_data->Type == 0x4;
 }
 
@@ -316,7 +324,7 @@ void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::SetWidth(float val
 	m_data.write().Width = value;
 }
 
-bool flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::IsEmpty()
+bool flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::IsEmpty() const
 {
 	if (m_data->Type == 0)
 	{
@@ -371,7 +379,6 @@ void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
 		in >> type >> size;
 		in.SetPosition(child_pos);
 
-		// TODO enum
 		switch (static_cast<EBglLayerType>(type))
 		{
 		case EBglLayerType::Runway: // runway
@@ -594,12 +601,12 @@ int flightsimlib::io::CBglMarker::CalculateSize() const
 
 float flightsimlib::io::CBglMarker::GetHeading() const
 {
-	return ANGLE16::Value(m_data->Heading);
+	return static_cast<float>(ANGLE16::Value(m_data->Heading));
 }
 
 void flightsimlib::io::CBglMarker::SetHeading(float value)
 {
-	m_data.write().Heading = ANGLE16::FromDouble(value);
+	m_data.write().Heading = ANGLE16::FromDouble(static_cast<double>(value));
 }
 
 //******************************************************************************
@@ -702,7 +709,8 @@ flightsimlib::io::IBglGeopol::EType flightsimlib::io::CBglGeopol::GetGeopolType(
 
 void flightsimlib::io::CBglGeopol::SetGeopolType(EType value)
 {
-	m_data.write().GeopolType = (m_data->GeopolType & 0x3FFF) | (static_cast<int>(value) << 14);
+	m_data.write().GeopolType = 
+		static_cast<uint16_t>((m_data->GeopolType & 0x3FFF) | (static_cast<int>(value) << 14));
 }
 
 int flightsimlib::io::CBglGeopol::GetNumVertices() const
@@ -712,7 +720,8 @@ int flightsimlib::io::CBglGeopol::GetNumVertices() const
 
 void flightsimlib::io::CBglGeopol::SetNumVertices(int value)
 {
-	m_data.write().GeopolType = (m_data->GeopolType & 0xC000) | value;
+	m_data.write().GeopolType = 
+		static_cast<uint16_t>((m_data->GeopolType & 0xC000) | value);
 }
 
 
@@ -1503,7 +1512,7 @@ bool flightsimlib::io::CBglLibraryObject::Validate()
 
 int flightsimlib::io::CBglLibraryObject::CalculateSize() const
 {
-	return CBglSceneryObject::CalculateSize() + sizeof(SBglLibraryObjectData);
+	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglLibraryObjectData));
 }
 
 _GUID flightsimlib::io::CBglLibraryObject::GetName() const
@@ -1560,7 +1569,7 @@ void flightsimlib::io::CBglEffect::WriteBinary(BinaryFileStream& out)
 		}
 		out.Write(m_data->Name.data(), s_name_size);
 
-		const auto params = m_data->Params.c_str();
+		const auto* const params = m_data->Params.c_str();
 		out.Write(params, strlen(params));
 	}
 }
@@ -1572,7 +1581,8 @@ bool flightsimlib::io::CBglEffect::Validate()
 
 int flightsimlib::io::CBglEffect::CalculateSize() const
 {
-	return CBglSceneryObject::CalculateSize() + s_name_size + strlen(m_data->Params.c_str());
+	return CBglSceneryObject::CalculateSize() + 
+		s_name_size + static_cast<int>(strlen(m_data->Params.c_str()));
 }
 
 const char* flightsimlib::io::CBglEffect::GetName() const
@@ -1593,6 +1603,209 @@ const char* flightsimlib::io::CBglEffect::GetParams() const
 void flightsimlib::io::CBglEffect::SetParams(const char* value)
 {
 	m_data.write().Params = value;
+}
+
+
+//******************************************************************************
+// CBglTaxiwaySign
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwaySign::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto data = m_data.write();
+	in >> data.LongitudeBias
+		>> data.LatitudeBias
+		>> data.Heading
+		>> data.Size
+		>> data.Justification;
+	
+	const auto param_size = CalculateSize() - s_record_size;
+	data.Label = in.ReadString(param_size);
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->LongitudeBias
+		<< m_data->LatitudeBias
+		<< m_data->Heading
+		<< m_data->Size
+		<< m_data->Justification;
+
+	const auto* const label = m_data->Label.c_str();
+	const auto length = static_cast<int>(strlen(label));
+	out.Write(label, length);
+
+	// TODO - move pad to util
+	const auto num_pad = 2 - length % 2;
+	if (num_pad == 2)
+	{
+		return;
+	}
+	
+	const auto pad = uint8_t{ 0 };
+	for (auto i = 0; i < num_pad; ++i)
+	{
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::CalculateSize() const -> int
+{
+	const auto label_length = static_cast<int>(strlen(m_data->Label.c_str()));
+	return s_record_size + label_length + label_length % 2 ? 1 : 0;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetLongitudeBias() const -> float
+{
+	return m_data->LongitudeBias;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetLongitudeBias(float value) -> void
+{
+	m_data.write().LongitudeBias = value;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetLatitudeBias() const -> float
+{
+	return m_data->LatitudeBias;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetLatitudeBias(float value) -> void
+{
+	m_data.write().LatitudeBias = value;
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetHeading() const -> float
+{
+	return static_cast<float>(ANGLE16::Value(m_data->Heading));
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetHeading(float value) -> void
+{
+	m_data.write().Heading = ANGLE16::FromDouble(static_cast<double>(value));
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetSize() const -> ESize
+{
+	return static_cast<ESize>(m_data->Size);
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetSize(ESize value) -> void
+{
+	m_data.write().Size = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetJustification() const -> EJustification
+{
+	return static_cast<EJustification>(m_data->Justification);
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetJustification(EJustification value) -> void
+{
+	m_data.write().Justification = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::GetLabel() const -> const char*
+{
+	return m_data->Label .c_str();
+}
+
+auto flightsimlib::io::CBglTaxiwaySign::SetLabel(const char* value) -> void
+{
+	m_data.write().Label = value;
+}
+
+
+//******************************************************************************
+// CBglTaxiwaySigns
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwaySigns::ReadBinary(BinaryFileStream& in) -> void
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		if (!m_signs.read().empty())
+		{
+			m_signs.write().clear();
+		}
+		auto sign_count = uint16_t{ 0 };
+		in >> sign_count;
+		m_signs.write().resize(sign_count);
+
+		for (auto i = 0; i < sign_count; ++i)
+		{
+			if (!in)
+			{
+				break;
+			}
+			m_signs.write()[i].ReadBinary(in);
+		}
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::WriteBinary(BinaryFileStream& out) -> void
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		const auto sign_count = static_cast<uint16_t>(m_signs.read().size());
+		out << sign_count;
+
+		for (auto i = 0; i < sign_count; ++i)
+		{
+			if (!out)
+			{
+				break;
+			}
+			m_signs.write()[i].WriteBinary(out);
+		}
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::CalculateSize() const -> int
+{
+	auto size = static_cast<int>(CBglSceneryObject::CalculateSize() + sizeof(uint16_t));
+	for (const auto& sign : m_signs.read())
+	{
+		size += sign.CalculateSize();
+	}
+	return size;
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::GetSignCount() const -> int
+{
+	return static_cast<int>(m_signs.read().size());
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::GetSignAt(int index) const -> const IBglTaxiwaySign*
+{
+	return &(m_signs.read()[index]);
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::AddSign(const IBglTaxiwaySign* sign) -> void
+{
+	// TODO Need validation, self check
+	m_signs.write().emplace_back(*static_cast<const CBglTaxiwaySign*>(sign));
+}
+
+auto flightsimlib::io::CBglTaxiwaySigns::RemoveSign(const IBglTaxiwaySign* sign) -> void
+{
+	const auto iter = m_signs.read().begin() + 
+		std::distance(m_signs.read().data(), static_cast<const CBglTaxiwaySign*>(sign));
+	m_signs.write().erase(iter);
 }
 
 
@@ -1637,7 +1850,7 @@ bool flightsimlib::io::CBglWindsock::Validate()
 
 int flightsimlib::io::CBglWindsock::CalculateSize() const
 {
-	return CBglSceneryObject::CalculateSize() + sizeof(SBglWindsockData);
+	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglWindsockData));
 }
 
 _GUID flightsimlib::io::CBglWindsock::GetInstanceId() const
@@ -1711,37 +1924,36 @@ void flightsimlib::io::CBglBeacon::ReadBinary(BinaryFileStream& in)
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
 		auto packed = uint16_t{};
 		in >> packed;
 		
 		switch (packed)
 		{
 		case 501:
-			data.Type = static_cast<uint8_t>(EType::Civilian);
-			data.BaseType = static_cast<uint8_t>(EBaseType::Airport);
+			m_data.write().Type = static_cast<uint8_t>(EType::Civilian);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::Airport);
 			break;
 		case 502:
-			data.Type = static_cast<uint8_t>(EType::Civilian);
-			data.BaseType = static_cast<uint8_t>(EBaseType::Heliport);
+			m_data.write().Type = static_cast<uint8_t>(EType::Civilian);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::Heliport);
 			break;
 		case 503:
-			data.Type = static_cast<uint8_t>(EType::Civilian);
-			data.BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
+			m_data.write().Type = static_cast<uint8_t>(EType::Civilian);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
 			break;
 		case 504:
-			data.Type = static_cast<uint8_t>(EType::Military);
-			data.BaseType = static_cast<uint8_t>(EBaseType::Airport);
+			m_data.write().Type = static_cast<uint8_t>(EType::Military);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::Airport);
 			break;
 		case 505:
-			data.Type = static_cast<uint8_t>(EType::Military);
-			data.BaseType = static_cast<uint8_t>(EBaseType::Heliport);
+			m_data.write().Type = static_cast<uint8_t>(EType::Military);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::Heliport);
 			break;
 		case 506:
-			data.Type = static_cast<uint8_t>(EType::Military);
-			data.BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
+			m_data.write().Type = static_cast<uint8_t>(EType::Military);
+			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
 			break;
-		default:
+		default: 
 			break;
 		}
 	}
@@ -1767,8 +1979,6 @@ void flightsimlib::io::CBglBeacon::WriteBinary(BinaryFileStream& out)
 		case EBaseType::SeaBase:
 			data = type == EType::Civilian ? 503 : 506;
 			break;
-		default:
-			break;
 		}
 
 		out << data;
@@ -1782,7 +1992,7 @@ bool flightsimlib::io::CBglBeacon::Validate()
 
 int flightsimlib::io::CBglBeacon::CalculateSize() const
 {
-	return CBglSceneryObject::CalculateSize() + sizeof(SBglBeaconData);
+	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglBeaconData));
 }
 
 auto flightsimlib::io::CBglBeacon::GetBaseType() const -> EBaseType
@@ -1834,13 +2044,12 @@ void flightsimlib::io::CTerrainRasterQuad1::ReadBinary(BinaryFileStream& in)
 	
 	if (in)
 	{
-		auto data = m_data.write();
-		data.DataOffset = in.GetPosition();
-		data.DataLength = m_header->SizeData; // TODO consistent naming!
+		m_data.write().DataOffset = in.GetPosition();
+		m_data.write().DataLength = m_header->SizeData; // TODO consistent naming!
 		if(m_header->SizeMask > 0)
 		{
-			data.MaskOffset = m_data->DataOffset + m_data->DataLength;
-			data.MaskLength = m_header->SizeMask;
+			m_data.write().MaskOffset = m_data->DataOffset + m_data->DataLength;
+			m_data.write().MaskLength = m_header->SizeMask;
 		}
 	}
 }
@@ -2080,7 +2289,7 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 	case ERasterCompressionType::Dxt5:
 	case ERasterCompressionType::None: // TODO - this should be implemented
 	case ERasterCompressionType::SolidBlock:
-	default:
+	case ERasterCompressionType::Max:
 		throw std::exception("Unsupported Compression Type");
 	}
 

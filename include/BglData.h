@@ -259,7 +259,7 @@ public:
 		void SetWidth(float value) override;
 
 		// public but not part of client interface:
-		bool IsEmpty();
+		bool IsEmpty() const;
 		void Clone(CBglRunwayOffsetThreshold& value);
 
 	private:
@@ -793,6 +793,77 @@ private:
 };
 
 
+//******************************************************************************
+// CBglTaxiwaySign
+//****************************************************************************** 
+	
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwaySignData
+{
+	float LongitudeBias;
+	float LatitudeBias;
+	uint16_t Heading;
+	uint8_t Size;
+	uint8_t Justification;
+	std::string Label;
+};
+
+#pragma pack(pop)
+
+
+class CBglTaxiwaySign final : public IBglSerializable, public IBglTaxiwaySign
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetLongitudeBias() const -> float override;
+	auto SetLongitudeBias(float value) -> void override;
+	auto GetLatitudeBias() const -> float override;
+	auto SetLatitudeBias(float value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetSize() const -> ESize override;
+	auto SetSize(ESize value) -> void override;
+	auto GetJustification() const -> EJustification override;
+	auto SetJustification(EJustification value) -> void override;
+	auto GetLabel() const -> const char* override;
+	auto SetLabel(const char* value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTaxiwaySignData> m_data;
+	static constexpr int s_record_size = 12;
+};
+
+
+//******************************************************************************
+// CBglTaxiwaySigns
+//****************************************************************************** 
+
+
+class CBglTaxiwaySigns final : public CBglSceneryObject, public IBglTaxiwaySigns
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetSignCount() const -> int override;
+	auto GetSignAt(int index) const -> const IBglTaxiwaySign* override;
+	auto AddSign(const IBglTaxiwaySign* sign) -> void override;
+	auto RemoveSign(const IBglTaxiwaySign* sign) -> void override;
+
+private:
+	stlab::copy_on_write<std::vector<CBglTaxiwaySign>> m_signs;
+};
+
+	
 //******************************************************************************
 // CBglWindsock
 //****************************************************************************** 

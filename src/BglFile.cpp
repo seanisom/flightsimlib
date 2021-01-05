@@ -145,14 +145,17 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			case EBglSceneryObjectType::GenericBuilding:
 				record = std::make_unique<CBglGenericBuilding>();
 				break;
-			case EBglSceneryObjectType::Effect:
-				record = std::make_unique<CBglEffect>();
-				break;
 			case EBglSceneryObjectType::LibraryObject:
 				record = std::make_unique<CBglLibraryObject>();
 				break;
 			case EBglSceneryObjectType::Windsock:
 				record = std::make_unique<CBglWindsock>();
+				break;
+			case EBglSceneryObjectType::Effect:
+				record = std::make_unique<CBglEffect>();
+				break;
+			case EBglSceneryObjectType::TaxiwaySigns:
+				record = std::make_unique<CBglTaxiwaySigns>();
 				break;
 			case EBglSceneryObjectType::Beacon:
 				record = std::make_unique<CBglBeacon>();

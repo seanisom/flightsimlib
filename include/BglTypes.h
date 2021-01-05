@@ -24,11 +24,12 @@
 //
 //******************************************************************************
 
-// TODO: We need a cross platform library for this
-#include <guiddef.h>
-
 #ifndef FLIGHTSIMLIB_IO_BGLTYPES_H
 #define FLIGHTSIMLIB_IO_BGLTYPES_H
+
+// TODO: We need a cross platform library for this
+#include <cstdint>
+#include <guiddef.h>
 
 namespace flightsimlib
 {
@@ -418,6 +419,51 @@ public:
 	virtual void SetName(const char* value) = 0;
 	virtual const char* GetParams() const = 0;
 	virtual void SetParams(const char* value) = 0;
+};
+
+
+class IBglTaxiwaySign
+{
+public:
+	enum class ESize : uint8_t
+	{
+		VerySparse = 0,
+		Size1 = 1,
+		Size2 = 2,
+		Size3 = 3,
+		Size4 = 4,
+		Size5 = 5
+	};
+
+	enum class EJustification : uint8_t
+	{
+		None = 0,
+		Right = 1,
+		Left = 2
+	};
+	
+	virtual float GetLongitudeBias() const = 0;
+	virtual void SetLongitudeBias(float value) = 0;
+	virtual float GetLatitudeBias() const = 0;
+	virtual void SetLatitudeBias(float value) = 0;
+	virtual float GetHeading() const = 0;
+	virtual void SetHeading(float value) = 0;
+	virtual ESize GetSize() const = 0;
+	virtual void SetSize(ESize value) = 0;
+	virtual EJustification GetJustification() const = 0;
+	virtual void SetJustification(EJustification value) = 0;
+	virtual const char* GetLabel() const = 0;
+	virtual void SetLabel(const char* value) = 0;
+};
+	
+
+class IBglTaxiwaySigns : virtual public IBglSceneryObject
+{
+public:
+	virtual int GetSignCount() const = 0;
+	virtual const IBglTaxiwaySign* GetSignAt(int index) const = 0;
+	virtual void AddSign(const IBglTaxiwaySign* sign) = 0;
+	virtual void RemoveSign(const IBglTaxiwaySign* sign) = 0;
 };
 
 
