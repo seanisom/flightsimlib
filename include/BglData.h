@@ -1040,6 +1040,11 @@ public:
 		return m_header->DataType;
 	}
 
+	struct STerrainRasterQuadData
+	{
+		
+	};
+	
 private:
 
 	int GetBpp() const
@@ -1110,7 +1115,11 @@ private:
 		return  GetBpp() * Cols() * Rows();
 	}
 	
-	std::shared_ptr<uint8_t[]>DecompressData(ERasterCompressionType compression_type, int uncompressed_size);
+	std::unique_ptr<uint8_t[]>DecompressData(
+		ERasterCompressionType compression_type,
+		uint8_t p_compressed[],
+		int compressed_size,
+		int uncompressed_size) const;
 	
 	stlab::copy_on_write<SBglTerrainRasterQuad1Data> m_header;
 	stlab::copy_on_write<CRasterBlock> m_data;
