@@ -69,16 +69,6 @@ public:
 // Common
 //******************************************************************************  
 
-#pragma pack(push)
-#pragma pack(1)
-
-struct SBglVertexLL
-{
-	uint32_t Longitude;
-	uint32_t Latitude;
-};
-	
-#pragma pack(pop)
 
 // TODO: Move to Utility
 
@@ -346,7 +336,7 @@ public:
 	void SetMagVar(float value) override;
 
 private:
-	std::vector<CBglRunway> m_runways;
+	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
@@ -477,12 +467,11 @@ struct SBglGeopolData
 	uint32_t MinLatitude;
 	uint32_t MaxLongitude;
 	uint32_t MaxLatitude;
-	SBglVertexLL* Vertices;
 };
 
 #pragma pack(pop)
 
-// TODO - Need mem management constructors around Vertices array
+
 class CBglGeopol final : public IBglSerializable, public IBglGeopol
 {
 public:
@@ -502,12 +491,16 @@ public:
 
 	EType GetGeopolType() const override;
 	void SetGeopolType(EType value) override;
-	int GetNumVertices() const override;
+	int GetVertexCount() const override;
+	const SBglVertexLL* GetVertexAt(int index) const override;
+	void AddVertex(const SBglVertexLL* vertex) override;
+	void RemoveVertex(const SBglVertexLL* vertex) override;
 
 private:
-	void SetNumVertices(int value) override;
+	void SetVertexCount(int value);
 	
 	stlab::copy_on_write<SBglGeopolData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
 };
 
 //******************************************************************************
@@ -539,39 +532,39 @@ struct SBglSceneryObjectData
 class CBglSceneryObject : public IBglSerializable, virtual public IBglSceneryObject
 {
 public:
-	virtual void ReadBinary(BinaryFileStream& in) override;
-	virtual void WriteBinary(BinaryFileStream& out) override;
-	virtual bool Validate() override;
-	virtual int CalculateSize() const override;
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
 
-	virtual double GetLongitude() const override;
-	virtual void SetLongitude(double value) override;
-	virtual double GetLatitude() const override;
-	virtual void SetLatitude(double value) override;
-	virtual double GetAltitude() const override;
-	virtual void SetAltitude(double value) override;
-	virtual bool IsAboveAgl() const override;
-	virtual void SetAboveAgl(bool value) override;
-	virtual bool IsNoAutogenSuppression() const override;
-	virtual void SetNoAutogenSuppression(bool value) override;
-	virtual bool IsNoCrash() const override;
-	virtual void SetNoCrash(bool value) override;
-	virtual bool IsNoFog() const override;
-	virtual void SetNoFog(bool value) override;
-	virtual bool IsNoShadow() const override;
-	virtual void SetNoShadow(bool value) override;
-	virtual bool IsNoZWrite() const override;
-	virtual void SetNoZWrite(bool value) override;
-	virtual bool IsNoZTest() const override;
-	virtual void SetNoZTest(bool value) override;
-	virtual float GetPitch() const override;
-	virtual void SetPitch(float value) override;
-	virtual float GetBank() const override;
-	virtual void SetBank(float value) override;
-	virtual float GetHeading() const override;
-	virtual void SetHeading(float value) override;
-	virtual EImageComplexity GetImageComplexity() const override;
-	virtual void SetImageComplexity(EImageComplexity value) override;
+	double GetLongitude() const override;
+	void SetLongitude(double value) override;
+	double GetLatitude() const override;
+	void SetLatitude(double value) override;
+	double GetAltitude() const override;
+	void SetAltitude(double value) override;
+	bool IsAboveAgl() const override;
+	void SetAboveAgl(bool value) override;
+	bool IsNoAutogenSuppression() const override;
+	void SetNoAutogenSuppression(bool value) override;
+	bool IsNoCrash() const override;
+	void SetNoCrash(bool value) override;
+	bool IsNoFog() const override;
+	void SetNoFog(bool value) override;
+	bool IsNoShadow() const override;
+	void SetNoShadow(bool value) override;
+	bool IsNoZWrite() const override;
+	void SetNoZWrite(bool value) override;
+	bool IsNoZTest() const override;
+	void SetNoZTest(bool value) override;
+	float GetPitch() const override;
+	void SetPitch(float value) override;
+	float GetBank() const override;
+	void SetBank(float value) override;
+	float GetHeading() const override;
+	void SetHeading(float value) override;
+	EImageComplexity GetImageComplexity() const override;
+	void SetImageComplexity(EImageComplexity value) override;
 
 protected:
 	int RecordSize() const;

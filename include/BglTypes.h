@@ -60,7 +60,20 @@ enum class ESurfaceType : uint16_t
 	TARMAC = 0x0017,
 	UNKNOWN = 0x00FE
 };
-	
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglVertexLL
+{
+	uint32_t Longitude;
+	uint32_t Latitude;
+};
+
+#pragma pack(pop)
+
+
 class IBglRunwayOffsetThreshold
 {
 public:
@@ -259,11 +272,10 @@ public:
 
 	virtual EType GetGeopolType() const = 0;
 	virtual void SetGeopolType(EType value) = 0;
-	virtual int GetNumVertices() const = 0;
-
-private:
-	virtual void SetNumVertices(int value) = 0;
-	// TODO - need Setter with realloc - need a better interface with this
+	virtual int GetVertexCount() const = 0;
+	virtual const SBglVertexLL* GetVertexAt(int index) const = 0;
+	virtual void AddVertex(const SBglVertexLL* vertex) = 0;
+	virtual void RemoveVertex(const SBglVertexLL* vertex) = 0;
 };
 
 class ITerrainRasterQuad1

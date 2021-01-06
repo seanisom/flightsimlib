@@ -385,7 +385,7 @@ void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
 			{
 				auto runway = CBglRunway{};
 				runway.ReadBinary(in);
-				m_runways.emplace_back(std::move(runway));
+				m_runways.write().emplace_back(std::move(runway));
 			}
 			break;
 		default:
@@ -418,7 +418,7 @@ void flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out)
 		<< m_data->FuelTypes
 		<< m_data->Flags;
 
-	for (auto& runway : m_runways)
+	for (auto& runway : m_runways.write())
 	{
 		runway.WriteBinary(out);
 	}
@@ -615,6 +615,8 @@ void flightsimlib::io::CBglMarker::SetHeading(float value)
 
 void flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in)
 {
+	assert(m_vertices->empty());
+	
 	auto data = m_data.write();
 	in >> data.SectionType
 		>> data.Size
@@ -624,13 +626,12 @@ void flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in)
 		>> data.MaxLongitude
 		>> data.MaxLatitude;
 
-	const auto count = GetNumVertices();
-	m_data.write().Vertices = new SBglVertexLL[count];
+	const auto count = GetVertexCount();
+	m_vertices.write().resize(count);
 
-	for (auto i = 0; i < count; ++i)
+	for (auto& vertex : m_vertices.write())
 	{
-		auto& vert = m_data->Vertices[i];
-		in >> vert.Longitude >> vert.Latitude;
+		in >> vertex.Longitude >> vertex.Latitude;
 	}
 }
 
@@ -644,11 +645,9 @@ void flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out)
 		<< m_data->MaxLongitude
 		<< m_data->MaxLatitude;
 
-	const auto count = GetNumVertices();
-	for (auto i = 0; i < count; ++i)
+	for (const auto& vertex : m_vertices.read())
 	{
-		const auto& vert = m_data->Vertices[i];
-		out << vert.Longitude << vert.Latitude;
+		out << vertex.Longitude << vertex.Latitude;
 	}
 }
 
@@ -659,7 +658,7 @@ bool flightsimlib::io::CBglGeopol::Validate()
 
 int flightsimlib::io::CBglGeopol::CalculateSize() const
 {
-	return static_cast<int>(sizeof(SBglGeopolData) + GetNumVertices() * sizeof(SBglVertexLL));
+	return static_cast<int>(sizeof(SBglGeopolData) + GetVertexCount() * sizeof(SBglVertexLL));
 }
 
 double flightsimlib::io::CBglGeopol::GetMinLongitude() const
@@ -713,12 +712,33 @@ void flightsimlib::io::CBglGeopol::SetGeopolType(EType value)
 		static_cast<uint16_t>((m_data->GeopolType & 0x3FFF) | (static_cast<int>(value) << 14));
 }
 
-int flightsimlib::io::CBglGeopol::GetNumVertices() const
+int flightsimlib::io::CBglGeopol::GetVertexCount() const
 {
 	return m_data->GeopolType & 0x3FFF;
 }
 
-void flightsimlib::io::CBglGeopol::SetNumVertices(int value)
+const flightsimlib::io::SBglVertexLL* flightsimlib::io::CBglGeopol::GetVertexAt(int index) const
+{
+	return &(m_vertices.read()[index]);
+}
+
+void flightsimlib::io::CBglGeopol::AddVertex(const SBglVertexLL* vertex)
+{
+	// TODO Need validation, self check
+	m_vertices.write().emplace_back(*vertex);
+	SetVertexCount(m_vertices->size());
+}
+
+void flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex)
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), vertex);
+	m_vertices.write().erase(iter);
+	
+	SetVertexCount(m_vertices->size());
+}
+
+void flightsimlib::io::CBglGeopol::SetVertexCount(int value)
 {
 	m_data.write().GeopolType = 
 		static_cast<uint16_t>((m_data->GeopolType & 0xC000) | value);
@@ -922,32 +942,32 @@ void flightsimlib::io::CBglSceneryObject::SetNoZTest(bool value)
 
 float flightsimlib::io::CBglSceneryObject::GetPitch() const
 {
-	return ANGLE16::Value(m_data->Pitch);
+	return static_cast<float>(ANGLE16::Value(m_data->Pitch));
 }
 
 void flightsimlib::io::CBglSceneryObject::SetPitch(float value)
 {
-	m_data.write().Pitch = ANGLE16::FromDouble(value);
+	m_data.write().Pitch = ANGLE16::FromDouble(static_cast<double>(value));
 }
 
 float flightsimlib::io::CBglSceneryObject::GetBank() const
 {
-	return ANGLE16::Value(m_data->Bank);
+	return static_cast<float>(ANGLE16::Value(m_data->Bank));
 }
 
 void flightsimlib::io::CBglSceneryObject::SetBank(float value)
 {
-	m_data.write().Bank = ANGLE16::FromDouble(value);
+	m_data.write().Bank = ANGLE16::FromDouble(static_cast<double>(value));
 }
 
 float flightsimlib::io::CBglSceneryObject::GetHeading() const
 {
-	return ANGLE16::Value(m_data->Heading);
+	return static_cast<float>(ANGLE16::Value(m_data->Heading));
 }
 
 void flightsimlib::io::CBglSceneryObject::SetHeading(float value)
 {
-	m_data.write().Heading = ANGLE16::FromDouble(value);
+	m_data.write().Heading = ANGLE16::FromDouble(static_cast<double>(value));
 }
 
 flightsimlib::io::CBglSceneryObject::EImageComplexity flightsimlib::io::CBglSceneryObject::GetImageComplexity() const
