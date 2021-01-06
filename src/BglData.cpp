@@ -2123,13 +2123,13 @@ int flightsimlib::io::CTerrainRasterQuad1::Cols() const
 	return m_header->Cols;
 }
 
-std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(
-	ERasterCompressionType compression_type, 
-	int uncompressed_size)
+std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(
+	ERasterCompressionType compression_type,
+	uint8_t p_compressed[],
+	int compressed_size,
+	int uncompressed_size) const
 {
-	auto uncompressed = std::shared_ptr<uint8_t[]>(new uint8_t[uncompressed_size]);
-	const auto compressed_size = m_data->DataLength;
-	const auto compressed = m_data.write().GetCompressedData();
+	auto p_uncompressed = std::make_unique<uint8_t[]>(uncompressed_size);
 	const auto bpp = GetBpp();
 	auto bit_depth = 0, num_channels = 0;
 	if (!GetImageFormat(bit_depth, num_channels))
@@ -2138,14 +2138,14 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 	}
 
 	auto intermediate_size = 0;
-	std::shared_ptr<uint8_t[]> p_intermediate = nullptr;
+	std::unique_ptr<uint8_t[]> p_intermediate = nullptr;
 	if (compression_type == ERasterCompressionType::DeltaLz1 || 
 		compression_type == ERasterCompressionType::DeltaLz2 ||
 		compression_type == ERasterCompressionType::BitPackLz1 ||
 		compression_type == ERasterCompressionType::BitPackLz2)
 	{
-		intermediate_size = *reinterpret_cast<int*>(compressed.get());
-		p_intermediate = std::shared_ptr<uint8_t[]>(new uint8_t[intermediate_size]);
+		intermediate_size = *reinterpret_cast<int*>(p_compressed);
+		p_intermediate = std::make_unique<uint8_t[]>(intermediate_size);
 	}
 
 	// ReSharper disable once CppInitializedValueIsAlwaysRewritten
@@ -2155,9 +2155,9 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 	{
 	case ERasterCompressionType::Delta:
 		bytes_read = CBglDecompressor::DecompressDelta(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
-			compressed.get());
+			p_compressed);
 		if (bytes_read != compressed_size)
 		{
 			return nullptr;
@@ -2166,9 +2166,9 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		
 	case ERasterCompressionType::BitPack:
 		bytes_read = CBglDecompressor::DecompressBitPack(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
-			compressed.get(), 
+			p_compressed, 
 			compressed_size,
 			Rows(), 
 			Cols());
@@ -2180,9 +2180,9 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		
 	case ERasterCompressionType::Lz1:
 		bytes_read = CBglDecompressor::DecompressLz1(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
-			compressed.get(), 
+			p_compressed, 
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
@@ -2192,9 +2192,9 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		
 	case ERasterCompressionType::Lz2:
 		bytes_read = CBglDecompressor::DecompressLz2(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
-			compressed.get(), 
+			p_compressed, 
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
@@ -2206,14 +2206,14 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		bytes_read = CBglDecompressor::DecompressLz1(
 			p_intermediate.get(), 
 			intermediate_size, 
-			compressed.get() + sizeof(int), 
+			p_compressed + sizeof(int), 
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
 			return nullptr;
 		}
 		bytes_read = CBglDecompressor::DecompressDelta(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size,
 			p_intermediate.get());
 		if (bytes_read != intermediate_size)
@@ -2226,14 +2226,14 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		bytes_read = CBglDecompressor::DecompressLz2(
 			p_intermediate.get(),
 			intermediate_size, 
-			compressed.get() + sizeof(int),
+			p_compressed + sizeof(int),
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
 			return nullptr;
 		}
 		bytes_read = CBglDecompressor::DecompressDelta(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
 			p_intermediate.get());
 		if (bytes_read != intermediate_size)
@@ -2246,14 +2246,14 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		bytes_read = CBglDecompressor::DecompressLz1(
 			p_intermediate.get(),
 			intermediate_size, 
-			compressed.get() + sizeof(int),
+			p_compressed + sizeof(int),
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
 			return nullptr;
 		}
 		bytes_read = CBglDecompressor::DecompressBitPack(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
 			p_intermediate.get(),
 			intermediate_size, 
@@ -2269,14 +2269,14 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		bytes_read = CBglDecompressor::DecompressLz2(
 			p_intermediate.get(),
 			intermediate_size, 
-			compressed.get() + sizeof(int),
+			p_compressed + sizeof(int),
 			compressed_size);
 		if (bytes_read != compressed_size)
 		{
 			return nullptr;
 		}
 		bytes_read = CBglDecompressor::DecompressBitPack(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
 			p_intermediate.get(),
 			intermediate_size, 
@@ -2290,9 +2290,9 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		
 	case ERasterCompressionType::Ptc:
 		bytes_read = CBglDecompressor::DecompressPtc(
-			uncompressed.get(), 
+			p_uncompressed.get(), 
 			uncompressed_size, 
-			compressed.get(), 
+			p_compressed, 
 			compressed_size, 
 			Rows(), 
 			Cols(), 
@@ -2313,5 +2313,5 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 		throw std::exception("Unsupported Compression Type");
 	}
 
-	return uncompressed;
+	return p_uncompressed;
 }
