@@ -53,6 +53,289 @@ constexpr auto to_integral(T e) -> typename std::underlying_type<T>::type
 	return static_cast<typename std::underlying_type<T>::type>(e);
 }
 
+template <typename T>
+T get_packed_bits(T src, int num_bits, int position)
+{
+	return (src >> position) & (2 << (num_bits - 1));
+}
+
+
+template <typename T>
+void set_packed_bits(T& dest, int value, int num_bits, int position)
+{
+	dest &= ~((2 << (num_bits - 1)) << position);
+	dest |= static_cast<uint32_t>(value) << position;
+}
+
+
+//******************************************************************************
+// CBglFuelAvailability
+//******************************************************************************  
+
+
+template <typename T>
+flightsimlib::io::CBglFuelAvailability<T>::CBglFuelAvailability(T& data) : m_data(data) { }
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Get73Octane() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Octane73)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Set73Octane(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Octane73));
+
+	UpdateAvgasAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Get87Octane() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Octane87)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Set87Octane(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Octane87));
+
+	UpdateAvgasAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Get100Octane() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Octane100)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Set100Octane(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Octane100));
+
+	UpdateAvgasAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Get130Octane() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Octane130)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Set130Octane(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Octane130));
+
+	UpdateAvgasAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Get145Octane() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Octane145)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::Set145Octane(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Octane145));
+
+	UpdateAvgasAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetMogas() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Mogas)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetMogas(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Mogas));
+
+	UpdateAvgasAvailability(value); // TODO - verify mogas counts as avgas?
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJet() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Jet)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJet(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Jet));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJetA() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::JetA)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJetA(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::JetA));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJetA1() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::JetA1)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJetA1(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::JetA1));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJetAP() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::JetAP)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJetAP(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::JetAP));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJetB() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::JetB)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJetB(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::JetB));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJet4() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Jet4)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJet4(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Jet4));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::GetJet5() const -> EFuelAvailability
+{
+	return static_cast<EFuelAvailability>(
+		get_packed_bits(m_data->FuelAvailability, s_num_availability_bits, to_integral(EFuelBits::Jet5)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::SetJet5(EFuelAvailability value) -> void
+{
+	set_packed_bits(m_data.write().FuelAvailability, to_integral(value),
+		s_num_availability_bits, to_integral(EFuelBits::Jet5));
+
+	UpdateJetFuelAvailability(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::HasAvgas() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->FuelAvailability, 1, to_integral(EFuelBits::Avgas)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::HasJetFuel() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->FuelAvailability, 1, to_integral(EFuelBits::JetFuel)));
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::UpdateAvgasAvailability(EFuelAvailability value)
+{
+	if (value == EFuelAvailability::Yes && !HasAvgas())
+	{
+		set_packed_bits(m_data.write().FuelAvailability, true,
+			1, to_integral(EFuelBits::Avgas));
+	}
+	else if (value != EFuelAvailability::Yes && HasAvgas())
+	{
+		if (get_packed_bits(m_data->FuelAvailability,
+			to_integral(EFuelBits::Jet), to_integral(EFuelBits::Octane73)) == 0)
+		{
+			set_packed_bits(m_data.write().FuelAvailability, false,
+				1, to_integral(EFuelBits::Avgas));
+		}
+	}
+}
+
+template <typename T>
+auto flightsimlib::io::CBglFuelAvailability<T>::UpdateJetFuelAvailability(EFuelAvailability value)
+{
+	if (value == EFuelAvailability::Yes && !HasJetFuel())
+	{
+		set_packed_bits(m_data.write().FuelAvailability, true,
+			1, to_integral(EFuelBits::JetFuel));
+	}
+	else if (value != EFuelAvailability::Yes && HasJetFuel())
+	{
+		if (get_packed_bits(m_data->FuelAvailability,
+			to_integral(EFuelBits::Reserved1), to_integral(EFuelBits::Jet)) == 0)
+		{
+			set_packed_bits(m_data.write().FuelAvailability, false,
+				1, to_integral(EFuelBits::JetFuel));
+		}
+	}
+}
+
 
 //******************************************************************************
 // CBglRunway
@@ -726,7 +1009,7 @@ void flightsimlib::io::CBglGeopol::AddVertex(const SBglVertexLL* vertex)
 {
 	// TODO Need validation, self check
 	m_vertices.write().emplace_back(*vertex);
-	SetVertexCount(m_vertices->size());
+	SetVertexCount(static_cast<int>(m_vertices->size()));
 }
 
 void flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex)
@@ -735,7 +1018,7 @@ void flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex)
 		std::distance(m_vertices.read().data(), vertex);
 	m_vertices.write().erase(iter);
 	
-	SetVertexCount(m_vertices->size());
+	SetVertexCount(static_cast<int>(m_vertices->size()));
 }
 
 void flightsimlib::io::CBglGeopol::SetVertexCount(int value)
@@ -978,6 +1261,16 @@ flightsimlib::io::CBglSceneryObject::EImageComplexity flightsimlib::io::CBglScen
 void flightsimlib::io::CBglSceneryObject::SetImageComplexity(EImageComplexity value)
 {
 	m_data.write().ImageComplexity = static_cast<uint16_t>(value);
+}
+
+_GUID flightsimlib::io::CBglSceneryObject::GetInstanceId() const
+{
+	return m_data->InstanceId;
+}
+
+void flightsimlib::io::CBglSceneryObject::SetInstanceId(_GUID value)
+{
+	m_data.write().InstanceId = value;
 }
 
 int flightsimlib::io::CBglSceneryObject::RecordSize() const
@@ -1557,6 +1850,99 @@ void flightsimlib::io::CBglLibraryObject::SetScale(float value)
 
 
 //******************************************************************************
+// CBglWindsock
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglWindsock::ReadBinary(BinaryFileStream& in)
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		in >> data.PoleHeight
+			>> data.WindsockLength
+			>> data.PoleColor
+			>> data.SockColor
+			>> data.Lighted;
+	}
+}
+
+void flightsimlib::io::CBglWindsock::WriteBinary(BinaryFileStream& out)
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		out << m_data->PoleHeight
+			<< m_data->WindsockLength
+			<< m_data->PoleColor
+			<< m_data->SockColor
+			<< m_data->Lighted;
+	}
+}
+
+bool flightsimlib::io::CBglWindsock::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglWindsock::CalculateSize() const
+{
+	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglWindsockData));
+}
+
+float flightsimlib::io::CBglWindsock::GetPoleHeight() const
+{
+	return m_data->PoleHeight;
+}
+
+void flightsimlib::io::CBglWindsock::SetPoleHeight(float value)
+{
+	m_data.write().PoleHeight = value;
+}
+
+float flightsimlib::io::CBglWindsock::GetSockLength() const
+{
+	return m_data->WindsockLength;
+}
+
+void flightsimlib::io::CBglWindsock::SetSockLength(float value)
+{
+	m_data.write().WindsockLength = value;
+}
+
+uint32_t flightsimlib::io::CBglWindsock::GetPoleColor() const
+{
+	return m_data->PoleColor;
+}
+
+void flightsimlib::io::CBglWindsock::SetPoleColor(uint32_t value)
+{
+	m_data.write().PoleColor = value;
+}
+
+uint32_t flightsimlib::io::CBglWindsock::GetSockColor() const
+{
+	return m_data->SockColor;
+}
+
+void flightsimlib::io::CBglWindsock::SetSockColor(uint32_t value)
+{
+	m_data.write().SockColor = value;
+}
+
+bool flightsimlib::io::CBglWindsock::IsLighted() const
+{
+	return m_data->Lighted == 1;
+}
+
+void flightsimlib::io::CBglWindsock::SetLighted(bool value)
+{
+	m_data.write().Lighted = static_cast<uint16_t>(value);
+}
+
+
+//******************************************************************************
 // CBglEffect
 //******************************************************************************  
 
@@ -1590,7 +1976,7 @@ void flightsimlib::io::CBglEffect::WriteBinary(BinaryFileStream& out)
 		out.Write(m_data->Name.data(), s_name_size);
 
 		const auto* const params = m_data->Params.c_str();
-		out.Write(params, strlen(params));
+		out.Write(params, static_cast<int>(strlen(params)));
 	}
 }
 
@@ -1830,107 +2216,264 @@ auto flightsimlib::io::CBglTaxiwaySigns::RemoveSign(const IBglTaxiwaySign* sign)
 
 
 //******************************************************************************
-// CBglWindsock
-//******************************************************************************  
+// CBglTriggerRefuelRepair
+//****************************************************************************** 
 
 
-void flightsimlib::io::CBglWindsock::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglTriggerRefuelRepair::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto data = m_data.write();
+	in >> data.FuelAvailability
+		>> data.PointCount;
+
+	m_vertices.write().resize(data.PointCount);
+
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.X >> vertex.Z;
+	}
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->FuelAvailability
+		<< m_data->PointCount;
+
+	for (const auto& vertex : m_vertices.write())
+	{
+		out << vertex.X << vertex.Z;
+	}
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTriggerRefuelRepairData) +
+		sizeof(SBglVertexBias) * m_data->PointCount);
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::GetVertexCount() const -> int
+{
+	return m_data->PointCount;
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::GetVertexAt(int index) const -> const SBglVertexBias*
+{
+	return &(m_vertices.read()[index]);
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::AddVertex(const SBglVertexBias* point) -> void
+{
+	m_vertices.write().emplace_back(*point);
+	++m_data.write().PointCount;
+}
+
+auto flightsimlib::io::CBglTriggerRefuelRepair::RemoveVertex(const SBglVertexBias* point) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), point);
+	m_vertices.write().erase(iter);
+	--m_data.write().PointCount;
+}
+
+
+//******************************************************************************
+// CBglTriggerWeather
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTriggerWeather::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto data = m_data.write();
+	in >> data.Type
+		>> data.Heading
+		>> data.Scalar
+		>> data.PointCount;
+
+	m_vertices.write().resize(data.PointCount);
+
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.X >> vertex.Z;
+	}
+}
+
+auto flightsimlib::io::CBglTriggerWeather::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Heading
+		<< m_data->Scalar
+		<< m_data->PointCount;
+
+	for (const auto& vertex : m_vertices.write())
+	{
+		out << vertex.X << vertex.Z;
+	}
+}
+
+auto flightsimlib::io::CBglTriggerWeather::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTriggerWeatherData) +
+		sizeof(SBglVertexBias) * m_data->PointCount);
+}
+
+auto flightsimlib::io::CBglTriggerWeather::GetTriggerHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::SetTriggerHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::GetScalar() const -> float
+{
+	return m_data->Scalar;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::SetScalar(float value) -> void
+{
+	m_data.write().Scalar = value;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::GetVertexCount() const -> int
+{
+	return m_data->PointCount;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::GetVertexAt(int index) const -> const SBglVertexBias*
+{
+	return &(m_vertices.read()[index]);
+}
+
+auto flightsimlib::io::CBglTriggerWeather::AddVertex(const SBglVertexBias* point) -> void
+{
+	m_vertices.write().emplace_back(*point);
+	++m_data.write().PointCount;
+}
+
+auto flightsimlib::io::CBglTriggerWeather::RemoveVertex(const SBglVertexBias* point) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), point);
+	m_vertices.write().erase(iter);
+	--m_data.write().PointCount;
+}
+
+
+//******************************************************************************
+// CBglTrigger
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTrigger::ReadBinary(BinaryFileStream& in) -> void
 {
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
 		auto data = m_data.write();
-		in >> data.InstanceId
-			>> data.PoleHeight
-			>> data.WindsockLength
-			>> data.PoleColor
-			>> data.SockColor
-			>> data.Lighted;
+		in >> data.Type
+			>> data.Height;
+		
+		if (GetType() == EType::RefuelRepair)
+		{
+			m_refuel.write().ReadBinary(in);
+		}
+		else
+		{
+			m_weather.write().ReadBinary(in);
+		}
 	}
 }
 
-void flightsimlib::io::CBglWindsock::WriteBinary(BinaryFileStream& out)
+auto flightsimlib::io::CBglTrigger::WriteBinary(BinaryFileStream& out) -> void
 {
 	CBglSceneryObject::WriteBinary(out);
 	if (out)
 	{
-		out << m_data->InstanceId
-			<< m_data->PoleHeight
-			<< m_data->WindsockLength
-			<< m_data->PoleColor
-			<< m_data->SockColor
-			<< m_data->Lighted;
+		out << m_data->Type
+			<< m_data->Height;
+
+		if (GetType() == EType::RefuelRepair)
+		{
+			m_refuel.write().WriteBinary(out);
+		}
+		else
+		{
+			m_weather.write().WriteBinary(out);
+		}
 	}
 }
 
-bool flightsimlib::io::CBglWindsock::Validate()
+auto flightsimlib::io::CBglTrigger::Validate() -> bool
 {
 	return true;
 }
 
-int flightsimlib::io::CBglWindsock::CalculateSize() const
+auto flightsimlib::io::CBglTrigger::CalculateSize() const -> int
 {
-	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglWindsockData));
+	return CBglSceneryObject::CalculateSize() + static_cast<int>(sizeof(SBglTriggerData)) +
+		(GetType() == EType::RefuelRepair ? m_refuel->CalculateSize() : m_weather->CalculateSize());
 }
 
-_GUID flightsimlib::io::CBglWindsock::GetInstanceId() const
+auto flightsimlib::io::CBglTrigger::GetType() const -> EType
 {
-	return m_data->InstanceId;
+	return static_cast<EType>(m_data->Type);
 }
 
-void flightsimlib::io::CBglWindsock::SetInstanceId(_GUID value)
+auto flightsimlib::io::CBglTrigger::SetType(EType value) -> void
 {
-	m_data.write().InstanceId = value;
+	m_data.write().Type = to_integral(value);
 }
 
-float flightsimlib::io::CBglWindsock::GetPoleHeight() const
+auto flightsimlib::io::CBglTrigger::GetHeight() const -> float
 {
-	return m_data->PoleHeight;
+	return m_data->Height;
 }
 
-void flightsimlib::io::CBglWindsock::SetPoleHeight(float value)
+auto flightsimlib::io::CBglTrigger::SetHeight(float value) -> void
 {
-	m_data.write().PoleHeight = value;
+	m_data.write().Height = value;
 }
 
-float flightsimlib::io::CBglWindsock::GetSockLength() const
+auto flightsimlib::io::CBglTrigger::GetRepairRefuel() const -> const IBglTriggerRefuelRepair*
 {
-	return m_data->WindsockLength;
+	if (GetType() == EType::RefuelRepair)
+	{
+		return m_refuel.operator->();
+	}
+	return nullptr;
 }
 
-void flightsimlib::io::CBglWindsock::SetSockLength(float value)
+auto flightsimlib::io::CBglTrigger::SetRepairRefuel(const IBglTriggerRefuelRepair* value) -> void
 {
-	m_data.write().WindsockLength = value;
+	// TODO - Do we need a clone function to steal the cow pointer, and not construct a new one?
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_refuel = { *static_cast<const CBglTriggerRefuelRepair*>(value) };
 }
 
-uint32_t flightsimlib::io::CBglWindsock::GetPoleColor() const
+auto flightsimlib::io::CBglTrigger::GetWeather() const -> const IBglTriggerWeather*
 {
-	return m_data->PoleColor;
+	if (GetType() == EType::Weather)
+	{
+		return m_weather.operator->();
+	}
+	return nullptr;
 }
 
-void flightsimlib::io::CBglWindsock::SetPoleColor(uint32_t value)
+auto flightsimlib::io::CBglTrigger::SetWeather(const IBglTriggerWeather* value) -> void
 {
-	m_data.write().PoleColor = value;
-}
-
-uint32_t flightsimlib::io::CBglWindsock::GetSockColor() const
-{
-	return m_data->SockColor;
-}
-
-void flightsimlib::io::CBglWindsock::SetSockColor(uint32_t value)
-{
-	m_data.write().SockColor = value;
-}
-
-bool flightsimlib::io::CBglWindsock::IsLighted() const
-{
-	return m_data->Lighted == 1;
-}
-
-void flightsimlib::io::CBglWindsock::SetLighted(bool value)
-{
-	m_data.write().Lighted = static_cast<uint16_t>(value);
+	m_weather = { *static_cast<const CBglTriggerWeather*>(value) };
 }
 
 
@@ -1946,7 +2489,7 @@ void flightsimlib::io::CBglBeacon::ReadBinary(BinaryFileStream& in)
 	{
 		auto packed = uint16_t{};
 		in >> packed;
-		
+
 		switch (packed)
 		{
 		case 501:
@@ -1973,7 +2516,7 @@ void flightsimlib::io::CBglBeacon::ReadBinary(BinaryFileStream& in)
 			m_data.write().Type = static_cast<uint8_t>(EType::Military);
 			m_data.write().BaseType = static_cast<uint8_t>(EBaseType::SeaBase);
 			break;
-		default: 
+		default:
 			break;
 		}
 	}
@@ -2033,6 +2576,250 @@ auto flightsimlib::io::CBglBeacon::GetType() const -> EType
 void flightsimlib::io::CBglBeacon::SetType(EType value)
 {
 	m_data.write().Type = static_cast<uint8_t>(value);
+}
+
+
+//******************************************************************************
+// CBglExtrusionBridge
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglExtrusionBridge::ReadBinary(BinaryFileStream& in) -> void
+{
+	CBglSceneryObject::ReadBinary(in);
+	if (in)
+	{
+		auto data = m_data.write();
+		in >> data.ExtrusionProfile
+			>> data.MaterialSet
+			>> data.LongitudeSample1
+			>> data.LatitudeSample1
+			>> data.AltitudeSample1
+			>> data.LongitudeSample2
+			>> data.LatitudeSample2
+			>> data.AltitudeSample2
+			>> data.RoadWidth
+			>> data.Probability
+			>> data.SuppressPlatform
+			>> data.PlacementCount
+			>> data.PointCount;
+
+		m_placements.write().resize(data.PlacementCount);
+
+		for (auto& placement : m_placements.write())
+		{
+			in >> placement;
+		}
+
+		m_points.write().resize(data.PointCount);
+
+		for (auto& point : m_points.write())
+		{
+			in >> point.Longitude >> point.Latitude >> point.Altitude;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::WriteBinary(BinaryFileStream& out) -> void
+{
+	CBglSceneryObject::WriteBinary(out);
+	if (out)
+	{
+		out << m_data->ExtrusionProfile
+			<< m_data->MaterialSet
+			<< m_data->LongitudeSample1
+			<< m_data->LatitudeSample1
+			<< m_data->AltitudeSample1
+			<< m_data->LongitudeSample2
+			<< m_data->LatitudeSample2
+			<< m_data->AltitudeSample2
+			<< m_data->RoadWidth
+			<< m_data->Probability
+			<< m_data->SuppressPlatform
+			<< m_data->PlacementCount
+			<< m_data->PointCount;
+
+		for (const auto& placement : m_placements.read())
+		{
+			out << placement;
+		}
+
+		for (const auto& point : m_points.read())
+		{
+			out << point.Longitude << point.Latitude << point.Altitude;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglExtrusionBridgeData) + 
+		sizeof(_GUID) * m_data->PlacementCount +
+		sizeof(SBglVertexLLA) * m_data->PointCount);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetExtrusionProfile() const -> _GUID
+{
+	return m_data->ExtrusionProfile;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetExtrusionProfile(_GUID value) -> void
+{
+	m_data.write().ExtrusionProfile = value;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetMaterialSet() const -> _GUID
+{
+	return m_data->MaterialSet;
+}
+
+void flightsimlib::io::CBglExtrusionBridge::SetMaterialSet(_GUID value)
+{
+	m_data.write().MaterialSet = value;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetLongitudeSample1() const -> double
+{
+	return Longitude::Value(m_data->LongitudeSample1);
+}
+
+void flightsimlib::io::CBglExtrusionBridge::SetLongitudeSample1(double value)
+{
+	m_data.write().LongitudeSample1 = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetLatitudeSample1() const -> double
+{
+	return Latitude::Value(m_data->LatitudeSample1);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetLatitudeSample1(double value) -> void
+{
+	m_data.write().LatitudeSample1 = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetAltitudeSample1() const -> double
+{
+	return PackedAltitude::Value(m_data->AltitudeSample1);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetAltitudeSample1(double value) -> void
+{
+	m_data.write().AltitudeSample1 = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetLongitudeSample2() const -> double
+{
+	return Longitude::Value(m_data->LongitudeSample2);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetLongitudeSample2(double value) -> void
+{
+	m_data.write().LongitudeSample2 = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetLatitudeSample2() const -> double
+{
+	return Latitude::Value(m_data->LatitudeSample2);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetLatitudeSample2(double value) -> void
+{
+	m_data.write().LatitudeSample2 = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetAltitudeSample2() const -> double
+{
+	return PackedAltitude::Value(m_data->AltitudeSample2);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetAltitudeSample2(double value) -> void
+{
+	m_data.write().AltitudeSample2 = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetRoadWidth() const -> float
+{
+	return m_data->RoadWidth;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetRoadWidth(float value) -> void
+{
+	m_data.write().RoadWidth = value;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetProbability() const -> float
+{
+	return m_data->Probability;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetProbability(float value) -> void
+{
+	m_data.write().Probability = value;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::IsSuppressPlatform() const -> bool
+{
+	return static_cast<bool>(m_data->SuppressPlatform);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::SetSuppressPlatform(bool value) -> void
+{
+	m_data.write().SuppressPlatform = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetPlacementCount() const -> int
+{
+	return static_cast<int>(m_data->PlacementCount);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetPointCount() const -> int
+{
+	return static_cast<int>(m_data->PointCount);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetPlacementAt(int index) const -> const _GUID*
+{
+	return &(m_placements.read()[index]);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::AddPlacement(const _GUID* placement) -> void
+{
+	// TODO Need validation, self check
+	m_placements.write().emplace_back(*placement);
+	++m_data.write().PlacementCount;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::RemovePlacement(const _GUID* placement) -> void
+{
+	const auto iter = m_placements.read().begin() +
+		std::distance(m_placements.read().data(), placement);
+	m_placements.write().erase(iter);
+	--m_data.write().PlacementCount;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::GetPointAt(int index) const -> const SBglVertexLLA*
+{
+	return &(m_points.read()[index]);
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::AddPoint(const SBglVertexLLA* point) -> void
+{
+	m_points.write().emplace_back(*point);
+	++m_data.write().PointCount;
+}
+
+auto flightsimlib::io::CBglExtrusionBridge::RemovePoint(const SBglVertexLLA* point) -> void
+{
+	const auto iter = m_points.read().begin() +
+		std::distance(m_points.read().data(), point);
+	m_points.write().erase(iter);
+	--m_data.write().PointCount;
 }
 
 
@@ -2315,3 +3102,5 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 
 	return p_uncompressed;
 }
+
+template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglTriggerRefuelRepairData>>;

@@ -74,6 +74,75 @@ struct SBglVertexLL
 #pragma pack(pop)
 
 
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglVertexLLA
+{
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+};
+
+#pragma pack(pop)
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglVertexBias
+{
+	float X;
+	float Z;
+};
+
+#pragma pack(pop)
+
+
+class IBglFuelAvailability
+{
+public:
+
+	enum class EFuelAvailability
+	{
+		No = 0,
+		Unknown = 1,
+		PriorRequest = 2,
+		Yes = 3
+	};
+
+	// TODO - There is an "Unknown" type in the XML compiler
+	virtual EFuelAvailability Get73Octane() const = 0;
+	virtual void Set73Octane(EFuelAvailability value) = 0;
+	virtual EFuelAvailability Get87Octane() const = 0;
+	virtual void Set87Octane(EFuelAvailability value) = 0;
+	virtual EFuelAvailability Get100Octane() const = 0;
+	virtual void Set100Octane(EFuelAvailability value) = 0;
+	virtual EFuelAvailability Get130Octane() const = 0;
+	virtual void Set130Octane(EFuelAvailability value) = 0;
+	virtual EFuelAvailability Get145Octane() const = 0;
+	virtual void Set145Octane(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetMogas() const = 0;
+	virtual void SetMogas(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJet() const = 0;
+	virtual void SetJet(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJetA() const = 0;
+	virtual void SetJetA(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJetA1() const = 0;
+	virtual void SetJetA1(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJetAP() const = 0;
+	virtual void SetJetAP(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJetB() const = 0;
+	virtual void SetJetB(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJet4() const = 0;
+	virtual void SetJet4(EFuelAvailability value) = 0;
+	virtual EFuelAvailability GetJet5() const = 0;
+	virtual void SetJet5(EFuelAvailability value) = 0;
+	virtual bool HasAvgas() const = 0;
+	virtual bool HasJetFuel() const = 0;
+};
+
+
 class IBglRunwayOffsetThreshold
 {
 public:
@@ -333,6 +402,8 @@ public:
 	virtual void SetHeading(float value) = 0;
 	virtual EImageComplexity GetImageComplexity() const = 0;
 	virtual void SetImageComplexity(EImageComplexity value) = 0;
+	virtual _GUID GetInstanceId() const = 0;
+	virtual void SetInstanceId(_GUID value) = 0;
 };
 
 
@@ -424,6 +495,22 @@ public:
 };
 
 
+class IBglWindsock : virtual public IBglSceneryObject
+{
+public:
+	virtual float GetPoleHeight() const = 0;
+	virtual void SetPoleHeight(float value) = 0;
+	virtual float GetSockLength() const = 0;
+	virtual void SetSockLength(float value) = 0;
+	virtual uint32_t GetPoleColor() const = 0;
+	virtual void SetPoleColor(uint32_t value) = 0;
+	virtual uint32_t GetSockColor() const = 0;
+	virtual void SetSockColor(uint32_t value) = 0;
+	virtual bool IsLighted() const = 0;
+	virtual void SetLighted(bool value) = 0;
+};
+
+
 class IBglEffect : virtual public IBglSceneryObject
 {
 public:
@@ -479,21 +566,56 @@ public:
 };
 
 
-class IBglWindsock : virtual public IBglSceneryObject
+class IBglTriggerRefuelRepair : virtual public IBglFuelAvailability
 {
 public:
-	virtual _GUID GetInstanceId() const = 0;
-	virtual void SetInstanceId(_GUID value) = 0;
-	virtual float GetPoleHeight() const = 0;
-	virtual void SetPoleHeight(float value) = 0;
-	virtual float GetSockLength() const = 0;
-	virtual void SetSockLength(float value) = 0;
-	virtual uint32_t GetPoleColor() const = 0;
-	virtual void SetPoleColor(uint32_t value) = 0;
-	virtual uint32_t GetSockColor() const = 0;
-	virtual void SetSockColor(uint32_t value) = 0;
-	virtual bool IsLighted() const = 0;
-	virtual void SetLighted(bool value) = 0;
+	virtual int GetVertexCount() const = 0;
+	virtual const SBglVertexBias* GetVertexAt(int index) const = 0;
+	virtual void AddVertex(const SBglVertexBias* point) = 0;
+	virtual void RemoveVertex(const SBglVertexBias* point) = 0;
+};
+
+
+class IBglTriggerWeather
+{
+public:
+	enum class EType : uint16_t
+	{
+		RidgeLift = 1,
+		UnidirectionalTurbulence = 2,
+		DirectionalTurbulence = 3,
+		Thermal = 4
+	};
+
+	virtual float GetTriggerHeading() const = 0;
+	virtual void SetTriggerHeading(float value) = 0;
+	virtual float GetScalar() const = 0;
+	virtual void SetScalar(float value) = 0;
+	virtual int GetVertexCount() const = 0;
+	virtual const SBglVertexBias* GetVertexAt(int index) const = 0;
+	virtual void AddVertex(const SBglVertexBias* point) = 0;
+	virtual void RemoveVertex(const SBglVertexBias* point) = 0;
+};
+
+
+class IBglTrigger : virtual public IBglSceneryObject
+{
+public:
+
+	enum class EType : uint16_t
+	{
+		RefuelRepair = 0,
+		Weather = 1
+	};
+
+	virtual EType GetType() const = 0;
+	virtual void SetType(EType value) = 0;
+	virtual float GetHeight() const = 0;
+	virtual void SetHeight(float value) = 0;
+	virtual const IBglTriggerRefuelRepair* GetRepairRefuel() const = 0;
+	virtual void SetRepairRefuel(const IBglTriggerRefuelRepair* value) = 0;
+	virtual const IBglTriggerWeather* GetWeather() const = 0;
+	virtual void SetWeather(const IBglTriggerWeather* value) = 0;
 };
 
 
@@ -518,6 +640,42 @@ public:
 	virtual void SetBaseType(EBaseType value) = 0;
 	virtual EType GetType() const = 0;
 	virtual void SetType(EType value) = 0;
+};
+
+
+class IBglExtrusionBridge : virtual public IBglSceneryObject
+{
+public:
+	virtual _GUID GetExtrusionProfile() const = 0;
+	virtual void SetExtrusionProfile(_GUID value) = 0;
+	virtual _GUID GetMaterialSet() const = 0;
+	virtual void SetMaterialSet(_GUID value) = 0;
+	virtual double GetLongitudeSample1() const = 0;
+	virtual void SetLongitudeSample1(double value) = 0;
+	virtual double GetLatitudeSample1() const = 0;
+	virtual void SetLatitudeSample1(double value) = 0;
+	virtual double GetAltitudeSample1() const = 0;
+	virtual void SetAltitudeSample1(double value) = 0;
+	virtual double GetLongitudeSample2() const = 0;
+	virtual void SetLongitudeSample2(double value) = 0;
+	virtual double GetLatitudeSample2() const = 0;
+	virtual void SetLatitudeSample2(double value) = 0;
+	virtual double GetAltitudeSample2() const = 0;
+	virtual void SetAltitudeSample2(double value) = 0;
+	virtual float GetRoadWidth() const = 0;
+	virtual void SetRoadWidth(float value) = 0;
+	virtual float GetProbability() const = 0;
+	virtual void SetProbability(float value) = 0;
+	virtual bool IsSuppressPlatform() const = 0;
+	virtual void SetSuppressPlatform(bool value) = 0;
+	virtual int GetPlacementCount() const = 0;
+	virtual int GetPointCount() const = 0;
+	virtual const _GUID* GetPlacementAt(int index) const = 0;
+	virtual void AddPlacement(const _GUID* placement) = 0;
+	virtual void RemovePlacement(const _GUID* placement) = 0;
+	virtual const SBglVertexLLA* GetPointAt(int index) const = 0;
+	virtual void AddPoint(const SBglVertexLLA* point) = 0;
+	virtual void RemovePoint(const SBglVertexLLA* point) = 0;
 };
 
 
