@@ -182,7 +182,78 @@ public:
 	double m_Value;
 };
 	
+
+//******************************************************************************
+// CBglFuelAvailability
+//******************************************************************************  
+
+
+template <typename T>
+class CBglFuelAvailability : virtual public IBglFuelAvailability
+{
+public:
+	explicit CBglFuelAvailability(T& data);
 	
+	auto Get73Octane() const -> EFuelAvailability override;
+	auto Set73Octane(EFuelAvailability value) -> void override;
+	auto Get87Octane() const -> EFuelAvailability override;
+	auto Set87Octane(EFuelAvailability value) -> void override;
+	auto Get100Octane() const -> EFuelAvailability override;
+	auto Set100Octane(EFuelAvailability value) -> void override;
+	auto Get130Octane() const -> EFuelAvailability override;
+	auto Set130Octane(EFuelAvailability value) -> void override;
+	auto Get145Octane() const -> EFuelAvailability override;
+	auto Set145Octane(EFuelAvailability value) -> void override;
+	auto GetMogas() const -> EFuelAvailability override;
+	auto SetMogas(EFuelAvailability value) -> void override;
+	auto GetJet() const -> EFuelAvailability override;
+	auto SetJet(EFuelAvailability value) -> void override;
+	auto GetJetA() const -> EFuelAvailability override;
+	auto SetJetA(EFuelAvailability value) -> void override;
+	auto GetJetA1() const -> EFuelAvailability override;
+	auto SetJetA1(EFuelAvailability value) -> void override;
+	auto GetJetAP() const -> EFuelAvailability override;
+	auto SetJetAP(EFuelAvailability value) -> void override;
+	auto GetJetB() const -> EFuelAvailability override;
+	auto SetJetB(EFuelAvailability value) -> void override;
+	auto GetJet4() const -> EFuelAvailability override;
+	auto SetJet4(EFuelAvailability value) -> void override;
+	auto GetJet5() const -> EFuelAvailability override;
+	auto SetJet5(EFuelAvailability value) -> void override;
+	auto HasAvgas() const -> bool override;
+	auto HasJetFuel() const -> bool override;
+	
+private:
+	auto UpdateAvgasAvailability(EFuelAvailability value);
+	auto UpdateJetFuelAvailability(EFuelAvailability value);
+	
+	enum class EFuelBits
+	{
+		Octane73 = 0,
+		Octane87 = 2,
+		Octane100 = 4,
+		Octane130 = 6,
+		Octane145 = 8,
+		Mogas = 10,
+		Jet = 12,
+		JetA = 14,
+		JetA1 = 16,
+		JetAP = 18,
+		JetB = 20,
+		Jet4 = 22,
+		Jet5 = 24,
+		Reserved1 = 26,
+		Reserved2 = 28,
+		Avgas = 30,
+		JetFuel = 31
+	};
+
+	static constexpr int s_num_availability_bits = 2;
+	
+	T& m_data;
+};
+
+
 //******************************************************************************
 // CBglRunway
 //******************************************************************************  
@@ -565,6 +636,8 @@ public:
 	void SetHeading(float value) override;
 	EImageComplexity GetImageComplexity() const override;
 	void SetImageComplexity(EImageComplexity value) override;
+	_GUID GetInstanceId() const override;
+	void SetInstanceId(_GUID value) override;
 
 protected:
 	int RecordSize() const;
@@ -751,6 +824,50 @@ private:
 
 
 //******************************************************************************
+// CBglWindsock
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglWindsockData
+{
+	float PoleHeight;
+	float WindsockLength;
+	uint32_t PoleColor;
+	uint32_t SockColor;
+	uint16_t Lighted;
+};
+
+#pragma pack(pop)
+
+
+class CBglWindsock final : public CBglSceneryObject, public IBglWindsock
+{
+public:
+	void ReadBinary(BinaryFileStream& in) override;
+	void WriteBinary(BinaryFileStream& out) override;
+	bool Validate() override;
+	int CalculateSize() const override;
+
+	float GetPoleHeight() const override;
+	void SetPoleHeight(float value) override;
+	float GetSockLength() const override;
+	void SetSockLength(float value) override;
+	uint32_t GetPoleColor() const override;
+	void SetPoleColor(uint32_t value) override;
+	uint32_t GetSockColor() const override;
+	void SetSockColor(uint32_t value) override;
+	bool IsLighted() const override;
+	void SetLighted(bool value) override;
+
+private:
+	stlab::copy_on_write<SBglWindsockData> m_data;
+};
+
+
+//******************************************************************************
 // CBglEffect
 //****************************************************************************** 
 
@@ -856,51 +973,126 @@ private:
 	stlab::copy_on_write<std::vector<CBglTaxiwaySign>> m_signs;
 };
 
-	
+
 //******************************************************************************
-// CBglWindsock
+// CBglTriggerRefuelRepair
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTriggerRefuelRepairData
+{
+	uint32_t FuelAvailability;
+	uint32_t PointCount;
+};
+
+#pragma pack(pop)
+
+
+class CBglTriggerRefuelRepair final : public CBglFuelAvailability<stlab::copy_on_write<SBglTriggerRefuelRepairData>>,
+	public IBglSerializable, public IBglTriggerRefuelRepair
+{
+public:
+	CBglTriggerRefuelRepair() : CBglFuelAvailability<stlab::copy_on_write<SBglTriggerRefuelRepairData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetVertexCount() const -> int override;
+	auto GetVertexAt(int index) const -> const SBglVertexBias* override;
+	auto AddVertex(const SBglVertexBias* point) -> void override;
+	auto RemoveVertex(const SBglVertexBias* point) -> void override;
+	
+private:
+	stlab::copy_on_write<SBglTriggerRefuelRepairData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexBias>> m_vertices;
+};
+
+
+//******************************************************************************
+// CBglTriggerWeather
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTriggerWeatherData
+{
+	uint16_t Type;
+	float Heading;
+	float Scalar;
+	uint32_t PointCount;
+};
+
+#pragma pack(pop)
+
+
+class CBglTriggerWeather final : public IBglSerializable, public IBglTriggerWeather
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetTriggerHeading() const -> float override;
+	auto SetTriggerHeading(float value) -> void override;
+	auto GetScalar() const -> float override;
+	auto SetScalar(float value) -> void override;
+	auto GetVertexCount() const -> int override;
+	auto GetVertexAt(int index) const -> const SBglVertexBias* override;
+	auto AddVertex(const SBglVertexBias* point) -> void override;
+	auto RemoveVertex(const SBglVertexBias* point) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTriggerWeatherData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexBias>> m_vertices;
+};
+
+
+//******************************************************************************
+// CBglTrigger
 //****************************************************************************** 
 
 
 #pragma pack(push)
 #pragma pack(1)
 
-struct SBglWindsockData
+struct SBglTriggerData
 {
-	_GUID InstanceId;
-	float PoleHeight;
-	float WindsockLength;
-	uint32_t PoleColor;
-	uint32_t SockColor;
-	uint16_t Lighted;
+	uint16_t Type;
+	float Height;
 };
 
 #pragma pack(pop)
 
 
-class CBglWindsock final : public CBglSceneryObject, public IBglWindsock
+class CBglTrigger final : public CBglSceneryObject, public IBglTrigger
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
 
-	_GUID GetInstanceId() const override;
-	void SetInstanceId(_GUID value) override;
-	float GetPoleHeight() const override;
-	void SetPoleHeight(float value) override;
-	float GetSockLength() const override;
-	void SetSockLength(float value) override;
-	uint32_t GetPoleColor() const override;
-	void SetPoleColor(uint32_t value) override;
-	uint32_t GetSockColor() const override;
-	void SetSockColor(uint32_t value) override;
-	bool IsLighted() const override;
-	void SetLighted(bool value) override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetHeight() const -> float override;
+	auto SetHeight(float value) -> void override;
+	auto GetRepairRefuel() const -> const IBglTriggerRefuelRepair* override;
+	auto SetRepairRefuel(const IBglTriggerRefuelRepair* value) -> void override;
+	auto GetWeather() const -> const IBglTriggerWeather* override;
+	auto SetWeather(const IBglTriggerWeather* value) -> void override;
 
 private:
-	stlab::copy_on_write<SBglWindsockData> m_data;
+	stlab::copy_on_write<SBglTriggerData> m_data;
+	stlab::copy_on_write<CBglTriggerRefuelRepair> m_refuel;
+	stlab::copy_on_write<CBglTriggerWeather> m_weather;
 };
 
 
@@ -936,6 +1128,80 @@ public:
 
 private:
 	stlab::copy_on_write<SBglBeaconData> m_data;
+};
+
+
+//******************************************************************************
+// CBglExtrusionBridge
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglExtrusionBridgeData
+{
+	_GUID ExtrusionProfile;
+	_GUID MaterialSet;
+	uint32_t LongitudeSample1;
+	uint32_t LatitudeSample1;
+	uint32_t AltitudeSample1;
+	uint32_t LongitudeSample2;
+	uint32_t LatitudeSample2;
+	uint32_t AltitudeSample2;
+	float RoadWidth;
+	float Probability;
+	uint8_t SuppressPlatform;
+	uint8_t PlacementCount;
+	uint16_t PointCount;
+};
+
+#pragma pack(pop)
+
+
+class CBglExtrusionBridge final : public CBglSceneryObject, public IBglExtrusionBridge
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetExtrusionProfile() const -> _GUID  override;
+	auto SetExtrusionProfile(_GUID value) -> void  override;
+	auto GetMaterialSet() const -> _GUID  override;
+	void SetMaterialSet(_GUID value) override;
+	auto GetLongitudeSample1() const -> double  override;
+	void SetLongitudeSample1(double value) override;
+	auto GetLatitudeSample1() const -> double  override;
+	auto SetLatitudeSample1(double value) -> void  override;
+	auto GetAltitudeSample1() const -> double  override;
+	auto SetAltitudeSample1(double value) -> void  override;
+	auto GetLongitudeSample2() const -> double  override;
+	auto SetLongitudeSample2(double value) -> void  override;
+	auto GetLatitudeSample2() const -> double  override;
+	auto SetLatitudeSample2(double value) -> void  override;
+	auto GetAltitudeSample2() const -> double  override;
+	auto SetAltitudeSample2(double value) -> void  override;
+	auto GetRoadWidth() const -> float  override;
+	auto SetRoadWidth(float value) -> void  override;
+	auto GetProbability() const -> float  override;
+	auto SetProbability(float value) -> void  override;
+	auto IsSuppressPlatform() const -> bool  override;
+	auto SetSuppressPlatform(bool value) -> void  override;
+	auto GetPlacementCount() const -> int  override;
+	auto GetPointCount() const -> int  override;
+	auto GetPlacementAt(int index) const -> const _GUID*  override;
+	auto AddPlacement(const _GUID* placement) -> void  override;
+	auto RemovePlacement(const _GUID* placement) -> void  override;
+	auto GetPointAt(int index) const -> const SBglVertexLLA*  override;
+	auto AddPoint(const SBglVertexLLA* point) -> void  override;
+	auto RemovePoint(const SBglVertexLLA* point) -> void  override;
+
+private:
+	stlab::copy_on_write<SBglExtrusionBridgeData> m_data;
+	stlab::copy_on_write<std::vector<_GUID>> m_placements;
+	stlab::copy_on_write<std::vector<SBglVertexLLA>> m_points;
 };
 
 

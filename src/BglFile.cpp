@@ -157,8 +157,14 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			case EBglSceneryObjectType::TaxiwaySigns:
 				record = std::make_unique<CBglTaxiwaySigns>();
 				break;
+			case EBglSceneryObjectType::Trigger:
+				record = std::make_unique<CBglTrigger>();
+				break;
 			case EBglSceneryObjectType::Beacon:
 				record = std::make_unique<CBglBeacon>();
+				break;
+			case EBglSceneryObjectType::ExtrusionBridge:
+				record = std::make_unique<CBglExtrusionBridge>();
 				break;
 			default:
 				in.SetPosition(pos + static_cast<int>(child_size));
