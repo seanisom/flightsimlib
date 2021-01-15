@@ -38,27 +38,27 @@ namespace io
 {
 
 enum class ESurfaceType : uint16_t
-{
-	CONCRETE = 0x0000,
-	GRASS = 0x0001,
-	WATER = 0x0002,
-	ASPHALT = 0x0004,
-	CLAY = 0x0007,
-	SNOW = 0x0008,
-	ICE = 0x0009,
-	DIRT = 0x000C,
-	CORAL = 0x000D,
-	GRAVEL = 0x000E,
-	OIL_TREATED = 0x000F,
-	STEEL_MATS = 0x0010,
-	BITUMINOUS = 0x0011,
-	BRICK = 0x0012,
-	MACADAM = 0x0013,
-	PLANKS = 0x0014,
-	SAND = 0x0015,
-	SHALE = 0x0016,
-	TARMAC = 0x0017,
-	UNKNOWN = 0x00FE
+{ 
+	Concrete = 0, // There are missing values, find them?
+	Grass = 1,
+	Water = 2,
+	Asphalt = 4,
+	Clay = 7,
+	Snow = 8,
+	Ice = 9,
+	Dirt = 0xC,
+	Coral = 0xD,
+	Gravel = 0xE,
+	OilTreated = 0xF,
+	SteelMats = 0x10,
+	Bituminous = 0x11,
+	Brick = 0x12,
+	Macadam = 0x13,
+	Planks = 0x14,
+	Sand = 0x15,
+	Shale = 0x16,
+	Tarmac = 0x17,
+	Unknown = 0xFE
 };
 
 
@@ -143,16 +143,113 @@ public:
 };
 
 
-class IBglRunwayOffsetThreshold
+class IBglRunwayEnd
 {
 public:
-	virtual ESurfaceType GetSurfaceType() = 0;
-	virtual void SetSurfaceType(ESurfaceType value) = 0;
-	virtual float GetLength() const = 0;
-	virtual void SetLength(float value) = 0;
-	virtual float GetWidth() const = 0;
-	virtual void SetWidth(float value) = 0;
+	enum class EPosition : uint16_t
+	{
+		PrimaryOffsetThreshold = 0x5,
+		SecondaryOffsetThreshold = 0x6,
+		PrimaryBlastPad = 0x7,
+		SecondaryBlastPad = 0x8,
+		PrimaryOverrun = 0x9,
+		SecondaryOverrun = 0xA
+	};
+	
+	virtual auto GetPosition() const -> EPosition = 0;
+	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetLength() const -> float = 0;
+	virtual auto SetLength(float value) -> void = 0;
+	virtual auto GetWidth() const -> float = 0;
+	virtual auto SetWidth(float value) -> void = 0;
 };
+
+
+class IBglRunwayVasi
+{
+public:
+	enum class EPosition : uint16_t
+	{
+		PrimaryLeftVasi = 0xB,
+		PrimaryRightVasi = 0xC,
+		SecondaryLeftVasi = 0xD,
+		SecondaryRightVasi = 0xE
+	};
+
+	enum class EType : uint16_t
+	{
+		None = 0, // invalid
+		Vasi21 = 1,
+		Vasi31 = 2,
+		Vasi22 = 3,
+		Vasi32 = 4,
+		Vasi23 = 5,
+		Vasi33 = 6,
+		Papi2 = 7,
+		Papi4 = 8,
+		Tricolor = 9,
+		PVasi = 10,
+		TVasi = 11,
+		Ball = 12,
+		Apap = 13
+		// Panels remapped to Papi2
+	};
+	
+	virtual auto GetPosition() const -> EPosition = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetBiasX() const -> float = 0;
+	virtual auto SetBiasX(float value) -> void = 0;
+	virtual auto GetBiasZ() const -> float = 0;
+	virtual auto SetBiasZ(float value) -> void = 0;
+	virtual auto GetSpacing() const -> float = 0;
+	virtual auto SetSpacing(float value) -> void = 0;
+	virtual auto GetPitch() const -> float = 0;
+	virtual auto SetPitch(float value) -> void = 0;
+};
+
+
+class IBglRunwayApproachLights
+{
+public:
+	enum class EPosition : uint16_t
+	{
+		PrimaryApproachLights = 0xF,
+		SecondaryApproachLights = 0x10
+	};
+
+	enum class EType : uint8_t
+	{
+		None = 0,
+		Odals = 1,
+		Malsf = 2,
+		Malsr = 3,
+		Ssalf = 4,
+		Ssalr = 5,
+		Alsf1 = 6,
+		Alsf2 = 7,
+		Rail = 8,
+		Calvert = 9,
+		Calvert2 = 10,
+		Mals = 11,
+		Sals = 12, // 13 missing
+		Ssals = 14
+	};
+
+	virtual auto GetPosition() const -> EPosition = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetStrobeCount() const -> int = 0;
+	virtual auto SetStrobeCount(int value) -> void = 0;
+	virtual auto HasEndLights() const -> bool = 0;
+	virtual auto SetEndLights(bool value) -> void = 0;
+	virtual auto HasReilLights() const -> bool = 0;
+	virtual auto SetReilLights(bool value) -> void = 0;
+	virtual auto HasTouchdownLights() const -> bool = 0;
+	virtual auto SetTouchdownLights(bool value) -> void = 0;
+};
+
 
 class IBglRunway
 {
@@ -216,82 +313,163 @@ public:
 		A = 5,
 		B = 6
 	};
-
-	enum EMarkingFlags : uint16_t {
-		None = 0,
-		Edges = 1 << 0,
-		Threshold = 1 << 1,
-		FixedDistance = 1 << 2,
-		Touchdown = 1 << 3,
-		Dashes = 1 << 4,
-		Ident = 1 << 5,
-		Precision = 1 << 6,
-		EdgePavement = 1 << 7,
-		SingleEnd = 1 << 8,
-		PrimaryClosed = 1 << 9,
-		SecondaryClosed = 1 << 10,
-		PrimaryStol = 1 << 11,
-		SecondaryStol = 1 << 12,
-		AlternateThreshold = 1 << 13,
-		AlternateFixedThreshold = 1 << 14,
-		AlternateTouchdown = 1 << 15,
-	};
 	
-	enum class ELightFlags : uint8_t
+	enum class ELightIntensity : uint8_t
 	{
 		None = 0,
-		EdgeLow = 1 << 0,
-		EdgeMedium = 1 << 1,
-		EdgeHigh = (1 << 0) & (1 << 1),
-		CenterLow = 1 << 2,
-		CenterMedium = 1 << 3,
-		CenterHigh = (1 << 2) & (1 << 3),
-		CenterRed = 1 << 4,
-		AlternatePrecision = 1 << 5,
-		Leading0Ident = 1 << 6,
-		NoThresholdEndArrows = 1 << 7
+		Low = 1,
+		Medium = 2,
+		High = 3
 	};
 
-	enum class EPatternFlags : uint8_t
-	{
-		None = 0,
-		PrimaryTakeoff = 1 << 0,
-		PrimaryLanding = 1 << 1,
-		PrimaryPattern = 1 << 2,
-		SecondaryTakeoff = 1 << 3,
-		SecondaryLanding = 1 << 4,
-		SecondaryPattern = 1 << 5,
-	};
-	
-public:
-	virtual double GetLongitude() const = 0;
+	virtual auto GetSurfaceType()->ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetPrimaryRunwayNumber() const -> ERunwayNumber = 0;
+	virtual auto SetPrimaryRunwayNumber(ERunwayNumber value) -> void = 0;
+	virtual auto GetPrimaryRunwayDesignator() const -> ERunwayDesignator = 0;
+	virtual auto SetPrimaryRunwayDesignator(ERunwayDesignator value) -> void = 0;
+	virtual auto GetSecondaryRunwayNumber() const -> ERunwayNumber = 0;
+	virtual auto SetSecondaryRunwayNumber(ERunwayNumber value) -> void = 0;
+	virtual auto GetSecondaryRunwayDesignator() const -> ERunwayDesignator = 0;
+	virtual auto SetSecondaryRunwayDesignator(ERunwayDesignator value) -> void = 0;
+	virtual auto GetPrimaryIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetPrimaryIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetSecondaryIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetSecondaryIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetLongitude() const -> double = 0;
 	virtual void SetLongitude(double value) = 0;
-	virtual double GetLatitude() const = 0;
-	virtual void SetLatitude(double value) = 0;
-	virtual double GetAltitude() const = 0;
-	virtual void SetAltitude(double value) = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetAltitude() const -> double = 0;
+	virtual auto SetAltitude(double value) -> void = 0;
+	virtual auto GetLength() const -> float = 0;
+	virtual auto SetLength(float value) -> void = 0;
+	virtual auto GetWidth() const -> float = 0;
+	virtual auto SetWidth(float value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+	virtual auto GetPatternAltitude() const -> float = 0;
+	virtual auto SetPatternAltitude(float value) -> void = 0;
+	virtual auto HasEdgeMarkings() const -> bool = 0;
+	virtual auto SetEdgeMarkings(bool value) -> void = 0;
+	virtual auto HasThresholdMarkings() const -> bool = 0;
+	virtual auto SetThresholdMarkings(bool value) -> void = 0;
+	virtual auto HasFixedDistanceMarkings() const -> bool = 0;
+	virtual auto SetFixedDistanceMarkings(bool value) -> void = 0;
+	virtual auto HasTouchdownMarkings() const -> bool = 0;
+	virtual auto SetTouchdownMarkings(bool value) -> void = 0;
+	virtual auto HasDashMarkings() const -> bool = 0;
+	virtual auto SetDashMarkings(bool value) -> void = 0;
+	virtual auto HasIdentMarkings() const -> bool = 0;
+	virtual auto SetIdentMarkings(bool value) -> void = 0;
+	virtual auto HasPrecisionMarkings() const -> bool = 0;
+	virtual auto SetPrecisionMarkings(bool value) -> void = 0;
+	virtual auto HasEdgePavement() const -> bool = 0;
+	virtual auto SetEdgePavement(bool value) -> void = 0;
+	virtual auto IsSingleEnd() const -> bool = 0;
+	virtual auto SetSingleEnd(bool value) -> void = 0;
+	virtual auto IsPrimaryClosed() const -> bool = 0;
+	virtual auto SetPrimaryClosed(bool value) -> void = 0;
+	virtual auto IsSecondaryClosed() const -> bool = 0;
+	virtual auto SetSecondaryClosed(bool value) -> void = 0;
+	virtual auto IsPrimaryStol() const -> bool = 0;
+	virtual auto SetPrimaryStol(bool value) -> void = 0;
+	virtual auto IsSecondaryStol() const -> bool = 0;
+	virtual auto SetSecondaryStol(bool value) -> void = 0;
+	virtual auto HasAlternateThreshold() const -> bool = 0;
+	virtual auto SetAlternateThreshold(bool value) -> void = 0;
+	virtual auto HasAlternateFixedDistance() const -> bool = 0;
+	virtual auto SetAlternateFixedDistance(bool value) -> void = 0;
+	virtual auto HasAlternateTouchDown() const -> bool = 0;
+	virtual auto SetAlternateTouchDown(bool value) -> void = 0;
+	virtual auto HasAlternatePrecision() const -> bool = 0;
+	virtual auto SetAlternatePrecision(bool value) -> void = 0;
+	virtual auto HasLeadingZeroIdent() const -> bool = 0;
+	virtual auto SetLeadingZeroIdent(bool value) -> void = 0;
+	virtual auto HasNoThresholdEndArrows() const -> bool = 0;
+	virtual auto SetNoThresholdEndArrows(bool value) -> void = 0;
+	virtual auto GetEdgeLights() const -> ELightIntensity = 0;
+	virtual auto SetEdgeLights(ELightIntensity value) -> void = 0;
+	virtual auto GetCenterLights() const -> ELightIntensity = 0;
+	virtual auto SetCenterLights(ELightIntensity value) -> void = 0;
+	virtual auto IsCenterRedLights() const -> bool = 0;
+	virtual auto SetCenterRedLights(bool value) -> void = 0;
+	virtual auto IsPrimaryTakeoff() const -> bool = 0;
+	virtual auto SetPrimaryTakeoff(bool value) -> void = 0;
+	virtual auto IsPrimaryLanding() const -> bool = 0;
+	virtual auto SetPrimaryLanding(bool value) -> void = 0;
+	virtual auto IsPrimaryRightPattern() const -> bool = 0;
+	virtual auto SetPrimaryRightPattern(bool value) -> void = 0;
+	virtual auto IsSecondaryTakeoff() const -> bool = 0;
+	virtual auto SetSecondaryTakeoff(bool value) -> void = 0;
+	virtual auto IsSecondaryLanding() const -> bool = 0;
+	virtual auto SetSecondaryLanding(bool value) -> void = 0;
+	virtual auto IsSecondaryRightPattern() const -> bool = 0;
+	virtual auto SetSecondaryRightPattern(bool value) -> void = 0;
 	
-	virtual float GetLength() const = 0;
-	virtual void SetLength(float value) = 0;
-	virtual float GetWidth() const = 0;
-	virtual void SetWidth(float value) = 0;
-	virtual float GetHeading() const = 0;
-	virtual void SetHeading(float value) = 0;
-	virtual float GetPatternAltitude() const = 0;
-	virtual void SetPatternAltitude(float value) = 0;
-
-	virtual const IBglRunwayOffsetThreshold* GetPrimaryOffsetThreshold() = 0;
-	virtual void SetPrimaryOffsetThreshold(IBglRunwayOffsetThreshold* value) = 0;
-	virtual const IBglRunwayOffsetThreshold* GetSecondaryOffsetThreshold() = 0;
-	virtual void SetSecondaryOffsetThreshold(IBglRunwayOffsetThreshold* value) = 0;
+	virtual auto GetPrimaryOffsetThreshold() -> const IBglRunwayEnd* = 0;
+	virtual auto SetPrimaryOffsetThreshold(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetSecondaryOffsetThreshold() -> const IBglRunwayEnd* = 0;
+	virtual auto SetSecondaryOffsetThreshold(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetPrimaryBlastPad() -> const IBglRunwayEnd* = 0;
+	virtual auto SetPrimaryBlastPad(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetSecondaryBlastPad() -> const IBglRunwayEnd* = 0;
+	virtual auto SetSecondaryBlastPad(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetPrimaryOverrun() -> const IBglRunwayEnd* = 0;
+	virtual auto SetPrimaryOverrun(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetSecondaryOverrun() -> const IBglRunwayEnd* = 0;
+	virtual auto SetSecondaryOverrun(IBglRunwayEnd* value) -> void = 0;
+	virtual auto GetPrimaryLeftVasi() -> const IBglRunwayVasi* = 0;
+	virtual auto SetPrimaryLeftVasi(IBglRunwayVasi* value) -> void = 0;
+	virtual auto GetPrimaryRightVasi() -> const IBglRunwayVasi* = 0;
+	virtual auto SetPrimaryRightVasi(IBglRunwayVasi* value) -> void = 0;
+	virtual auto GetSecondaryLeftVasi() -> const IBglRunwayVasi* = 0;
+	virtual auto SetSecondaryLeftVasi(IBglRunwayVasi* value) -> void = 0;
+	virtual auto GetSecondaryRightVasi() -> const IBglRunwayVasi* = 0;
+	virtual auto SetSecondaryRightVasi(IBglRunwayVasi* value) -> void = 0;
+	virtual auto GetPrimaryApproachLights() -> const IBglRunwayApproachLights* = 0;
+	virtual auto SetPrimaryApproachLights(IBglRunwayApproachLights* value) -> void = 0;
+	virtual auto GetSecondaryApproachLights() -> const IBglRunwayApproachLights* = 0;
+	virtual auto SetSecondaryApproachLights(IBglRunwayApproachLights* value) -> void = 0;
 };
 
 
-class IBglAirport
+// TODO ! Handle P3D5 (and FS9 and P20)
+class IBglAirport : virtual public IBglFuelAvailability
 {
 public:
-	virtual float GetMagVar() const = 0;
-	virtual void SetMagVar(float value) = 0;
+	virtual auto GetRunwayCount() const -> int = 0;
+	virtual auto GetFrequencyCount() const -> int = 0;
+	virtual auto GetStartCount() const -> int = 0;
+	virtual auto GetApproachCount() const -> int = 0;
+	virtual auto GetApronCount() const -> int = 0;
+	virtual auto IsDeleteAirport() const -> bool = 0;
+	virtual auto SetDeleteAirport(bool value) -> void = 0;
+	virtual auto GetHelipadCount() const -> int = 0;
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetAltitude() const -> double = 0;
+	virtual auto SetAltitude(double value) -> void = 0;
+	virtual auto GetTowerLongitude() const -> double = 0;
+	virtual auto SetTowerLongitude(double value) -> void = 0;
+	virtual auto GetTowerLatitude() const -> double = 0;
+	virtual auto SetTowerLatitude(double value) -> void = 0;
+	virtual auto GetTowerAltitude() const -> double = 0;
+	virtual auto SetTowerAltitude(double value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const->uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetTrafficScalar() const -> float = 0;
+	virtual auto SetTrafficScalar(float value) -> void = 0;
+	
+	virtual const IBglRunway* GetRunwayAt(int index) const = 0;
+	virtual void AddRunway(const IBglRunway* runway) = 0;
+	virtual void RemoveRunway(const IBglRunway* runway) = 0;
 };
 
 

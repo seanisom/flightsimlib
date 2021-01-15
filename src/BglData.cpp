@@ -338,6 +338,300 @@ auto flightsimlib::io::CBglFuelAvailability<T>::UpdateJetFuelAvailability(EFuelA
 
 
 //******************************************************************************
+// CBglRunwayEnd
+//******************************************************************************  
+
+
+void flightsimlib::io::CBglRunway::CBglRunwayEnd::ReadBinary(BinaryFileStream& in)
+{
+	auto data = m_data.write();
+	in >> data.Position
+		>> data.Size
+		>> data.SurfaceType
+		>> data.Length
+		>> data.Width;
+}
+
+void flightsimlib::io::CBglRunway::CBglRunwayEnd::WriteBinary(BinaryFileStream& out)
+{
+	out << m_data->Position
+		<< m_data->Size
+		<< m_data->SurfaceType
+		<< m_data->Length
+		<< m_data->Width;
+}
+
+bool flightsimlib::io::CBglRunway::CBglRunwayEnd::Validate()
+{
+	return true;
+}
+
+int flightsimlib::io::CBglRunway::CBglRunwayEnd::CalculateSize() const
+{
+	return static_cast<int>(sizeof(SBglRunwayEndData));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayEnd::GetPosition() const -> EPosition
+{
+	return static_cast<EPosition>(m_data->Position);
+}
+
+flightsimlib::io::ESurfaceType flightsimlib::io::CBglRunway::CBglRunwayEnd::GetSurfaceType()
+{
+	return static_cast<ESurfaceType>(m_data->SurfaceType);
+}
+
+void flightsimlib::io::CBglRunway::CBglRunwayEnd::SetSurfaceType(ESurfaceType value)
+{
+	m_data.write().SurfaceType = to_integral(value);
+}
+
+float flightsimlib::io::CBglRunway::CBglRunwayEnd::GetLength() const
+{
+	return m_data->Length;
+}
+
+void flightsimlib::io::CBglRunway::CBglRunwayEnd::SetLength(float value)
+{
+	m_data.write().Length = value;
+}
+
+float flightsimlib::io::CBglRunway::CBglRunwayEnd::GetWidth() const
+{
+	return m_data->Width;
+}
+
+void flightsimlib::io::CBglRunway::CBglRunwayEnd::SetWidth(float value)
+{
+	m_data.write().Width = value;
+}
+
+bool flightsimlib::io::CBglRunway::CBglRunwayEnd::IsEmpty() const
+{
+	if (m_data->Position == 0)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayEnd::SetPosition(EPosition value) -> void
+{
+	m_data.write().Position = to_integral(value);
+}
+
+
+//******************************************************************************
+// CBglRunwayVasi
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto data = m_data.write();
+	in >> data.Position
+		>> data.Size
+		>> data.Type
+		>> data.BiasX
+		>> data.BiasZ
+		>> data.Spacing
+		>> data.Pitch;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Position
+		<< m_data->Size
+		<< m_data->Type
+		<< m_data->BiasX
+		<< m_data->BiasZ
+		<< m_data->Spacing
+		<< m_data->Pitch;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglRunwayVasiData));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetPosition() const -> EPosition
+{
+	return static_cast<EPosition>(m_data->Position);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->Type);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetType(EType value) -> void
+{
+	m_data.write().Type = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetBiasX() const -> float
+{
+	return m_data->BiasX;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetBiasX(float value) -> void
+{
+	m_data.write().BiasX = value;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetBiasZ() const -> float
+{
+	return m_data->BiasZ;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetBiasZ(float value) -> void
+{
+	m_data.write().BiasZ = value;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetSpacing() const -> float
+{
+	return m_data->Spacing;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetSpacing(float value) -> void
+{
+	m_data.write().Spacing = value;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::GetPitch() const -> float
+{
+	return m_data->Pitch;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetPitch(float value) -> void
+{
+	m_data.write().Pitch = value;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::IsEmpty() const -> bool
+{
+	if (m_data->Position == 0)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetPosition(EPosition value) -> void
+{
+	m_data.write().Position = to_integral(value);
+}
+
+
+//******************************************************************************
+// CBglRunwayApproachLights
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto data = m_data.write();
+	in >> data.Position
+		>> data.Size
+		>> data.Type
+		>> data.Strobes;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Position
+		<< m_data->Size
+		<< m_data->Type
+		<< m_data->Strobes;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglRunwayApproachLightsData));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::GetPosition() const -> EPosition
+{
+	return static_cast<EPosition>(m_data->Position);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->Type, 5, 0));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().Type, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::GetStrobeCount() const -> int
+{
+	return static_cast<int>(m_data->Strobes);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetStrobeCount(int value) -> void
+{
+	m_data.write().Strobes = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::HasEndLights() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Type, 1, 5));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetEndLights(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, 5);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::HasReilLights() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Type, 1, 6));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetReilLights(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, 6);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::HasTouchdownLights() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Type, 1, 7));
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetTouchdownLights(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, 7);
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::IsEmpty() const -> bool
+{
+	if (m_data->Position == 0)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetPosition(EPosition value) -> void
+{
+	m_data.write().Position = to_integral(value);
+}
+
+
+//******************************************************************************
 // CBglRunway
 //******************************************************************************  
 
@@ -365,7 +659,7 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 		>> data.Heading
 		>> data.PatternAltitude
 		>> data.MarkingFlags
-		>> data.LightingFlags
+		>> data.LightFlags
 		>> data.PatternFlags;
 
 	const auto final_position = initial_pos + static_cast<int>(m_data->Size);
@@ -381,12 +675,12 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 		{
 		case EBglLayerType::PrimaryOffsetThreshold:
 			{
-				m_primary_offset_threshold.ReadBinary(in);
+				m_primary_offset_threshold.write().ReadBinary(in);
 			}
 			break;
 		case EBglLayerType::SecondaryOffsetThreshold:
 			{
-				m_secondary_offset_threshold.ReadBinary(in);
+				m_secondary_offset_threshold.write().ReadBinary(in);
 			}
 			break;
 			
@@ -423,11 +717,11 @@ void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 		<< m_data->Heading
 		<< m_data->PatternAltitude
 		<< m_data->MarkingFlags
-		<< m_data->LightingFlags
+		<< m_data->LightFlags
 		<< m_data->PatternFlags;
 
-	m_primary_offset_threshold.WriteBinary(out);
-	m_secondary_offset_threshold.WriteBinary(out);
+	m_primary_offset_threshold.write().WriteBinary(out);
+	m_secondary_offset_threshold.write().WriteBinary(out);
 }
 
 bool flightsimlib::io::CBglRunway::Validate()
@@ -440,6 +734,76 @@ bool flightsimlib::io::CBglRunway::Validate()
 int flightsimlib::io::CBglRunway::CalculateSize() const
 {
 	return m_data->Size;
+}
+
+auto flightsimlib::io::CBglRunway::GetSurfaceType() -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->SurfaceType);
+}
+
+auto flightsimlib::io::CBglRunway::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().SurfaceType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryRunwayNumber() const -> ERunwayNumber
+{
+	return static_cast<ERunwayNumber>(m_data->NumberPrimary);
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryRunwayNumber(ERunwayNumber value) -> void
+{
+	m_data.write().NumberPrimary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryRunwayDesignator() const -> ERunwayDesignator
+{
+	return static_cast<ERunwayDesignator>(m_data->DesignatorPrimary);
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryRunwayDesignator(ERunwayDesignator value) -> void
+{
+	m_data.write().DesignatorPrimary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryRunwayNumber() const -> ERunwayNumber
+{
+	return static_cast<ERunwayNumber>(m_data->NumberSecondary);
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryRunwayNumber(ERunwayNumber value) -> void
+{
+	m_data.write().NumberSecondary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryRunwayDesignator() const -> ERunwayDesignator
+{
+	return static_cast<ERunwayDesignator>(m_data->DesignatorSecondary);
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryRunwayDesignator(ERunwayDesignator value) -> void
+{
+	m_data.write().DesignatorSecondary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryIcaoIdent() const -> uint32_t
+{
+	return m_data->IlsIcaoPrimary;
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IlsIcaoPrimary = value;
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryIcaoIdent() const -> uint32_t
+{
+	return m_data->IlsIcaoSecondary;
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IlsIcaoSecondary = value;
 }
 
 double flightsimlib::io::CBglRunway::GetLongitude() const
@@ -512,114 +876,533 @@ void flightsimlib::io::CBglRunway::SetPatternAltitude(float value)
 	m_data.write().PatternAltitude = value;
 }
 
-const flightsimlib::io::IBglRunwayOffsetThreshold* flightsimlib::io::CBglRunway::GetPrimaryOffsetThreshold()
+auto flightsimlib::io::CBglRunway::HasEdgeMarkings() const -> bool
 {
-	if (m_primary_offset_threshold.IsEmpty())
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1, 
+		to_integral(EMarkingFlags::Edges)));
+}
+
+auto flightsimlib::io::CBglRunway::SetEdgeMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Edges));
+}
+
+auto flightsimlib::io::CBglRunway::HasThresholdMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::Threshold)));
+}
+
+auto flightsimlib::io::CBglRunway::SetThresholdMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Threshold));
+}
+
+auto flightsimlib::io::CBglRunway::HasFixedDistanceMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::FixedDistance)));
+}
+
+auto flightsimlib::io::CBglRunway::SetFixedDistanceMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::FixedDistance));
+}
+
+auto flightsimlib::io::CBglRunway::HasTouchdownMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::Touchdown)));
+}
+
+auto flightsimlib::io::CBglRunway::SetTouchdownMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Touchdown));
+}
+
+auto flightsimlib::io::CBglRunway::HasDashMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::Dashes)));
+}
+
+auto flightsimlib::io::CBglRunway::SetDashMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Dashes));
+}
+
+auto flightsimlib::io::CBglRunway::HasIdentMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::Ident)));
+}
+
+auto flightsimlib::io::CBglRunway::SetIdentMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Ident));
+}
+
+auto flightsimlib::io::CBglRunway::HasPrecisionMarkings() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::Precision)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrecisionMarkings(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::Precision));
+}
+
+auto flightsimlib::io::CBglRunway::HasEdgePavement() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::EdgePavement)));
+}
+
+auto flightsimlib::io::CBglRunway::SetEdgePavement(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::EdgePavement));
+}
+
+auto flightsimlib::io::CBglRunway::IsSingleEnd() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::SingleEnd)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSingleEnd(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::SingleEnd));
+}
+
+auto flightsimlib::io::CBglRunway::IsPrimaryClosed() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::PrimaryClosed)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryClosed(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::PrimaryClosed));
+}
+
+auto flightsimlib::io::CBglRunway::IsSecondaryClosed() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::SecondaryClosed)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryClosed(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::SecondaryClosed));
+}
+
+auto flightsimlib::io::CBglRunway::IsPrimaryStol() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::PrimaryStol)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryStol(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::PrimaryStol));
+}
+
+auto flightsimlib::io::CBglRunway::IsSecondaryStol() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::SecondaryStol)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryStol(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::SecondaryStol));
+}
+
+auto flightsimlib::io::CBglRunway::HasAlternateThreshold() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::AlternateThreshold)));
+}
+
+auto flightsimlib::io::CBglRunway::SetAlternateThreshold(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::AlternateThreshold));
+}
+
+auto flightsimlib::io::CBglRunway::HasAlternateFixedDistance() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::AlternateFixedDistance)));
+}
+
+auto flightsimlib::io::CBglRunway::SetAlternateFixedDistance(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::AlternateFixedDistance));
+}
+
+auto flightsimlib::io::CBglRunway::HasAlternateTouchDown() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1,
+		to_integral(EMarkingFlags::AlternateTouchdown)));
+}
+
+auto flightsimlib::io::CBglRunway::SetAlternateTouchDown(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1,
+		to_integral(EMarkingFlags::AlternateTouchdown));
+}
+
+auto flightsimlib::io::CBglRunway::HasAlternatePrecision() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->LightFlags, 1,
+		to_integral(ELightFlags::AlternatePrecision)));
+}
+
+auto flightsimlib::io::CBglRunway::SetAlternatePrecision(bool value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, value, 1,
+		to_integral(ELightFlags::AlternatePrecision));
+}
+
+auto flightsimlib::io::CBglRunway::HasLeadingZeroIdent() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->LightFlags, 1,
+		to_integral(ELightFlags::LeadingZeroIdent)));
+}
+
+auto flightsimlib::io::CBglRunway::SetLeadingZeroIdent(bool value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, value, 1,
+		to_integral(ELightFlags::LeadingZeroIdent));
+}
+
+auto flightsimlib::io::CBglRunway::HasNoThresholdEndArrows() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->LightFlags, 1,
+		to_integral(ELightFlags::NoThresholdEndArrows)));
+}
+
+auto flightsimlib::io::CBglRunway::SetNoThresholdEndArrows(bool value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, value, 1,
+		to_integral(ELightFlags::NoThresholdEndArrows));
+}
+
+auto flightsimlib::io::CBglRunway::GetEdgeLights() const -> ELightIntensity
+{
+	return static_cast<ELightIntensity>(get_packed_bits(m_data->LightFlags, 2,
+		to_integral(ELightFlags::Edge)));
+}
+
+auto flightsimlib::io::CBglRunway::SetEdgeLights(ELightIntensity value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, to_integral(value), 2,
+		to_integral(ELightFlags::Edge));
+}
+
+auto flightsimlib::io::CBglRunway::GetCenterLights() const -> ELightIntensity
+{
+	return static_cast<ELightIntensity>(get_packed_bits(m_data->LightFlags, 2,
+		to_integral(ELightFlags::Center)));
+}
+
+auto flightsimlib::io::CBglRunway::SetCenterLights(ELightIntensity value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, to_integral(value), 2,
+		to_integral(ELightFlags::Center));
+}
+
+auto flightsimlib::io::CBglRunway::IsCenterRedLights() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->LightFlags, 1,
+		to_integral(ELightFlags::CenterRed)));
+}
+
+auto flightsimlib::io::CBglRunway::SetCenterRedLights(bool value) -> void
+{
+	set_packed_bits(m_data.write().LightFlags, value, 1,
+		to_integral(ELightFlags::CenterRed));
+}
+
+auto flightsimlib::io::CBglRunway::IsPrimaryTakeoff() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::PrimaryTakeoff)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryTakeoff(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::PrimaryTakeoff));
+}
+
+auto flightsimlib::io::CBglRunway::IsPrimaryLanding() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::PrimaryLanding)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryLanding(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::PrimaryLanding));
+}
+
+auto flightsimlib::io::CBglRunway::IsPrimaryRightPattern() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::PrimaryPattern)));
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryRightPattern(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::PrimaryPattern));
+}
+
+auto flightsimlib::io::CBglRunway::IsSecondaryTakeoff() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::SecondaryTakeoff)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryTakeoff(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::SecondaryTakeoff));
+}
+
+auto flightsimlib::io::CBglRunway::IsSecondaryLanding() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::SecondaryLanding)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryLanding(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::SecondaryLanding));
+}
+
+auto flightsimlib::io::CBglRunway::IsSecondaryRightPattern() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->PatternFlags, 1,
+		to_integral(EPatternFlags::SecondaryPattern)));
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryRightPattern(bool value) -> void
+{
+	set_packed_bits(m_data.write().PatternFlags, value, 1,
+		to_integral(EPatternFlags::SecondaryPattern));
+}
+
+const flightsimlib::io::IBglRunwayEnd* flightsimlib::io::CBglRunway::GetPrimaryOffsetThreshold()
+{
+	if (m_primary_offset_threshold->IsEmpty())
 	{
 		return nullptr;
 	}
-	return &m_primary_offset_threshold;
+	return m_primary_offset_threshold.operator->();
 }
 
-void flightsimlib::io::CBglRunway::SetPrimaryOffsetThreshold(IBglRunwayOffsetThreshold* value)
+void flightsimlib::io::CBglRunway::SetPrimaryOffsetThreshold(IBglRunwayEnd* value)
 {
 	// TODO - There has to be a better way to deal with the multiple interface issue for clients
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
-	m_primary_offset_threshold.Clone(*static_cast<CBglRunwayOffsetThreshold*>(value));
+	m_primary_offset_threshold = { *static_cast<CBglRunwayEnd*>(value) };
+	m_primary_offset_threshold.write().SetPosition(IBglRunwayEnd::EPosition::PrimaryOffsetThreshold);
 }
 
-const flightsimlib::io::IBglRunwayOffsetThreshold* flightsimlib::io::CBglRunway::GetSecondaryOffsetThreshold()
+const flightsimlib::io::IBglRunwayEnd* flightsimlib::io::CBglRunway::GetSecondaryOffsetThreshold()
 {
-	if (m_secondary_offset_threshold.IsEmpty())
+	if (m_secondary_offset_threshold->IsEmpty())
 	{
 		return nullptr;
 	}
-	return &m_secondary_offset_threshold;
+	return m_secondary_offset_threshold.operator->();
 }
 
-void flightsimlib::io::CBglRunway::SetSecondaryOffsetThreshold(IBglRunwayOffsetThreshold* value)
+void flightsimlib::io::CBglRunway::SetSecondaryOffsetThreshold(IBglRunwayEnd* value)
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
-	m_secondary_offset_threshold.Clone(*static_cast<CBglRunwayOffsetThreshold*>(value));
+	m_secondary_offset_threshold = { *static_cast<CBglRunwayEnd*>(value) };
+	m_secondary_offset_threshold.write().SetPosition(IBglRunwayEnd::EPosition::SecondaryOffsetThreshold);
 }
 
-
-//******************************************************************************
-// CBglRunwayOffsetThreshold
-//******************************************************************************  
-
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglRunway::GetPrimaryBlastPad() -> const IBglRunwayEnd*
 {
-	auto data = m_data.write();
-	in >> data.Type
-		>> data.Size
-		>> data.SurfaceType
-		>> data.Length
-		>> data.Width;
-}
-
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::WriteBinary(BinaryFileStream& out)
-{
-	out << m_data->Type
-		<< m_data->Size
-		<< m_data->SurfaceType
-		<< m_data->Length
-		<< m_data->Width;
-}
-
-bool flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::Validate()
-{
-	return true;
-}
-
-int flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::CalculateSize() const
-{
-	return sizeof(SBglRunwayPadData);
-}
-
-flightsimlib::io::ESurfaceType flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::GetSurfaceType()
-{
-	return static_cast<ESurfaceType>(m_data->SurfaceType);
-}
-
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::SetSurfaceType(ESurfaceType value)
-{
-	m_data.write().SurfaceType = static_cast<uint16_t>(value);
-}
-
-float flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::GetLength() const
-{
-	return m_data->Length;
-}
-
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::SetLength(float value)
-{
-	m_data.write().Length = value;
-}
-
-float flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::GetWidth() const
-{
-	return m_data->Width;
-}
-
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::SetWidth(float value)
-{
-	m_data.write().Width = value;
-}
-
-bool flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::IsEmpty() const
-{
-	if (m_data->Type == 0)
+	if (m_primary_blast_pad->IsEmpty())
 	{
-		return false;
+		return nullptr;
 	}
-	return true;
+	return m_primary_blast_pad.operator->();
 }
 
-void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::Clone(CBglRunwayOffsetThreshold& value)
+auto flightsimlib::io::CBglRunway::SetPrimaryBlastPad(IBglRunwayEnd* value) -> void
 {
-	// Value semantics, is this even necessary?
-	m_data = value.m_data;
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_primary_blast_pad = { *static_cast<CBglRunwayEnd*>(value) };
+	m_primary_blast_pad.write().SetPosition(IBglRunwayEnd::EPosition::PrimaryBlastPad);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryBlastPad() -> const IBglRunwayEnd*
+{
+	if (m_secondary_blast_pad->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_secondary_blast_pad.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryBlastPad(IBglRunwayEnd* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_secondary_blast_pad = { *static_cast<CBglRunwayEnd*>(value) };
+	m_secondary_blast_pad.write().SetPosition(IBglRunwayEnd::EPosition::SecondaryBlastPad);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryOverrun() -> const IBglRunwayEnd*
+{
+	if (m_primary_overrun->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_primary_overrun.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryOverrun(IBglRunwayEnd* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_primary_overrun = { *static_cast<CBglRunwayEnd*>(value) };
+	m_primary_overrun.write().SetPosition(IBglRunwayEnd::EPosition::PrimaryOverrun);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryOverrun() -> const IBglRunwayEnd*
+{
+	if (m_secondary_overrun->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_secondary_overrun.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryOverrun(IBglRunwayEnd* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_secondary_overrun = { *static_cast<CBglRunwayEnd*>(value) };
+	m_secondary_overrun.write().SetPosition(IBglRunwayEnd::EPosition::SecondaryOverrun);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryLeftVasi() -> const IBglRunwayVasi*
+{
+	if (m_primary_left_vasi->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_primary_left_vasi.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryLeftVasi(IBglRunwayVasi* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_primary_left_vasi = { *static_cast<CBglRunwayVasi*>(value) };
+	m_primary_left_vasi.write().SetPosition(IBglRunwayVasi::EPosition::PrimaryLeftVasi);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryRightVasi() -> const IBglRunwayVasi*
+{
+	if (m_primary_right_vasi->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_primary_right_vasi.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryRightVasi(IBglRunwayVasi* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_primary_right_vasi = { *static_cast<CBglRunwayVasi*>(value) };
+	m_primary_right_vasi.write().SetPosition(IBglRunwayVasi::EPosition::PrimaryRightVasi);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryLeftVasi() -> const IBglRunwayVasi*
+{
+	if (m_secondary_left_vasi->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_secondary_left_vasi.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryLeftVasi(IBglRunwayVasi* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_secondary_left_vasi = { *static_cast<CBglRunwayVasi*>(value) };
+	m_secondary_left_vasi.write().SetPosition(IBglRunwayVasi::EPosition::SecondaryLeftVasi);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryRightVasi() -> const IBglRunwayVasi*
+{
+	if (m_secondary_right_vasi->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_secondary_right_vasi.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryRightVasi(IBglRunwayVasi* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_secondary_right_vasi = { *static_cast<CBglRunwayVasi*>(value) };
+	m_secondary_right_vasi.write().SetPosition(IBglRunwayVasi::EPosition::SecondaryRightVasi);
+}
+
+auto flightsimlib::io::CBglRunway::GetPrimaryApproachLights() -> const IBglRunwayApproachLights*
+{
+	if (m_primary_approach_lights->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_primary_approach_lights.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetPrimaryApproachLights(IBglRunwayApproachLights* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_primary_approach_lights = { *static_cast<CBglRunwayApproachLights*>(value) };
+	m_primary_approach_lights.write().SetPosition(IBglRunwayApproachLights::EPosition::PrimaryApproachLights);
+}
+
+auto flightsimlib::io::CBglRunway::GetSecondaryApproachLights() -> const IBglRunwayApproachLights*
+{
+	if (m_secondary_approach_lights->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_secondary_approach_lights.operator->();
+}
+
+auto flightsimlib::io::CBglRunway::SetSecondaryApproachLights(IBglRunwayApproachLights* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_secondary_approach_lights = { *static_cast<CBglRunwayApproachLights*>(value) };
+	m_secondary_approach_lights.write().SetPosition(IBglRunwayApproachLights::EPosition::SecondaryApproachLights);
 }
 
 
@@ -628,7 +1411,7 @@ void flightsimlib::io::CBglRunway::CBglRunwayOffsetThreshold::Clone(CBglRunwayOf
 //******************************************************************************  
 
 
-void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 {
 	const auto initial_pos = in.GetPosition();
 
@@ -641,17 +1424,18 @@ void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
 		>> data.ApproachCount
 		>> data.ApronCount
 		>> data.HelipadCount
-		>> data.ReferenceLon
-		>> data.ReferenceLat
-		>> data.ReferenceAlt
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
 		>> data.TowerLongitude
 		>> data.TowerLatitude
 		>> data.TowerAltitude
 		>> data.MagVar
-		>> data.Icao
+		>> data.IcaoIdent
 		>> data.RegionIdent
-		>> data.FuelTypes
-		>> data.Flags;
+		>> data.FuelAvailability
+		>> data.TrafficScalar
+		>> data.Pad;
 
 	const auto final_position = initial_pos + static_cast<int>(m_data->Size);
 	while (in.GetPosition() < final_position)
@@ -679,7 +1463,7 @@ void flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in)
 	}
 }
 
-void flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out)
+auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 {
 	out << m_data->Type
 		<< m_data->Size
@@ -689,17 +1473,18 @@ void flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out)
 		<< m_data->ApproachCount
 		<< m_data->ApronCount
 		<< m_data->HelipadCount
-		<< m_data->ReferenceLon
-		<< m_data->ReferenceLat
-		<< m_data->ReferenceAlt
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
 		<< m_data->TowerLongitude
 		<< m_data->TowerLatitude
 		<< m_data->TowerAltitude
 		<< m_data->MagVar
-		<< m_data->Icao
+		<< m_data->IcaoIdent
 		<< m_data->RegionIdent
-		<< m_data->FuelTypes
-		<< m_data->Flags;
+		<< m_data->FuelAvailability
+		<< m_data->TrafficScalar
+		<< m_data->Pad;
 
 	for (auto& runway : m_runways.write())
 	{
@@ -707,7 +1492,7 @@ void flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out)
 	}
 }
 
-bool flightsimlib::io::CBglAirport::Validate()
+auto flightsimlib::io::CBglAirport::Validate() -> bool
 {
 	// TODO - static size
 	m_data.write().Size = sizeof(SBglAirportData) +
@@ -716,19 +1501,169 @@ bool flightsimlib::io::CBglAirport::Validate()
 	return m_data->Type == 0x3C;
 }
 
-int flightsimlib::io::CBglAirport::CalculateSize() const
+auto flightsimlib::io::CBglAirport::CalculateSize() const -> int
 {
 	return m_data->Size;
 }
 
-float flightsimlib::io::CBglAirport::GetMagVar() const
+auto flightsimlib::io::CBglAirport::GetRunwayCount() const -> int
+{
+	return m_data->RunwayCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetFrequencyCount() const -> int
+{
+	return m_data->FrequencyCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetStartCount() const -> int
+{
+	return m_data->StartCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetApproachCount() const -> int
+{
+	return m_data->ApproachCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetApronCount() const -> int
+{
+	return static_cast<int>(get_packed_bits(m_data->ApronCount, 7, 0));
+}
+
+auto flightsimlib::io::CBglAirport::IsDeleteAirport() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->ApronCount, 1, 7));
+}
+
+auto flightsimlib::io::CBglAirport::SetDeleteAirport(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApronCount, value, 1, 7);
+}
+
+auto flightsimlib::io::CBglAirport::GetHelipadCount() const -> int
+{
+	return m_data->HelipadCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetLongitude() const -> double
+{
+	return Longitude::Value(m_data->Longitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetLongitude(double value) -> void
+{
+	m_data.write().Longitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetLatitude() const -> double
+{
+	return Latitude::Value(m_data->Latitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetLatitude(double value) -> void
+{
+	m_data.write().Latitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetAltitude() const -> double
+{
+	return PackedAltitude::Value(m_data->Altitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetAltitude(double value) -> void
+{
+	m_data.write().Altitude = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetTowerLongitude() const -> double
+{
+	return Longitude::Value(m_data->TowerLongitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetTowerLongitude(double value) -> void
+{
+	m_data.write().TowerLongitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetTowerLatitude() const -> double
+{
+	return Latitude::Value(m_data->TowerLatitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetTowerLatitude(double value) -> void
+{
+	m_data.write().TowerLatitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetTowerAltitude() const -> double
+{
+	return PackedAltitude::Value(m_data->TowerAltitude);
+}
+
+auto flightsimlib::io::CBglAirport::SetTowerAltitude(double value) -> void
+{
+	m_data.write().TowerAltitude = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglAirport::GetMagVar() const -> float
 {
 	return m_data->MagVar;
 }
 
-void flightsimlib::io::CBglAirport::SetMagVar(float value)
+auto flightsimlib::io::CBglAirport::SetMagVar(float value) -> void
 {
 	m_data.write().MagVar = value;
+}
+
+auto flightsimlib::io::CBglAirport::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->IcaoIdent;
+}
+
+auto flightsimlib::io::CBglAirport::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IcaoIdent = value;
+}
+
+auto flightsimlib::io::CBglAirport::GetRegionIdent() const -> uint32_t
+{
+	return m_data->RegionIdent;
+}
+
+auto flightsimlib::io::CBglAirport::SetRegionIdent(uint32_t value) -> void
+{
+	m_data.write().RegionIdent = value;
+}
+
+auto flightsimlib::io::CBglAirport::GetTrafficScalar() const -> float
+{
+	return static_cast<float>(m_data->TrafficScalar) / 
+		static_cast<float>(std::numeric_limits<uint16_t>::max());
+}
+
+auto flightsimlib::io::CBglAirport::SetTrafficScalar(float value) -> void
+{
+	m_data.write().TrafficScalar = static_cast<uint16_t>(
+		value * std::numeric_limits<uint16_t>::max());
+}
+
+auto flightsimlib::io::CBglAirport::GetRunwayAt(int index) const -> const IBglRunway*
+{
+	return &(m_runways.read()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddRunway(const IBglRunway* runway) -> void
+{
+	// TODO Need validation, self check
+	m_runways.write().emplace_back(*static_cast<const CBglRunway*>(runway));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveRunway(const IBglRunway* runway) -> void
+{
+	const auto iter = m_runways.read().begin() +
+		std::distance(m_runways.read().data(), static_cast<const CBglRunway*>(runway));
+	m_runways.write().erase(iter);
 }
 
 
@@ -3104,3 +4039,4 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 }
 
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglTriggerRefuelRepairData>>;
+template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;

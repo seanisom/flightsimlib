@@ -281,18 +281,19 @@ struct SBglRunwayData
 	float Heading;
 	float PatternAltitude;
 	uint16_t MarkingFlags;
-	uint8_t LightingFlags;
+	uint8_t LightFlags;
 	uint8_t PatternFlags;
 };
 
 #pragma pack(pop)
 
+
 #pragma pack(push)
 #pragma pack(1)
 	
-struct SBglRunwayPadData
+struct SBglRunwayEndData
 {
-	uint16_t Type;
+	uint16_t Position;
 	uint32_t Size;
 	uint16_t SurfaceType;
 	float Length;
@@ -300,64 +301,294 @@ struct SBglRunwayPadData
 };
 
 #pragma pack(pop)
-	
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglRunwayVasiData
+{
+	uint16_t Position;
+	uint32_t Size;
+	uint16_t Type;
+	float BiasX;
+	float BiasZ;
+	float Spacing;
+	float Pitch;
+};
+
+#pragma pack(pop)
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglRunwayApproachLightsData
+{
+	uint16_t Position;
+	uint32_t Size;
+	uint8_t Type;
+	uint8_t Strobes;
+};
+
+#pragma pack(pop)
+
+
 class CBglRunway final : public IBglSerializable, public IBglRunway
 {
 public:
-	class CBglRunwayOffsetThreshold final : public IBglSerializable, public IBglRunwayOffsetThreshold
+	class CBglRunwayEnd final : public IBglSerializable, public IBglRunwayEnd
 	{
 	public:
-		void ReadBinary(BinaryFileStream& in) override;
-		void WriteBinary(BinaryFileStream& out) override;
-		bool Validate() override;
-		int CalculateSize() const override;
-		
-		ESurfaceType GetSurfaceType() override;
-		void SetSurfaceType(ESurfaceType value) override;
-		float GetLength() const override;
-		void SetLength(float value) override;
-		float GetWidth() const override;
-		void SetWidth(float value) override;
+		auto ReadBinary(BinaryFileStream& in) -> void override;
+		auto WriteBinary(BinaryFileStream& out) -> void override;
+		auto Validate() -> bool override;
+		auto CalculateSize() const -> int override;
+
+		auto GetPosition() const->EPosition override;
+		auto GetSurfaceType() -> ESurfaceType override;
+		auto SetSurfaceType(ESurfaceType value) -> void override;
+		auto GetLength() const -> float override;
+		auto SetLength(float value) -> void override;
+		auto GetWidth() const -> float override;
+		auto SetWidth(float value) -> void override;
 
 		// public but not part of client interface:
-		bool IsEmpty() const;
-		void Clone(CBglRunwayOffsetThreshold& value);
+		auto IsEmpty() const -> bool;
+		auto SetPosition(EPosition value) -> void;
+		
+	private:
+		stlab::copy_on_write<SBglRunwayEndData> m_data;
+	};
+
+	
+	class CBglRunwayVasi final : public IBglSerializable, public IBglRunwayVasi
+	{
+	public:
+		auto ReadBinary(BinaryFileStream& in) -> void override;
+		auto WriteBinary(BinaryFileStream& out) -> void override;
+		auto Validate() -> bool override;
+		auto CalculateSize() const -> int override;
+		
+		auto GetPosition() const -> EPosition override;
+		auto GetType() const -> EType override;
+		auto SetType(EType value) -> void override;
+		auto GetBiasX() const -> float override;
+		auto SetBiasX(float value) -> void override;
+		auto GetBiasZ() const -> float override;
+		auto SetBiasZ(float value) -> void override;
+		auto GetSpacing() const -> float override;
+		auto SetSpacing(float value) -> void override;
+		auto GetPitch() const -> float override;
+		auto SetPitch(float value) -> void override;
+
+		// public but not part of client interface:
+		auto IsEmpty() const -> bool;
+		auto SetPosition(EPosition value) -> void;
 
 	private:
-		stlab::copy_on_write<SBglRunwayPadData> m_data;
+		stlab::copy_on_write<SBglRunwayVasiData> m_data;
 	};
-	
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
 
-	double GetLongitude() const override;
-	void SetLongitude(double value) override;
-	double GetLatitude() const override;
-	void SetLatitude(double value) override;
-	double GetAltitude() const override;
-	void SetAltitude(double value) override;
-	
-	float GetLength() const override;
-	void SetLength(float value) override;
-	float GetWidth() const override;
-	void SetWidth(float value) override;
-	float GetHeading() const override;
-	void SetHeading(float value) override;
-	float GetPatternAltitude() const override;
-	void SetPatternAltitude(float value) override;
 
-	const IBglRunwayOffsetThreshold* GetPrimaryOffsetThreshold() override;
-	void SetPrimaryOffsetThreshold(IBglRunwayOffsetThreshold* value) override;
-	const IBglRunwayOffsetThreshold* GetSecondaryOffsetThreshold() override;
-	void SetSecondaryOffsetThreshold(IBglRunwayOffsetThreshold* value) override;
+	class CBglRunwayApproachLights final : public IBglSerializable, public IBglRunwayApproachLights
+	{
+	public:
+		auto ReadBinary(BinaryFileStream& in) -> void override;
+		auto WriteBinary(BinaryFileStream& out) -> void override;
+		auto Validate() -> bool override;
+		auto CalculateSize() const -> int override;
+
+		auto GetPosition() const->EPosition override;
+		auto GetType() const->EType override;
+		auto SetType(EType value) -> void override;
+		auto GetStrobeCount() const -> int override;
+		auto SetStrobeCount(int value) -> void override;
+		auto HasEndLights() const -> bool override;
+		auto SetEndLights(bool value) -> void override;
+		auto HasReilLights() const -> bool override;
+		auto SetReilLights(bool value) -> void override;
+		auto HasTouchdownLights() const -> bool override;
+		auto SetTouchdownLights(bool value) -> void override;
+
+		// public but not part of client interface:
+		auto IsEmpty() const -> bool;
+		auto SetPosition(EPosition value) -> void;
+		
+	private:
+		stlab::copy_on_write<SBglRunwayApproachLightsData> m_data;
+	};
+
+private:
+	enum class EMarkingFlags : uint16_t {
+		Edges = 0,
+		Threshold = 1,
+		FixedDistance = 2,
+		Touchdown = 3,
+		Dashes = 4,
+		Ident = 5,
+		Precision = 6,
+		EdgePavement = 7,
+		SingleEnd = 8,
+		PrimaryClosed = 9,
+		SecondaryClosed = 10,
+		PrimaryStol = 11,
+		SecondaryStol = 12,
+		AlternateThreshold = 13,
+		AlternateFixedDistance = 14,
+		AlternateTouchdown = 15,
+	};
+
+	enum class ELightFlags : uint8_t
+	{
+		Edge = 0,
+		Center = 2,
+		CenterRed = 4,
+		AlternatePrecision = 5,
+		LeadingZeroIdent = 6,
+		NoThresholdEndArrows = 7
+	};
+
+	enum class EPatternFlags : uint8_t
+	{
+		PrimaryTakeoff = 0,
+		PrimaryLanding = 1,
+		PrimaryPattern = 2,
+		SecondaryTakeoff = 3,
+		SecondaryLanding = 4,
+		SecondaryPattern = 5
+	};
+
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetSurfaceType()->ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto GetPrimaryRunwayNumber() const->ERunwayNumber override;
+	auto SetPrimaryRunwayNumber(ERunwayNumber value) -> void override;
+	auto GetPrimaryRunwayDesignator() const->ERunwayDesignator override;
+	auto SetPrimaryRunwayDesignator(ERunwayDesignator value) -> void override;
+	auto GetSecondaryRunwayNumber() const->ERunwayNumber override;
+	auto SetSecondaryRunwayNumber(ERunwayNumber value) -> void override;
+	auto GetSecondaryRunwayDesignator() const->ERunwayDesignator override;
+	auto SetSecondaryRunwayDesignator(ERunwayDesignator value) -> void override;
+	auto GetPrimaryIcaoIdent() const->uint32_t override;
+	auto SetPrimaryIcaoIdent(uint32_t value) -> void override;
+	auto GetSecondaryIcaoIdent() const->uint32_t override;
+	auto SetSecondaryIcaoIdent(uint32_t value) -> void override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetAltitude() const -> double override;
+	auto SetAltitude(double value) -> void override;
+	auto GetLength() const -> float override;
+	auto SetLength(float value) -> void override;
+	auto GetWidth() const -> float override;
+	auto SetWidth(float value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetPatternAltitude() const -> float override;
+	auto SetPatternAltitude(float value) -> void override;
+	auto HasEdgeMarkings() const -> bool override;
+	auto SetEdgeMarkings(bool value) -> void override;
+	auto HasThresholdMarkings() const -> bool override;
+	auto SetThresholdMarkings(bool value) -> void override;
+	auto HasFixedDistanceMarkings() const -> bool override;
+	auto SetFixedDistanceMarkings(bool value) -> void override;
+	auto HasTouchdownMarkings() const -> bool override;
+	auto SetTouchdownMarkings(bool value) -> void override;
+	auto HasDashMarkings() const -> bool override;
+	auto SetDashMarkings(bool value) -> void override;
+	auto HasIdentMarkings() const -> bool override;
+	auto SetIdentMarkings(bool value) -> void override;
+	auto HasPrecisionMarkings() const -> bool override;
+	auto SetPrecisionMarkings(bool value) -> void override;
+	auto HasEdgePavement() const -> bool override;
+	auto SetEdgePavement(bool value) -> void override;
+	auto IsSingleEnd() const -> bool override;
+	auto SetSingleEnd(bool value) -> void override;
+	auto IsPrimaryClosed() const -> bool override;
+	auto SetPrimaryClosed(bool value) -> void override;
+	auto IsSecondaryClosed() const -> bool override;
+	auto SetSecondaryClosed(bool value) -> void override;
+	auto IsPrimaryStol() const -> bool override;
+	auto SetPrimaryStol(bool value) -> void override;
+	auto IsSecondaryStol() const -> bool override;
+	auto SetSecondaryStol(bool value) -> void override;
+	auto HasAlternateThreshold() const -> bool override;
+	auto SetAlternateThreshold(bool value) -> void override;
+	auto HasAlternateFixedDistance() const -> bool override;
+	auto SetAlternateFixedDistance(bool value) -> void override;
+	auto HasAlternateTouchDown() const -> bool override;
+	auto SetAlternateTouchDown(bool value) -> void override;
+	auto HasAlternatePrecision() const -> bool override;
+	auto SetAlternatePrecision(bool value) -> void override;
+	auto HasLeadingZeroIdent() const -> bool override;
+	auto SetLeadingZeroIdent(bool value) -> void override;
+	auto HasNoThresholdEndArrows() const -> bool override;
+	auto SetNoThresholdEndArrows(bool value) -> void override;
+	auto GetEdgeLights() const -> ELightIntensity override;
+	auto SetEdgeLights(ELightIntensity value) -> void override;
+	auto GetCenterLights() const -> ELightIntensity override;
+	auto SetCenterLights(ELightIntensity value) -> void override;
+	auto IsCenterRedLights() const -> bool override;
+	auto SetCenterRedLights(bool value) -> void override;
+	auto IsPrimaryTakeoff() const -> bool override;
+	auto SetPrimaryTakeoff(bool value) -> void override;
+	auto IsPrimaryLanding() const -> bool override;
+	auto SetPrimaryLanding(bool value) -> void override;
+	auto IsPrimaryRightPattern() const -> bool override;
+	auto SetPrimaryRightPattern(bool value) -> void override;
+	auto IsSecondaryTakeoff() const -> bool override;
+	auto SetSecondaryTakeoff(bool value) -> void override;
+	auto IsSecondaryLanding() const -> bool override;
+	auto SetSecondaryLanding(bool value) -> void override;
+	auto IsSecondaryRightPattern() const -> bool override;
+	auto SetSecondaryRightPattern(bool value) -> void override;
 	
+	auto GetPrimaryOffsetThreshold() -> const IBglRunwayEnd* override;
+	auto SetPrimaryOffsetThreshold(IBglRunwayEnd* value) -> void override;
+	auto GetSecondaryOffsetThreshold() -> const IBglRunwayEnd* override;
+	auto SetSecondaryOffsetThreshold(IBglRunwayEnd* value) -> void override;
+	auto GetPrimaryBlastPad() -> const IBglRunwayEnd* override;
+	auto SetPrimaryBlastPad(IBglRunwayEnd* value) -> void override;
+	auto GetSecondaryBlastPad() -> const IBglRunwayEnd* override;
+	auto SetSecondaryBlastPad(IBglRunwayEnd* value) -> void override;
+	auto GetPrimaryOverrun() -> const IBglRunwayEnd* override;
+	auto SetPrimaryOverrun(IBglRunwayEnd* value) -> void override;
+	auto GetSecondaryOverrun() -> const IBglRunwayEnd* override;
+	auto SetSecondaryOverrun(IBglRunwayEnd* value) -> void override;
+	auto GetPrimaryLeftVasi() -> const IBglRunwayVasi* override;
+	auto SetPrimaryLeftVasi(IBglRunwayVasi* value) -> void override;
+	auto GetPrimaryRightVasi() -> const IBglRunwayVasi* override;
+	auto SetPrimaryRightVasi(IBglRunwayVasi* value) -> void override;
+	auto GetSecondaryLeftVasi() -> const IBglRunwayVasi* override;
+	auto SetSecondaryLeftVasi(IBglRunwayVasi* value) -> void override;
+	auto GetSecondaryRightVasi() -> const IBglRunwayVasi* override;
+	auto SetSecondaryRightVasi(IBglRunwayVasi* value) -> void override;
+	auto GetPrimaryApproachLights() -> const IBglRunwayApproachLights* override;
+	auto SetPrimaryApproachLights(IBglRunwayApproachLights* value) -> void override;
+	auto GetSecondaryApproachLights() -> const IBglRunwayApproachLights* override;
+	auto SetSecondaryApproachLights(IBglRunwayApproachLights* value) -> void override;
+
 private:
 	stlab::copy_on_write<SBglRunwayData> m_data;
-
-	CBglRunwayOffsetThreshold m_primary_offset_threshold;
-	CBglRunwayOffsetThreshold m_secondary_offset_threshold;
+	stlab::copy_on_write<CBglRunwayEnd> m_primary_offset_threshold;
+	stlab::copy_on_write<CBglRunwayEnd> m_secondary_offset_threshold;
+	stlab::copy_on_write<CBglRunwayEnd> m_primary_blast_pad;
+	stlab::copy_on_write<CBglRunwayEnd> m_secondary_blast_pad;
+	stlab::copy_on_write<CBglRunwayEnd> m_primary_overrun;
+	stlab::copy_on_write<CBglRunwayEnd> m_secondary_overrun;
+	stlab::copy_on_write<CBglRunwayVasi> m_primary_left_vasi;
+	stlab::copy_on_write<CBglRunwayVasi> m_primary_right_vasi;
+	stlab::copy_on_write<CBglRunwayVasi> m_secondary_left_vasi;
+	stlab::copy_on_write<CBglRunwayVasi> m_secondary_right_vasi;
+	stlab::copy_on_write<CBglRunwayApproachLights> m_primary_approach_lights;
+	stlab::copy_on_write<CBglRunwayApproachLights> m_secondary_approach_lights;
 };
 
 
@@ -379,33 +610,67 @@ struct SBglAirportData
 	uint8_t ApproachCount;
 	uint8_t ApronCount;
 	uint8_t HelipadCount;
-	uint32_t ReferenceLon;
-	uint32_t ReferenceLat;
-	uint32_t ReferenceAlt;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
 	uint32_t TowerLongitude;
 	uint32_t TowerLatitude;
 	uint32_t TowerAltitude;
 	float MagVar;
-	uint32_t Icao;
+	uint32_t IcaoIdent;
 	uint32_t RegionIdent;
-	uint32_t FuelTypes;
-	uint32_t Flags;
+	uint32_t FuelAvailability;
+	uint16_t TrafficScalar;
+	uint16_t Pad;
 };
 
 #pragma pack(pop)
 
 
-class CBglAirport final : public IBglSerializable, public IBglAirport
+class CBglAirport final : public CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>,
+	public IBglSerializable, public IBglAirport
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	CBglAirport() : CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>(m_data) { }
 
-	float GetMagVar() const override;
-	void SetMagVar(float value) override;
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
 
+	auto GetRunwayCount() const -> int override;
+	auto GetFrequencyCount() const -> int override;
+	auto GetStartCount() const -> int override;
+	auto GetApproachCount() const -> int override;
+	auto GetApronCount() const -> int override;
+	auto IsDeleteAirport() const -> bool override;
+	auto SetDeleteAirport(bool value) -> void override;
+	auto GetHelipadCount() const -> int override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetAltitude() const -> double override;
+	auto SetAltitude(double value) -> void override;
+	auto GetTowerLongitude() const -> double override;
+	auto SetTowerLongitude(double value) -> void override;
+	auto GetTowerLatitude() const -> double override;
+	auto SetTowerLatitude(double value) -> void override;
+	auto GetTowerAltitude() const -> double override;
+	auto SetTowerAltitude(double value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetIcaoIdent() const->uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const->uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetTrafficScalar() const -> float override;
+	auto SetTrafficScalar(float value) -> void override;
+	
+	auto GetRunwayAt(int index) const -> const IBglRunway* override;
+	auto AddRunway(const IBglRunway* runway) -> void override;
+	auto RemoveRunway(const IBglRunway* runway) -> void override;
+	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
 	stlab::copy_on_write<SBglAirportData> m_data;
