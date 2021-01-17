@@ -337,7 +337,7 @@ public:
 	virtual auto GetSecondaryIcaoIdent() const -> uint32_t = 0;
 	virtual auto SetSecondaryIcaoIdent(uint32_t value) -> void = 0;
 	virtual auto GetLongitude() const -> double = 0;
-	virtual void SetLongitude(double value) = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
 	virtual auto GetLatitude() const -> double = 0;
 	virtual auto SetLatitude(double value) -> void = 0;
 	virtual auto GetAltitude() const -> double = 0;
@@ -476,67 +476,88 @@ public:
 class IBglExclusion
 {
 public:
-	virtual double GetMinLongitude() const = 0;
-	virtual void SetMinLongitude(double value) = 0;
-	virtual double GetMaxLongitude() const = 0;
-	virtual void SetMaxLongitude(double value) = 0;
-	virtual double GetMinLatitude() const = 0;
-	virtual void SetMinLatitude(double value) = 0;
-	virtual double GetMaxLatitude() const = 0;
-	virtual void SetMaxLatitude(double value) = 0;
-
-	virtual bool IsExcludeAll() const = 0;
-	virtual void SetExcludeAll(bool value) = 0;
-	virtual bool IsGenericBuilding() const = 0;
-	virtual void SetGenericBuilding(bool value) = 0;
+	virtual auto IsExcludeAll() const -> bool = 0;
+	virtual auto SetAll(bool value) -> void = 0;
+	virtual auto IsBeacon() const -> bool = 0;
+	virtual auto SetBeacon(bool value) -> void = 0;
+	virtual auto IsGenericBuilding() const -> bool = 0;
+	virtual auto SetGenericBuilding(bool value) -> void = 0;
+	virtual auto IsEffect() const -> bool = 0;
+	virtual auto SetEffect(bool value) -> void = 0;
+	virtual auto IsLibraryObject() const -> bool = 0;
+	virtual auto SetLibraryObject(bool value) -> void = 0;
+	virtual auto IsTaxiwaySigns() const -> bool = 0;
+	virtual auto SetTaxiwaySigns(bool value) -> void = 0;
+	virtual auto IsTrigger() const -> bool = 0;
+	virtual auto SetTrigger(bool value) -> void = 0;
+	virtual auto IsWindsock() const -> bool = 0;
+	virtual auto SetWindsock(bool value) -> void = 0;
+	virtual auto IsExtrusionBridge() const -> bool = 0;
+	virtual auto SetExtrusionBridge(bool value) -> void = 0;
+	virtual auto GetMinLongitude() const -> double = 0;
+	virtual auto SetMinLongitude(double value) -> void = 0;
+	virtual auto GetMaxLongitude() const -> double = 0;
+	virtual auto SetMaxLongitude(double value) -> void = 0;
+	virtual auto GetMinLatitude() const -> double = 0;
+	virtual auto SetMinLatitude(double value) -> void = 0;
+	virtual auto GetMaxLatitude() const -> double = 0;
+	virtual auto SetMaxLatitude(double value) -> void = 0;
 };
+
 
 class IBglMarker
 {
 public:
-	virtual float GetHeading() const = 0;
-	virtual void SetHeading(float value) = 0;
+	enum class EType : uint8_t
+	{
+		Inner = 0,
+		Middle = 1,
+		Outer = 2,
+		BackCourse = 3
+	};
+
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetAltitude() const -> double = 0;
+	virtual auto SetAltitude(double value) -> void = 0;
+	virtual auto GetIcaoIdent() const->uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const->uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
 };
+
 
 class IBglGeopol
 {
 public:
-	virtual double GetMinLongitude() const = 0;
-	virtual void SetMinLongitude(double value) = 0;
-	virtual double GetMaxLongitude() const = 0;
-	virtual void SetMaxLongitude(double value) = 0;
-	virtual double GetMinLatitude() const = 0;
-	virtual void SetMinLatitude(double value) = 0;
-	virtual double GetMaxLatitude() const = 0;
-	virtual void SetMaxLatitude(double value) = 0;
-
-	enum class EType : uint8_t {
+	enum class EType : uint16_t
+	{
 		None = 0,
 		Coastline = 64,
 		Boundary = 128,
 		DashedBoundary = 129
 	};
 
-	virtual EType GetGeopolType() const = 0;
-	virtual void SetGeopolType(EType value) = 0;
-	virtual int GetVertexCount() const = 0;
-	virtual const SBglVertexLL* GetVertexAt(int index) const = 0;
-	virtual void AddVertex(const SBglVertexLL* vertex) = 0;
-	virtual void RemoveVertex(const SBglVertexLL* vertex) = 0;
-};
-
-class ITerrainRasterQuad1
-{
-public:
-	virtual int Rows() const = 0;
-	virtual int Cols() const = 0;
-};
-
-class IModelData
-{
-public:
-	virtual void* Data() = 0;
-	virtual int Length() = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetMinLongitude() const -> double = 0;
+	virtual auto SetMinLongitude(double value) -> void = 0;
+	virtual auto GetMaxLongitude() const -> double = 0;
+	virtual auto SetMaxLongitude(double value) -> void = 0;
+	virtual auto GetMinLatitude() const -> double = 0;
+	virtual auto SetMinLatitude(double value) -> void = 0;
+	virtual auto GetMaxLatitude() const -> double = 0;
+	virtual auto SetMaxLatitude(double value) -> void = 0;
+	virtual auto GetVertexCount() const -> int = 0;
+	virtual auto GetVertexAt(int index) const -> const SBglVertexLL* = 0;
+	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
 };
 
 
@@ -854,6 +875,25 @@ public:
 	virtual const SBglVertexLLA* GetPointAt(int index) const = 0;
 	virtual void AddPoint(const SBglVertexLLA* point) = 0;
 	virtual void RemovePoint(const SBglVertexLLA* point) = 0;
+};
+
+
+class IBglModelData
+{
+public:
+	virtual auto GetName() const -> _GUID = 0;
+	virtual auto SetName(_GUID value) -> void = 0;
+	virtual auto GetData() const ->const uint8_t* = 0;
+	virtual auto SetData(const uint8_t* value, int length) -> void = 0;
+	virtual auto GetLength() const -> int = 0;
+};
+
+
+class ITerrainRasterQuad1
+{
+public:
+	virtual int Rows() const = 0;
+	virtual int Cols() const = 0;
 };
 
 

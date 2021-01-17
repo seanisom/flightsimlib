@@ -172,6 +172,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			}
 		}
 			break;
+		case EBglLayerType::ModelData:
+			record = std::make_unique<CBglModelData>();
+			break;
 		default:
 			continue; // TODO - do we need to set position????
 		}

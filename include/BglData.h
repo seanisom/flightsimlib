@@ -57,11 +57,11 @@ class BinaryFileStream;
 class IBglSerializable
 {
 public:
-	virtual ~IBglSerializable() = default;
-	virtual void ReadBinary(BinaryFileStream& in) = 0;
-	virtual void WriteBinary(BinaryFileStream& out) = 0;
-	virtual bool Validate() = 0;
-	virtual int CalculateSize() const = 0;
+	virtual ~IBglSerializable() = default; // TODO necessary?
+	virtual auto ReadBinary(BinaryFileStream& in) -> void = 0;
+	virtual auto WriteBinary(BinaryFileStream& out) -> void = 0;
+	virtual auto Validate() -> bool = 0;
+	virtual auto CalculateSize() const -> int = 0;
 };
 
 
@@ -689,7 +689,7 @@ private:
 struct SBglExclusionData
 {
 	uint16_t Type;
-	uint16_t Size;
+	uint16_t Size; // TODO - verify this is actually 16
 	uint32_t MinLongitude;
 	uint32_t MinLatitude;
 	uint32_t MaxLongitude;
@@ -702,37 +702,51 @@ struct SBglExclusionData
 class CBglExclusion final : public IBglSerializable, public IBglExclusion
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
 
-	double GetMinLongitude() const override;
-	void SetMinLongitude(double value) override;
-	double GetMaxLongitude() const override;
-	void SetMaxLongitude(double value) override;
-	double GetMinLatitude() const override;
-	void SetMinLatitude(double value) override;
-	double GetMaxLatitude() const override;
-	void SetMaxLatitude(double value)  override;
-
-	bool IsExcludeAll() const override;
-	void SetExcludeAll(bool value) override;
-	bool IsGenericBuilding() const override;
-	void SetGenericBuilding(bool value) override;
-
+	auto GetMinLongitude() const -> double override;
+	auto SetMinLongitude(double value) -> void override;
+	auto GetMaxLongitude() const -> double override;
+	auto SetMaxLongitude(double value) -> void override;
+	auto GetMinLatitude() const -> double override;
+	auto SetMinLatitude(double value) -> void override;
+	auto GetMaxLatitude() const -> double override;
+	auto SetMaxLatitude(double value) -> void override;
+	auto IsExcludeAll() const -> bool override;
+	auto SetAll(bool value) -> void override;
+	auto IsBeacon() const -> bool override;
+	auto SetBeacon(bool value) -> void override;
+	auto IsGenericBuilding() const -> bool override;
+	auto SetGenericBuilding(bool value) -> void override;
+	auto IsEffect() const -> bool override;
+	auto SetEffect(bool value) -> void override;
+	auto IsLibraryObject() const -> bool override;
+	auto SetLibraryObject(bool value) -> void override;
+	auto IsTaxiwaySigns() const -> bool override;
+	auto SetTaxiwaySigns(bool value) -> void override;
+	auto IsTrigger() const -> bool override;
+	auto SetTrigger(bool value) -> void override;
+	auto IsWindsock() const -> bool override;
+	auto SetWindsock(bool value) -> void override;
+	auto IsExtrusionBridge() const -> bool override;
+	auto SetExtrusionBridge(bool value) -> void override;
+	
 private:
-	enum EType : uint16_t {
+	enum class EType : uint16_t
+	{
 		None = 0,
-		All = 1 << 3,
-		Beacon = 1 << 4,
-		Effect = 1 << 5,
-		GenericBuilding = 1 << 6,
-		LibraryObject = 1 << 7,
-		TaxiwaySign = 1 << 8,
-		Trigger = 1 << 9,
-		Windsock = 1 << 10,
-		ExtrusionBridge = 1 << 11,
+		All = 3,
+		Beacon = 4,
+		Effect = 5,
+		GenericBuilding = 6,
+		LibraryObject = 7,
+		TaxiwaySigns = 8,
+		Trigger = 9,
+		Windsock = 10,
+		ExtrusionBridge = 11,
 	};
 
 	stlab::copy_on_write<SBglExclusionData> m_data;
@@ -756,9 +770,8 @@ struct SBglMarkerData
 	uint32_t Longitude;
 	uint32_t Latitude;
 	uint32_t Altitude;
-	uint32_t Identifier;
-	uint16_t Region;
-	uint16_t Unknown;
+	uint32_t Icao;
+	uint32_t Region;
 };
 
 #pragma pack(pop)
@@ -767,22 +780,26 @@ struct SBglMarkerData
 class CBglMarker final : public IBglSerializable, public IBglMarker
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
 
-	float GetHeading() const override;
-	void SetHeading(float value) override;
-
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetAltitude() const -> double override;
+	auto SetAltitude(double value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
 private:
-	enum EType : uint8_t {
-		None = 0,
-		All = 1,
-		Beacon = 2,
-		Effect = 3
-	};
-
 	stlab::copy_on_write<SBglMarkerData> m_data;
 };
 
@@ -811,29 +828,28 @@ struct SBglGeopolData
 class CBglGeopol final : public IBglSerializable, public IBglGeopol
 {
 public:
-	void ReadBinary(BinaryFileStream& in) override;
-	void WriteBinary(BinaryFileStream& out) override;
-	bool Validate() override;
-	int CalculateSize() const override;
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
 
-	double GetMinLongitude() const override;
-	void SetMinLongitude(double value) override;
-	double GetMaxLongitude() const override;
-	void SetMaxLongitude(double value) override;
-	double GetMinLatitude() const override;
-	void SetMinLatitude(double value) override;
-	double GetMaxLatitude() const override;
-	void SetMaxLatitude(double value) override;
-
-	EType GetGeopolType() const override;
-	void SetGeopolType(EType value) override;
-	int GetVertexCount() const override;
-	const SBglVertexLL* GetVertexAt(int index) const override;
-	void AddVertex(const SBglVertexLL* vertex) override;
-	void RemoveVertex(const SBglVertexLL* vertex) override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetMinLongitude() const -> double override;
+	auto SetMinLongitude(double value) -> void override;
+	auto GetMaxLongitude() const -> double override;
+	auto SetMaxLongitude(double value) -> void override;
+	auto GetMinLatitude() const -> double override;
+	auto SetMinLatitude(double value) -> void override;
+	auto GetMaxLatitude() const -> double override;
+	auto SetMaxLatitude(double value) -> void override;
+	auto GetVertexCount() const -> int override;
+	auto GetVertexAt(int index) const -> const SBglVertexLL* override;
+	auto AddVertex(const SBglVertexLL* vertex) -> void override;
+	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
 
 private:
-	void SetVertexCount(int value);
+	auto SetVertexCount(int value) -> void;
 	
 	stlab::copy_on_write<SBglGeopolData> m_data;
 	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
@@ -1467,6 +1483,45 @@ private:
 	stlab::copy_on_write<SBglExtrusionBridgeData> m_data;
 	stlab::copy_on_write<std::vector<_GUID>> m_placements;
 	stlab::copy_on_write<std::vector<SBglVertexLLA>> m_points;
+};
+
+
+//******************************************************************************
+// CBglModelData
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglModelData
+{
+	_GUID Name;
+	uint32_t Offset;
+	uint32_t Length;
+};
+
+#pragma pack(pop)
+
+
+class CBglModelData final : public IBglSerializable, public IBglModelData
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetName() const -> _GUID override;
+	auto SetName(_GUID value) -> void  override;
+	auto GetData() const ->const uint8_t* override;
+	auto SetData(const uint8_t* value, int length) -> void override;
+	auto GetLength() const -> int override;
+
+private:
+	stlab::copy_on_write<SBglModelData> m_data;
+	stlab::copy_on_write<std::vector<uint8_t>> m_model;
+	// std::shared_ptr<uint8_t[]> GetCompressedData();
 };
 
 

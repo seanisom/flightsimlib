@@ -56,14 +56,14 @@ constexpr auto to_integral(T e) -> typename std::underlying_type<T>::type
 template <typename T>
 T get_packed_bits(T src, int num_bits, int position)
 {
-	return (src >> position) & (2 << (num_bits - 1));
+	return (src >> position) & (1 << (num_bits - 1));
 }
 
 
 template <typename T>
 void set_packed_bits(T& dest, int value, int num_bits, int position)
 {
-	dest &= ~((2 << (num_bits - 1)) << position);
+	dest &= ~((1 << (num_bits - 1)) << position);
 	dest |= static_cast<uint32_t>(value) << position;
 }
 
@@ -671,19 +671,44 @@ void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 		in >> type >> size;
 		in.SetPosition(child_pos);
 
-		switch (static_cast<EBglLayerType>(type))
+		switch (static_cast<EBglLayerType>(type))  // NOLINT(clang-diagnostic-switch-enum)
 		{
 		case EBglLayerType::PrimaryOffsetThreshold:
-			{
-				m_primary_offset_threshold.write().ReadBinary(in);
-			}
+			m_primary_offset_threshold.write().ReadBinary(in);
 			break;
 		case EBglLayerType::SecondaryOffsetThreshold:
-			{
-				m_secondary_offset_threshold.write().ReadBinary(in);
-			}
+			m_secondary_offset_threshold.write().ReadBinary(in);
 			break;
-			
+		case EBglLayerType::PrimaryBlastPad:
+			m_primary_blast_pad.write().ReadBinary(in);
+			break;
+		case EBglLayerType::SecondaryBlastPad:
+			m_secondary_blast_pad.write().ReadBinary(in);
+			break;
+		case EBglLayerType::PrimaryOverrun:
+			m_primary_overrun.write().ReadBinary(in);
+			break;
+		case EBglLayerType::SecondaryOverrun:
+			m_secondary_overrun.write().ReadBinary(in);
+			break;
+		case EBglLayerType::PrimaryLeftVasi:
+			m_primary_left_vasi.write().ReadBinary(in);
+			break;
+		case EBglLayerType::PrimaryRightVasi:
+			m_primary_right_vasi.write().ReadBinary(in);
+			break;
+		case EBglLayerType::SecondaryLeftVasi:
+			m_secondary_left_vasi.write().ReadBinary(in);
+			break;
+		case EBglLayerType::SecondaryRightVasi:
+			m_secondary_right_vasi.write().ReadBinary(in);
+			break;
+		case EBglLayerType::PrimaryApproachLights:
+			m_primary_approach_lights.write().ReadBinary(in);
+			break;
+		case EBglLayerType::SecondaryApproachLights:
+			m_secondary_approach_lights.write().ReadBinary(in);
+			break;
 		default:
 			break;
 		}
@@ -1672,7 +1697,7 @@ auto flightsimlib::io::CBglAirport::RemoveRunway(const IBglRunway* runway) -> vo
 //******************************************************************************  
 
 
-void flightsimlib::io::CBglExclusion::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglExclusion::ReadBinary(BinaryFileStream& in) -> void
 {
 	auto data = m_data.write();
 	in >> data.Type
@@ -1683,7 +1708,7 @@ void flightsimlib::io::CBglExclusion::ReadBinary(BinaryFileStream& in)
 		>> data.MaxLatitude;
 }
 
-void flightsimlib::io::CBglExclusion::WriteBinary(BinaryFileStream& out)
+auto flightsimlib::io::CBglExclusion::WriteBinary(BinaryFileStream& out) -> void
 {
 	out << m_data->Type
 		<< m_data->Size
@@ -1693,81 +1718,153 @@ void flightsimlib::io::CBglExclusion::WriteBinary(BinaryFileStream& out)
 		<< m_data->MaxLatitude;
 }
 
-bool flightsimlib::io::CBglExclusion::Validate()
+auto flightsimlib::io::CBglExclusion::Validate() -> bool
 {
 	return true;
 }
 
-int flightsimlib::io::CBglExclusion::CalculateSize() const
+auto flightsimlib::io::CBglExclusion::CalculateSize() const -> int
 {
 	return sizeof(SBglExclusionData);
 }
 
-double flightsimlib::io::CBglExclusion::GetMinLongitude() const
+auto flightsimlib::io::CBglExclusion::GetMinLongitude() const -> double
 {
 	return Longitude::Value(m_data->MinLongitude);
 }
 
-void flightsimlib::io::CBglExclusion::SetMinLongitude(double value)
+auto flightsimlib::io::CBglExclusion::SetMinLongitude(double value) -> void
 {
 	m_data.write().MinLongitude = Longitude::ToPacked(value);
 }
 
-double flightsimlib::io::CBglExclusion::GetMaxLongitude() const
+auto flightsimlib::io::CBglExclusion::GetMaxLongitude() const -> double
 {
 	return Longitude::Value(m_data->MaxLongitude);
 }
 
-void flightsimlib::io::CBglExclusion::SetMaxLongitude(double value)
+auto flightsimlib::io::CBglExclusion::SetMaxLongitude(double value) -> void
 {
 	m_data.write().MaxLongitude = Longitude::ToPacked(value);
 }
 
-double flightsimlib::io::CBglExclusion::GetMinLatitude() const
+auto flightsimlib::io::CBglExclusion::GetMinLatitude() const -> double
 {
 	return Latitude::Value(m_data->MinLatitude);
 }
 
-void flightsimlib::io::CBglExclusion::SetMinLatitude(double value)
+auto flightsimlib::io::CBglExclusion::SetMinLatitude(double value) -> void
 {
 	m_data.write().MinLatitude = Latitude::ToPacked(value);
 }
 
-double flightsimlib::io::CBglExclusion::GetMaxLatitude() const
+auto flightsimlib::io::CBglExclusion::GetMaxLatitude() const -> double
 {
 	return Latitude::Value(m_data->MaxLatitude);
 }
 
-void flightsimlib::io::CBglExclusion::SetMaxLatitude(double value)
+auto flightsimlib::io::CBglExclusion::SetMaxLatitude(double value) -> void
 {
 	m_data.write().MaxLatitude = Latitude::ToPacked(value);
 }
 
 bool flightsimlib::io::CBglExclusion::IsExcludeAll() const
 {
-	return (m_data->Type & 0xF) == 0x8;
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::All)));
 }
 
-void flightsimlib::io::CBglExclusion::SetExcludeAll(bool value)
+void flightsimlib::io::CBglExclusion::SetAll(bool value)
 {
-	m_data.write().Type = 0x8; // Clear other flags
+	m_data.write().Type = 1 << to_integral(EType::All); // Clear other flags
 }
 
-bool flightsimlib::io::CBglExclusion::IsGenericBuilding() const
+auto flightsimlib::io::CBglExclusion::IsBeacon() const -> bool
 {
-	return m_data->Type & GenericBuilding;
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::Beacon)));
 }
 
-void flightsimlib::io::CBglExclusion::SetGenericBuilding(bool value)
+auto flightsimlib::io::CBglExclusion::SetBeacon(bool value) -> void
 {
-	if (value)
-	{
-		m_data.write().Type |= GenericBuilding;
-	}
-	else
-	{
-		m_data.write().Type &= ~GenericBuilding;
-	}
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::Beacon));
+}
+
+auto flightsimlib::io::CBglExclusion::IsGenericBuilding() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::GenericBuilding)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetGenericBuilding(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::GenericBuilding));
+}
+
+auto flightsimlib::io::CBglExclusion::IsEffect() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::Effect)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetEffect(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::Effect));
+}
+
+auto flightsimlib::io::CBglExclusion::IsLibraryObject() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::LibraryObject)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetLibraryObject(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::LibraryObject));
+}
+
+auto flightsimlib::io::CBglExclusion::IsTaxiwaySigns() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::TaxiwaySigns)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetTaxiwaySigns(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::TaxiwaySigns));
+}
+
+auto flightsimlib::io::CBglExclusion::IsTrigger() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::Trigger)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetTrigger(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::Trigger));
+}
+
+auto flightsimlib::io::CBglExclusion::IsWindsock() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::Windsock)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetWindsock(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::Windsock));
+}
+
+auto flightsimlib::io::CBglExclusion::IsExtrusionBridge() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EType::ExtrusionBridge)));
+}
+
+auto flightsimlib::io::CBglExclusion::SetExtrusionBridge(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EType::ExtrusionBridge));
 }
 
 
@@ -1776,7 +1873,7 @@ void flightsimlib::io::CBglExclusion::SetGenericBuilding(bool value)
 //******************************************************************************  
 
 
-void flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in) -> void
 {
 	auto data = m_data.write();
 	in >> data.SectionType
@@ -1787,12 +1884,11 @@ void flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in)
 		>> data.Longitude
 		>> data.Latitude
 		>> data.Altitude
-		>> data.Identifier
-		>> data.Region
-		>> data.Unknown;
+		>> data.Icao
+		>> data.Region;
 }
 
-void flightsimlib::io::CBglMarker::WriteBinary(BinaryFileStream& out)
+auto flightsimlib::io::CBglMarker::WriteBinary(BinaryFileStream& out) -> void
 {
 	out << m_data->SectionType
 		<< m_data->Size
@@ -1802,36 +1898,95 @@ void flightsimlib::io::CBglMarker::WriteBinary(BinaryFileStream& out)
 		<< m_data->Longitude
 		<< m_data->Latitude
 		<< m_data->Altitude
-		<< m_data->Identifier
-		<< m_data->Region
-		<< m_data->Unknown;
+		<< m_data->Icao
+		<< m_data->Region;
 }
 
-bool flightsimlib::io::CBglMarker::Validate()
+auto flightsimlib::io::CBglMarker::Validate() -> bool
 {
 	return true;
 }
 
-int flightsimlib::io::CBglMarker::CalculateSize() const
+auto flightsimlib::io::CBglMarker::CalculateSize() const -> int
 {
 	return sizeof(SBglMarkerData);
 }
 
-float flightsimlib::io::CBglMarker::GetHeading() const
+auto flightsimlib::io::CBglMarker::GetHeading() const -> float
 {
 	return static_cast<float>(ANGLE16::Value(m_data->Heading));
 }
 
-void flightsimlib::io::CBglMarker::SetHeading(float value)
+auto flightsimlib::io::CBglMarker::SetHeading(float value) -> void
 {
 	m_data.write().Heading = ANGLE16::FromDouble(static_cast<double>(value));
+}
+
+auto flightsimlib::io::CBglMarker::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->MarkerType);
+}
+
+auto flightsimlib::io::CBglMarker::SetType(EType value) -> void
+{
+	m_data.write().MarkerType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglMarker::GetLongitude() const -> double
+{
+	return Longitude::Value(m_data->Longitude);
+}
+
+auto flightsimlib::io::CBglMarker::SetLongitude(double value) -> void
+{
+	m_data.write().Longitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglMarker::GetLatitude() const -> double
+{
+	return Latitude::Value(m_data->Latitude);
+}
+
+auto flightsimlib::io::CBglMarker::SetLatitude(double value) -> void
+{
+	m_data.write().Latitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglMarker::GetAltitude() const -> double
+{
+	return PackedAltitude::Value(m_data->Altitude);
+}
+
+auto flightsimlib::io::CBglMarker::SetAltitude(double value) -> void
+{
+	m_data.write().Altitude = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglMarker::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->Icao;
+}
+
+auto flightsimlib::io::CBglMarker::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().Icao = value;
+}
+
+auto flightsimlib::io::CBglMarker::GetRegionIdent() const -> uint32_t
+{
+	return m_data->Region;
+}
+
+auto flightsimlib::io::CBglMarker::SetRegionIdent(uint32_t value) -> void
+{
+	m_data.write().Region = value;
 }
 
 //******************************************************************************
 // CBglGeopol
 //******************************************************************************  
 
-void flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in)
+auto flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in) -> void
 {
 	assert(m_vertices->empty());
 	
@@ -1853,7 +2008,7 @@ void flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in)
 	}
 }
 
-void flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out)
+auto flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out) -> void
 {
 	out << m_data->SectionType
 		<< m_data->Size
@@ -1869,85 +2024,85 @@ void flightsimlib::io::CBglGeopol::WriteBinary(BinaryFileStream& out)
 	}
 }
 
-bool flightsimlib::io::CBglGeopol::Validate()
+auto flightsimlib::io::CBglGeopol::Validate() -> bool
 {
 	return true;
 }
 
-int flightsimlib::io::CBglGeopol::CalculateSize() const
+auto flightsimlib::io::CBglGeopol::CalculateSize() const -> int
 {
 	return static_cast<int>(sizeof(SBglGeopolData) + GetVertexCount() * sizeof(SBglVertexLL));
 }
 
-double flightsimlib::io::CBglGeopol::GetMinLongitude() const
+auto flightsimlib::io::CBglGeopol::GetMinLongitude() const -> double
 {
 	return Longitude::Value(m_data->MinLongitude);
 }
 
-void flightsimlib::io::CBglGeopol::SetMinLongitude(double value)
-{
-	m_data.write().MinLongitude = Longitude::ToPacked(value);
-}
-
-double flightsimlib::io::CBglGeopol::GetMaxLongitude() const
-{
-	return Longitude::Value(m_data->MaxLongitude);
-}
-
-void flightsimlib::io::CBglGeopol::SetMaxLongitude(double value)
-{
-	m_data.write().MaxLongitude = Longitude::ToPacked(value);
-}
-
-double flightsimlib::io::CBglGeopol::GetMinLatitude() const
-{
-	return Latitude::Value(m_data->MinLatitude);
-}
-
-void flightsimlib::io::CBglGeopol::SetMinLatitude(double value)
-{
-	m_data.write().MinLatitude = Latitude::ToPacked(value);
-}
-
-double flightsimlib::io::CBglGeopol::GetMaxLatitude() const
-{
-	return Latitude::Value(m_data->MaxLatitude);
-}
-
-void flightsimlib::io::CBglGeopol::SetMaxLatitude(double value)
-{
-	m_data.write().MaxLatitude = Latitude::ToPacked(value);
-}
-
-flightsimlib::io::IBglGeopol::EType flightsimlib::io::CBglGeopol::GetGeopolType() const
+auto flightsimlib::io::CBglGeopol::GetType() const -> EType
 {
 	return static_cast<EType>((m_data->GeopolType >> 14) & 0xF);
 }
 
-void flightsimlib::io::CBglGeopol::SetGeopolType(EType value)
+auto flightsimlib::io::CBglGeopol::SetType(EType value) -> void
 {
 	m_data.write().GeopolType = 
-		static_cast<uint16_t>((m_data->GeopolType & 0x3FFF) | (static_cast<int>(value) << 14));
+		static_cast<uint16_t>((m_data->GeopolType & 0x3FFF) | (to_integral(value) << 14));
 }
 
-int flightsimlib::io::CBglGeopol::GetVertexCount() const
+auto flightsimlib::io::CBglGeopol::SetMinLongitude(double value) -> void
+{
+	m_data.write().MinLongitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglGeopol::GetMaxLongitude() const -> double
+{
+	return Longitude::Value(m_data->MaxLongitude);
+}
+
+auto flightsimlib::io::CBglGeopol::SetMaxLongitude(double value) -> void
+{
+	m_data.write().MaxLongitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglGeopol::GetMinLatitude() const -> double
+{
+	return Latitude::Value(m_data->MinLatitude);
+}
+
+auto flightsimlib::io::CBglGeopol::SetMinLatitude(double value) -> void
+{
+	m_data.write().MinLatitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglGeopol::GetMaxLatitude() const -> double
+{
+	return Latitude::Value(m_data->MaxLatitude);
+}
+
+auto flightsimlib::io::CBglGeopol::SetMaxLatitude(double value) -> void
+{
+	m_data.write().MaxLatitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglGeopol::GetVertexCount() const -> int
 {
 	return m_data->GeopolType & 0x3FFF;
 }
 
-const flightsimlib::io::SBglVertexLL* flightsimlib::io::CBglGeopol::GetVertexAt(int index) const
+auto flightsimlib::io::CBglGeopol::GetVertexAt(int index) const -> const SBglVertexLL*
 {
 	return &(m_vertices.read()[index]);
 }
 
-void flightsimlib::io::CBglGeopol::AddVertex(const SBglVertexLL* vertex)
+auto flightsimlib::io::CBglGeopol::AddVertex(const SBglVertexLL* vertex) -> void
 {
 	// TODO Need validation, self check
 	m_vertices.write().emplace_back(*vertex);
 	SetVertexCount(static_cast<int>(m_vertices->size()));
 }
 
-void flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex)
+auto flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex) -> void
 {
 	const auto iter = m_vertices.read().begin() +
 		std::distance(m_vertices.read().data(), vertex);
@@ -1956,7 +2111,7 @@ void flightsimlib::io::CBglGeopol::RemoveVertex(const SBglVertexLL* vertex)
 	SetVertexCount(static_cast<int>(m_vertices->size()));
 }
 
-void flightsimlib::io::CBglGeopol::SetVertexCount(int value)
+auto flightsimlib::io::CBglGeopol::SetVertexCount(int value) -> void
 {
 	m_data.write().GeopolType = 
 		static_cast<uint16_t>((m_data->GeopolType & 0xC000) | value);
@@ -3755,6 +3910,70 @@ auto flightsimlib::io::CBglExtrusionBridge::RemovePoint(const SBglVertexLLA* poi
 		std::distance(m_points.read().data(), point);
 	m_points.write().erase(iter);
 	--m_data.write().PointCount;
+}
+
+
+//******************************************************************************
+// CBglModelData
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglModelData::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Name
+		>> data.Offset
+		>> data.Length;
+
+	m_model.write().resize(m_data->Length);
+	in.Read(m_model.write().data(), m_data->Length);
+}
+
+auto flightsimlib::io::CBglModelData::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Name
+		<< m_data->Offset
+		<< m_data->Length;
+
+	// TODO - Writing Output model is not yet supported, as they are in a block!
+	// Needs support in CBglTile::WriteBinary, which is going to take an interface refactor
+}
+
+auto flightsimlib::io::CBglModelData::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglModelData::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglModelData) + m_data->Length);
+}
+
+auto flightsimlib::io::CBglModelData::GetName() const -> _GUID
+{
+	return m_data->Name;
+}
+
+auto flightsimlib::io::CBglModelData::SetName(_GUID value) -> void
+{
+	m_data.write().Name = value;
+}
+
+auto flightsimlib::io::CBglModelData::GetData() const -> const uint8_t*
+{
+	return m_model->data();
+}
+
+auto flightsimlib::io::CBglModelData::SetData(const uint8_t* value, int length) -> void
+{
+	m_model.write().clear();
+	m_model.write().insert(m_model->end(), value, value + length);
+	m_data.write().Length = length;
+}
+
+auto flightsimlib::io::CBglModelData::GetLength() const -> int
+{
+	return static_cast<int>(m_data->Length);
 }
 
 
