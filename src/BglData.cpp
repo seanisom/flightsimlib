@@ -27,7 +27,7 @@
 
 //******************************************************************************
 //
-// File:     BglDecompressor.cpp
+// File:     BglData.cpp
 //
 // Summary:  Implementation of actual stored data types from an FSX+ Bgl file
 //
@@ -344,7 +344,7 @@ auto flightsimlib::io::CBglFuelAvailability<T>::UpdateJetFuelAvailability(EFuelA
 
 void flightsimlib::io::CBglRunway::CBglRunwayEnd::ReadBinary(BinaryFileStream& in)
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Position
 		>> data.Size
 		>> data.SurfaceType
@@ -428,7 +428,7 @@ auto flightsimlib::io::CBglRunway::CBglRunwayEnd::SetPosition(EPosition value) -
 
 auto flightsimlib::io::CBglRunway::CBglRunwayVasi::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Position
 		>> data.Size
 		>> data.Type
@@ -536,7 +536,7 @@ auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetPosition(EPosition value) 
 
 auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Position
 		>> data.Size
 		>> data.Type
@@ -638,7 +638,7 @@ auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetPosition(EPositi
 
 void flightsimlib::io::CBglRunway::ReadBinary(BinaryFileStream& in)
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 
 	const auto initial_pos = in.GetPosition();
 	
@@ -745,8 +745,14 @@ void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 		<< m_data->LightFlags
 		<< m_data->PatternFlags;
 
-	m_primary_offset_threshold.write().WriteBinary(out);
+	/*
+	if (!m_primary_offset_threshold->IsEmpty())
+	{
+		m_primary_offset_threshold.write().WriteBinary(out);
+	}
+	
 	m_secondary_offset_threshold.write().WriteBinary(out);
+	*/
 }
 
 bool flightsimlib::io::CBglRunway::Validate()
@@ -1440,7 +1446,7 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 {
 	const auto initial_pos = in.GetPosition();
 
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Type
 		>> data.Size
 		>> data.RunwayCount
@@ -1699,7 +1705,7 @@ auto flightsimlib::io::CBglAirport::RemoveRunway(const IBglRunway* runway) -> vo
 
 auto flightsimlib::io::CBglExclusion::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Type
 		>> data.Size
 		>> data.MinLongitude
@@ -1875,7 +1881,7 @@ auto flightsimlib::io::CBglExclusion::SetExtrusionBridge(bool value) -> void
 
 auto flightsimlib::io::CBglMarker::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.SectionType
 		>> data.Size
 		>> data.UnusedType
@@ -1990,7 +1996,7 @@ auto flightsimlib::io::CBglGeopol::ReadBinary(BinaryFileStream& in) -> void
 {
 	assert(m_vertices->empty());
 	
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.SectionType
 		>> data.Size
 		>> data.GeopolType
@@ -2125,7 +2131,7 @@ auto flightsimlib::io::CBglGeopol::SetVertexCount(int value) -> void
 
 void flightsimlib::io::CBglSceneryObject::ReadBinary(BinaryFileStream& in)
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.SectionType
 		>> data.Size
 		>> data.Longitude
@@ -2162,6 +2168,16 @@ bool flightsimlib::io::CBglSceneryObject::Validate()
 int flightsimlib::io::CBglSceneryObject::CalculateSize() const
 {
 	return sizeof(SBglSceneryObjectData);
+}
+
+flightsimlib::io::IBglSceneryObject::ESceneryObjectType flightsimlib::io::CBglSceneryObject::GetSceneryObjectType() const
+{
+	return static_cast<ESceneryObjectType>(m_data->SectionType);
+}
+
+void flightsimlib::io::CBglSceneryObject::SetSceneryObjectType(ESceneryObjectType value)
+{
+	m_data.write().SectionType = to_integral(value);
 }
 
 double flightsimlib::io::CBglSceneryObject::GetLongitude() const
@@ -2363,6 +2379,46 @@ void flightsimlib::io::CBglSceneryObject::SetInstanceId(_GUID value)
 	m_data.write().InstanceId = value;
 }
 
+const flightsimlib::io::IBglGenericBuilding* flightsimlib::io::CBglSceneryObject::GetGenericBuilding() const
+{
+	return dynamic_cast<const IBglGenericBuilding*>(this);
+}
+
+const flightsimlib::io::IBglLibraryObject* flightsimlib::io::CBglSceneryObject::GetLibraryObject() const
+{
+	return dynamic_cast<const IBglLibraryObject*>(this);
+}
+
+const flightsimlib::io::IBglWindsock* flightsimlib::io::CBglSceneryObject::GetWindsock() const
+{
+	return dynamic_cast<const IBglWindsock*>(this);
+}
+
+const flightsimlib::io::IBglEffect* flightsimlib::io::CBglSceneryObject::GetEffect() const
+{
+	return dynamic_cast<const IBglEffect*>(this);
+}
+
+const flightsimlib::io::IBglTaxiwaySigns* flightsimlib::io::CBglSceneryObject::GetTaxiwaySigns() const
+{
+	return dynamic_cast<const IBglTaxiwaySigns*>(this);
+}
+
+const flightsimlib::io::IBglTrigger* flightsimlib::io::CBglSceneryObject::GetTrigger() const
+{
+	return dynamic_cast<const IBglTrigger*>(this);
+}
+
+const flightsimlib::io::IBglBeacon* flightsimlib::io::CBglSceneryObject::GetBeacon() const
+{
+	return dynamic_cast<const IBglBeacon*>(this);
+}
+
+const flightsimlib::io::IBglExtrusionBridge* flightsimlib::io::CBglSceneryObject::GetExtrusionBridge() const
+{
+	return dynamic_cast<const IBglExtrusionBridge*>(this);
+}
+
 int flightsimlib::io::CBglSceneryObject::RecordSize() const
 {
 	return m_data->Size;
@@ -2379,7 +2435,7 @@ auto flightsimlib::io::CBglGenericBuilding::ReadBinary(BinaryFileStream& in) -> 
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 		
 		in >> data.Scale
 			>> data.SubrecordStart
@@ -2892,7 +2948,7 @@ void flightsimlib::io::CBglLibraryObject::ReadBinary(BinaryFileStream& in)
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 		in >> data.Name
 			>> data.Scale;
 	}
@@ -2949,7 +3005,7 @@ void flightsimlib::io::CBglWindsock::ReadBinary(BinaryFileStream& in)
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 		in >> data.PoleHeight
 			>> data.WindsockLength
 			>> data.PoleColor
@@ -3042,7 +3098,7 @@ void flightsimlib::io::CBglEffect::ReadBinary(BinaryFileStream& in)
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 
 		data.Name.resize(s_name_size);
 		char input[s_name_size];
@@ -3109,15 +3165,19 @@ void flightsimlib::io::CBglEffect::SetParams(const char* value)
 
 auto flightsimlib::io::CBglTaxiwaySign::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.LongitudeBias
 		>> data.LatitudeBias
 		>> data.Heading
 		>> data.Size
 		>> data.Justification;
 	
-	const auto param_size = CalculateSize() - s_record_size;
-	data.Label = in.ReadString(param_size);
+	data.Label = in.ReadCString();
+	auto pad = uint8_t{ 0 };
+	if (data.Label.size() % 2 == 0) // if it's even, we pad, as the c_str() is odd
+	{
+		in >> pad;
+	}
 }
 
 auto flightsimlib::io::CBglTaxiwaySign::WriteBinary(BinaryFileStream& out) -> void
@@ -3129,7 +3189,7 @@ auto flightsimlib::io::CBglTaxiwaySign::WriteBinary(BinaryFileStream& out) -> vo
 		<< m_data->Justification;
 
 	const auto* const label = m_data->Label.c_str();
-	const auto length = static_cast<int>(strlen(label));
+	const auto length = static_cast<int>(strlen(label)) + 1;
 	out.Write(label, length);
 
 	// TODO - move pad to util
@@ -3153,8 +3213,8 @@ auto flightsimlib::io::CBglTaxiwaySign::Validate() -> bool
 
 auto flightsimlib::io::CBglTaxiwaySign::CalculateSize() const -> int
 {
-	const auto label_length = static_cast<int>(strlen(m_data->Label.c_str()));
-	return s_record_size + label_length + label_length % 2 ? 1 : 0;
+	const auto label_length = static_cast<int>(m_data->Label.size());
+	return s_record_size + label_length + 1 + (label_length % 2 ? 0 : 1);
 }
 
 auto flightsimlib::io::CBglTaxiwaySign::GetLongitudeBias() const -> float
@@ -3232,7 +3292,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::ReadBinary(BinaryFileStream& in) -> voi
 		{
 			m_signs.write().clear();
 		}
-		auto sign_count = uint16_t{ 0 };
+		auto sign_count = uint32_t{ 0 };
 		in >> sign_count;
 		m_signs.write().resize(sign_count);
 
@@ -3252,7 +3312,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::WriteBinary(BinaryFileStream& out) -> v
 	CBglSceneryObject::WriteBinary(out);
 	if (out)
 	{
-		const auto sign_count = static_cast<uint16_t>(m_signs.read().size());
+		const auto sign_count = static_cast<uint32_t>(m_signs.read().size());
 		out << sign_count;
 
 		for (auto i = 0; i < sign_count; ++i)
@@ -3273,7 +3333,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::Validate() -> bool
 
 auto flightsimlib::io::CBglTaxiwaySigns::CalculateSize() const -> int
 {
-	auto size = static_cast<int>(CBglSceneryObject::CalculateSize() + sizeof(uint16_t));
+	auto size = static_cast<int>(CBglSceneryObject::CalculateSize() + sizeof(uint32_t));
 	for (const auto& sign : m_signs.read())
 	{
 		size += sign.CalculateSize();
@@ -3312,7 +3372,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::RemoveSign(const IBglTaxiwaySign* sign)
 
 auto flightsimlib::io::CBglTriggerRefuelRepair::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.FuelAvailability
 		>> data.PointCount;
 
@@ -3378,7 +3438,7 @@ auto flightsimlib::io::CBglTriggerRefuelRepair::RemoveVertex(const SBglVertexBia
 
 auto flightsimlib::io::CBglTriggerWeather::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto data = m_data.write();
+	auto& data = m_data.write();
 	in >> data.Type
 		>> data.Heading
 		>> data.Scalar
@@ -3471,7 +3531,7 @@ auto flightsimlib::io::CBglTrigger::ReadBinary(BinaryFileStream& in) -> void
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 		in >> data.Type
 			>> data.Height;
 		
@@ -3679,7 +3739,7 @@ auto flightsimlib::io::CBglExtrusionBridge::ReadBinary(BinaryFileStream& in) -> 
 	CBglSceneryObject::ReadBinary(in);
 	if (in)
 	{
-		auto data = m_data.write();
+		auto& data = m_data.write();
 		in >> data.ExtrusionProfile
 			>> data.MaterialSet
 			>> data.LongitudeSample1

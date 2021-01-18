@@ -874,7 +874,7 @@ struct SBglSceneryObjectData
 	uint16_t Pitch;
 	uint16_t Bank;
 	uint16_t Heading;
-	uint16_t ImageComplexity;
+	uint32_t ImageComplexity;
 	_GUID InstanceId; // TODO: Assumes FSX, need to add FS9 types
 };
 
@@ -889,6 +889,8 @@ public:
 	bool Validate() override;
 	int CalculateSize() const override;
 
+	ESceneryObjectType GetSceneryObjectType() const override;
+	void SetSceneryObjectType(ESceneryObjectType value) override;
 	double GetLongitude() const override;
 	void SetLongitude(double value) override;
 	double GetLatitude() const override;
@@ -919,7 +921,15 @@ public:
 	void SetImageComplexity(EImageComplexity value) override;
 	_GUID GetInstanceId() const override;
 	void SetInstanceId(_GUID value) override;
-
+	const IBglGenericBuilding* GetGenericBuilding() const override;
+	const IBglLibraryObject* GetLibraryObject() const override;
+	const IBglWindsock* GetWindsock() const override;
+	const IBglEffect* GetEffect() const override;
+	const IBglTaxiwaySigns* GetTaxiwaySigns() const override;
+	const IBglTrigger* GetTrigger() const override;
+	const IBglBeacon* GetBeacon() const override;
+	const IBglExtrusionBridge* GetExtrusionBridge() const override;
+	
 protected:
 	int RecordSize() const;
 
