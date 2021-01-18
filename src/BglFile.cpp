@@ -140,30 +140,30 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 			in >> child_size;
 			in.SetPosition(pos);
 
-			switch(static_cast<EBglSceneryObjectType>(child_type))
+			switch(static_cast<IBglSceneryObject::ESceneryObjectType>(child_type))
 			{
-			case EBglSceneryObjectType::GenericBuilding:
+			case IBglSceneryObject::ESceneryObjectType::GenericBuilding:
 				record = std::make_unique<CBglGenericBuilding>();
 				break;
-			case EBglSceneryObjectType::LibraryObject:
+			case IBglSceneryObject::ESceneryObjectType::LibraryObject:
 				record = std::make_unique<CBglLibraryObject>();
 				break;
-			case EBglSceneryObjectType::Windsock:
+			case IBglSceneryObject::ESceneryObjectType::Windsock:
 				record = std::make_unique<CBglWindsock>();
 				break;
-			case EBglSceneryObjectType::Effect:
+			case IBglSceneryObject::ESceneryObjectType::Effect:
 				record = std::make_unique<CBglEffect>();
 				break;
-			case EBglSceneryObjectType::TaxiwaySigns:
+			case IBglSceneryObject::ESceneryObjectType::TaxiwaySigns:
 				record = std::make_unique<CBglTaxiwaySigns>();
 				break;
-			case EBglSceneryObjectType::Trigger:
+			case IBglSceneryObject::ESceneryObjectType::Trigger:
 				record = std::make_unique<CBglTrigger>();
 				break;
-			case EBglSceneryObjectType::Beacon:
+			case IBglSceneryObject::ESceneryObjectType::Beacon:
 				record = std::make_unique<CBglBeacon>();
 				break;
-			case EBglSceneryObjectType::ExtrusionBridge:
+			case IBglSceneryObject::ESceneryObjectType::ExtrusionBridge:
 				record = std::make_unique<CBglExtrusionBridge>();
 				break;
 			default:
@@ -225,6 +225,13 @@ int CBglTile::GetRecordCount() const
 }
 
 
+template <typename T>
+T* CBglTile::GetTileDataAt(int index) const
+{
+	return dynamic_cast<T*>(m_data[index].get());
+}
+
+	
 //******************************************************************************
 // CBglLayer
 //******************************************************************************  
@@ -597,6 +604,16 @@ int CBglFile::GetFileSize() const
 	return m_file_size;
 }
 
+CBglLayer* CBglFile::GetLayer(EBglLayerType type) const
+{
+	const auto it = m_layers.find(type);
+	if (it == m_layers.end())
+	{
+		return nullptr;
+	}
+	return it->second.get();
+}
+
 // Test method!
 std::vector<const IBglExclusion*> CBglFile::GetExclusions()
 {
@@ -615,6 +632,7 @@ bool CBglFile::ReadAllLayers()
 	}
 	const auto count = static_cast<int>(m_header.LayerCount);
 	for (auto i = 0; i < count; ++i)
+	//for (auto i = 0; i < 1; ++i)
 	{
 		auto layer = CBglLayer::ReadBinary(m_stream, m_layers);
 		if (layer == nullptr)
@@ -742,8 +760,14 @@ bool CBglFile::ComputeHeaderQmids()
 	m_header.PackedQMIDParent7 = 0;
 	return true;
 }
-
-
+	
 } // namespace io
 
 } // namespace flightsimlib
+
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglAirport* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglExclusion* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglMarker* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglGeopol* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglModelData* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
+template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglSceneryObject* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;

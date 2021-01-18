@@ -60,7 +60,7 @@ class IBglSerializable;
 class IBglExclusion;
 
 
-enum class EBglLayerType : uint16_t
+enum class EBglLayerType : uint32_t
 {
 	None = 0x0,
 	Copyright = 0x1,
@@ -148,22 +148,6 @@ enum class EBglLayerType : uint16_t
 	FakeTypes = 0x2710,
 	IcaoRunway = 0x2711,
 	Max = 0x2712
-};
-
-// TODO - shall we move this internal to CBglSceneryObject
-enum class EBglSceneryObjectType : uint16_t
-{
-	None = 0x0,
-	GenericBuilding = 0xA,
-	LibraryObject = 0xB,
-	Windsock = 0xC,
-	Effect = 0xD,
-	TaxiwaySigns = 0xE,
-	Trigger = 0x10,
-	Beacon = 0x11,
-	ExtrusionBridge = 0x12,
-	AttachedObjectEnd = 0x1002,
-	AttachedObjectStart = 0x1003	
 };
 
 
@@ -297,6 +281,8 @@ public:
 	bool WriteBinary(BinaryFileStream& out);
 	int CalculateDataSize() const;
 	int GetRecordCount() const;
+	template <typename T>
+	T* GetTileDataAt(int index) const;
 
 private:
 	std::vector<std::unique_ptr<IBglSerializable>> m_data;
@@ -425,6 +411,7 @@ public:
 	std::unique_ptr<CBglLayer> RemoveLayer(EBglLayerType type);
 	bool IsDirty() const;
 	int GetFileSize() const;
+	CBglLayer* GetLayer(EBglLayerType type) const;
 
 	// Test method!
 	std::vector<const IBglExclusion*> GetExclusions();

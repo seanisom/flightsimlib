@@ -561,6 +561,16 @@ public:
 };
 
 
+class IBglGenericBuilding;
+class IBglLibraryObject;
+class IBglWindsock;
+class IBglEffect;
+class IBglTaxiwaySigns;
+class IBglTrigger;
+class IBglBeacon;
+class IBglExtrusionBridge;
+
+	
 class IBglSceneryObject
 {
 public:
@@ -573,6 +583,23 @@ public:
 		VeryDense = 4
 	};
 
+	enum class ESceneryObjectType : uint16_t
+	{
+		None = 0x0,
+		GenericBuilding = 0xA,
+		LibraryObject = 0xB,
+		Windsock = 0xC,
+		Effect = 0xD,
+		TaxiwaySigns = 0xE,
+		Trigger = 0x10,
+		Beacon = 0x11,
+		ExtrusionBridge = 0x12,
+		AttachedObjectEnd = 0x1002,
+		AttachedObjectStart = 0x1003
+	};
+	
+	virtual ESceneryObjectType GetSceneryObjectType() const = 0;
+	virtual void SetSceneryObjectType(ESceneryObjectType value) = 0;
 	virtual double GetLongitude() const = 0;
 	virtual void SetLongitude(double value) = 0;
 	virtual double GetLatitude() const = 0;
@@ -603,6 +630,16 @@ public:
 	virtual void SetImageComplexity(EImageComplexity value) = 0;
 	virtual _GUID GetInstanceId() const = 0;
 	virtual void SetInstanceId(_GUID value) = 0;
+
+	// TODO - this is super unclean. Need to find a better way to expose nested layer data types
+	virtual const IBglGenericBuilding* GetGenericBuilding() const = 0;
+	virtual const IBglLibraryObject* GetLibraryObject() const = 0;
+	virtual const IBglWindsock* GetWindsock() const = 0;
+	virtual const IBglEffect* GetEffect() const = 0;
+	virtual const IBglTaxiwaySigns* GetTaxiwaySigns() const = 0;
+	virtual const IBglTrigger* GetTrigger() const = 0;
+	virtual const IBglBeacon* GetBeacon() const = 0;
+	virtual const IBglExtrusionBridge* GetExtrusionBridge() const = 0;
 };
 
 
