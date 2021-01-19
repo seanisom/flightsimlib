@@ -667,7 +667,7 @@ public:
 	auto GetTrafficScalar() const -> float override;
 	auto SetTrafficScalar(float value) -> void override;
 	
-	auto GetRunwayAt(int index) const -> const IBglRunway* override;
+	auto GetRunwayAt(int index) -> IBglRunway* override;
 	auto AddRunway(const IBglRunway* runway) -> void override;
 	auto RemoveRunway(const IBglRunway* runway) -> void override;
 	
@@ -844,7 +844,7 @@ public:
 	auto GetMaxLatitude() const -> double override;
 	auto SetMaxLatitude(double value) -> void override;
 	auto GetVertexCount() const -> int override;
-	auto GetVertexAt(int index) const -> const SBglVertexLL* override;
+	auto GetVertexAt(int index) -> SBglVertexLL* override;
 	auto AddVertex(const SBglVertexLL* vertex) -> void override;
 	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
 
@@ -921,14 +921,14 @@ public:
 	void SetImageComplexity(EImageComplexity value) override;
 	_GUID GetInstanceId() const override;
 	void SetInstanceId(_GUID value) override;
-	const IBglGenericBuilding* GetGenericBuilding() const override;
-	const IBglLibraryObject* GetLibraryObject() const override;
-	const IBglWindsock* GetWindsock() const override;
-	const IBglEffect* GetEffect() const override;
-	const IBglTaxiwaySigns* GetTaxiwaySigns() const override;
-	const IBglTrigger* GetTrigger() const override;
-	const IBglBeacon* GetBeacon() const override;
-	const IBglExtrusionBridge* GetExtrusionBridge() const override;
+	IBglGenericBuilding* GetGenericBuilding() override;
+	IBglLibraryObject* GetLibraryObject() override;
+	IBglWindsock* GetWindsock() override;
+	IBglEffect* GetEffect() override;
+	IBglTaxiwaySigns* GetTaxiwaySigns() override;
+	IBglTrigger* GetTrigger() override;
+	IBglBeacon* GetBeacon() override;
+	IBglExtrusionBridge* GetExtrusionBridge() override;
 	
 protected:
 	int RecordSize() const;
@@ -1256,7 +1256,7 @@ public:
 	auto CalculateSize() const -> int override;
 
 	auto GetSignCount() const -> int override;
-	auto GetSignAt(int index) const -> const IBglTaxiwaySign* override;
+	auto GetSignAt(int index) -> IBglTaxiwaySign* override;
 	auto AddSign(const IBglTaxiwaySign* sign) -> void override;
 	auto RemoveSign(const IBglTaxiwaySign* sign) -> void override;
 
@@ -1294,7 +1294,7 @@ public:
 	auto CalculateSize() const -> int override;
 
 	auto GetVertexCount() const -> int override;
-	auto GetVertexAt(int index) const -> const SBglVertexBias* override;
+	auto GetVertexAt(int index) -> SBglVertexBias* override;
 	auto AddVertex(const SBglVertexBias* point) -> void override;
 	auto RemoveVertex(const SBglVertexBias* point) -> void override;
 	
@@ -1336,7 +1336,7 @@ public:
 	auto GetScalar() const -> float override;
 	auto SetScalar(float value) -> void override;
 	auto GetVertexCount() const -> int override;
-	auto GetVertexAt(int index) const -> const SBglVertexBias* override;
+	auto GetVertexAt(int index) -> SBglVertexBias* override;
 	auto AddVertex(const SBglVertexBias* point) -> void override;
 	auto RemoveVertex(const SBglVertexBias* point) -> void override;
 
@@ -1482,10 +1482,10 @@ public:
 	auto SetSuppressPlatform(bool value) -> void  override;
 	auto GetPlacementCount() const -> int  override;
 	auto GetPointCount() const -> int  override;
-	auto GetPlacementAt(int index) const -> const _GUID*  override;
+	auto GetPlacementAt(int index) -> _GUID*  override;
 	auto AddPlacement(const _GUID* placement) -> void  override;
 	auto RemovePlacement(const _GUID* placement) -> void  override;
-	auto GetPointAt(int index) const -> const SBglVertexLLA*  override;
+	auto GetPointAt(int index) -> SBglVertexLLA*  override;
 	auto AddPoint(const SBglVertexLLA* point) -> void  override;
 	auto RemovePoint(const SBglVertexLLA* point) -> void  override;
 

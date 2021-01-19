@@ -467,7 +467,7 @@ public:
 	virtual auto GetTrafficScalar() const -> float = 0;
 	virtual auto SetTrafficScalar(float value) -> void = 0;
 	
-	virtual const IBglRunway* GetRunwayAt(int index) const = 0;
+	virtual IBglRunway* GetRunwayAt(int index) = 0;
 	virtual void AddRunway(const IBglRunway* runway) = 0;
 	virtual void RemoveRunway(const IBglRunway* runway) = 0;
 };
@@ -555,7 +555,7 @@ public:
 	virtual auto GetMaxLatitude() const -> double = 0;
 	virtual auto SetMaxLatitude(double value) -> void = 0;
 	virtual auto GetVertexCount() const -> int = 0;
-	virtual auto GetVertexAt(int index) const -> const SBglVertexLL* = 0;
+	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
 	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
 	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
 };
@@ -632,14 +632,15 @@ public:
 	virtual void SetInstanceId(_GUID value) = 0;
 
 	// TODO - this is super unclean. Need to find a better way to expose nested layer data types
-	virtual const IBglGenericBuilding* GetGenericBuilding() const = 0;
-	virtual const IBglLibraryObject* GetLibraryObject() const = 0;
-	virtual const IBglWindsock* GetWindsock() const = 0;
-	virtual const IBglEffect* GetEffect() const = 0;
-	virtual const IBglTaxiwaySigns* GetTaxiwaySigns() const = 0;
-	virtual const IBglTrigger* GetTrigger() const = 0;
-	virtual const IBglBeacon* GetBeacon() const = 0;
-	virtual const IBglExtrusionBridge* GetExtrusionBridge() const = 0;
+	// Overload on const...
+	virtual IBglGenericBuilding* GetGenericBuilding() = 0;
+	virtual IBglLibraryObject* GetLibraryObject() = 0;
+	virtual IBglWindsock* GetWindsock() = 0;
+	virtual IBglEffect* GetEffect() = 0;
+	virtual IBglTaxiwaySigns* GetTaxiwaySigns() = 0;
+	virtual IBglTrigger* GetTrigger() = 0;
+	virtual IBglBeacon* GetBeacon() = 0;
+	virtual IBglExtrusionBridge* GetExtrusionBridge() = 0;
 };
 
 
@@ -796,7 +797,7 @@ class IBglTaxiwaySigns : virtual public IBglSceneryObject
 {
 public:
 	virtual int GetSignCount() const = 0;
-	virtual const IBglTaxiwaySign* GetSignAt(int index) const = 0;
+	virtual IBglTaxiwaySign* GetSignAt(int index) = 0;
 	virtual void AddSign(const IBglTaxiwaySign* sign) = 0;
 	virtual void RemoveSign(const IBglTaxiwaySign* sign) = 0;
 };
@@ -806,7 +807,7 @@ class IBglTriggerRefuelRepair : virtual public IBglFuelAvailability
 {
 public:
 	virtual int GetVertexCount() const = 0;
-	virtual const SBglVertexBias* GetVertexAt(int index) const = 0;
+	virtual SBglVertexBias* GetVertexAt(int index) = 0;
 	virtual void AddVertex(const SBglVertexBias* point) = 0;
 	virtual void RemoveVertex(const SBglVertexBias* point) = 0;
 };
@@ -828,7 +829,7 @@ public:
 	virtual float GetScalar() const = 0;
 	virtual void SetScalar(float value) = 0;
 	virtual int GetVertexCount() const = 0;
-	virtual const SBglVertexBias* GetVertexAt(int index) const = 0;
+	virtual SBglVertexBias* GetVertexAt(int index) = 0;
 	virtual void AddVertex(const SBglVertexBias* point) = 0;
 	virtual void RemoveVertex(const SBglVertexBias* point) = 0;
 };
@@ -906,10 +907,10 @@ public:
 	virtual void SetSuppressPlatform(bool value) = 0;
 	virtual int GetPlacementCount() const = 0;
 	virtual int GetPointCount() const = 0;
-	virtual const _GUID* GetPlacementAt(int index) const = 0;
+	virtual _GUID* GetPlacementAt(int index) = 0;
 	virtual void AddPlacement(const _GUID* placement) = 0;
 	virtual void RemovePlacement(const _GUID* placement) = 0;
-	virtual const SBglVertexLLA* GetPointAt(int index) const = 0;
+	virtual SBglVertexLLA* GetPointAt(int index) = 0;
 	virtual void AddPoint(const SBglVertexLLA* point) = 0;
 	virtual void RemovePoint(const SBglVertexLLA* point) = 0;
 };

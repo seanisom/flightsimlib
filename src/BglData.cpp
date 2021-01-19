@@ -1679,9 +1679,9 @@ auto flightsimlib::io::CBglAirport::SetTrafficScalar(float value) -> void
 		value * std::numeric_limits<uint16_t>::max());
 }
 
-auto flightsimlib::io::CBglAirport::GetRunwayAt(int index) const -> const IBglRunway*
+auto flightsimlib::io::CBglAirport::GetRunwayAt(int index) -> IBglRunway*
 {
-	return &(m_runways.read()[index]);
+	return &(m_runways.write()[index]);
 }
 
 auto flightsimlib::io::CBglAirport::AddRunway(const IBglRunway* runway) -> void
@@ -2096,9 +2096,9 @@ auto flightsimlib::io::CBglGeopol::GetVertexCount() const -> int
 	return m_data->GeopolType & 0x3FFF;
 }
 
-auto flightsimlib::io::CBglGeopol::GetVertexAt(int index) const -> const SBglVertexLL*
+auto flightsimlib::io::CBglGeopol::GetVertexAt(int index) -> SBglVertexLL*
 {
-	return &(m_vertices.read()[index]);
+	return &(m_vertices.write()[index]);
 }
 
 auto flightsimlib::io::CBglGeopol::AddVertex(const SBglVertexLL* vertex) -> void
@@ -2379,44 +2379,44 @@ void flightsimlib::io::CBglSceneryObject::SetInstanceId(_GUID value)
 	m_data.write().InstanceId = value;
 }
 
-const flightsimlib::io::IBglGenericBuilding* flightsimlib::io::CBglSceneryObject::GetGenericBuilding() const
+flightsimlib::io::IBglGenericBuilding* flightsimlib::io::CBglSceneryObject::GetGenericBuilding()
 {
-	return dynamic_cast<const IBglGenericBuilding*>(this);
+	return dynamic_cast<IBglGenericBuilding*>(this);
 }
 
-const flightsimlib::io::IBglLibraryObject* flightsimlib::io::CBglSceneryObject::GetLibraryObject() const
+flightsimlib::io::IBglLibraryObject* flightsimlib::io::CBglSceneryObject::GetLibraryObject()
 {
-	return dynamic_cast<const IBglLibraryObject*>(this);
+	return dynamic_cast<IBglLibraryObject*>(this);
 }
 
-const flightsimlib::io::IBglWindsock* flightsimlib::io::CBglSceneryObject::GetWindsock() const
+flightsimlib::io::IBglWindsock* flightsimlib::io::CBglSceneryObject::GetWindsock()
 {
-	return dynamic_cast<const IBglWindsock*>(this);
+	return dynamic_cast<IBglWindsock*>(this);
 }
 
-const flightsimlib::io::IBglEffect* flightsimlib::io::CBglSceneryObject::GetEffect() const
+flightsimlib::io::IBglEffect* flightsimlib::io::CBglSceneryObject::GetEffect()
 {
-	return dynamic_cast<const IBglEffect*>(this);
+	return dynamic_cast<IBglEffect*>(this);
 }
 
-const flightsimlib::io::IBglTaxiwaySigns* flightsimlib::io::CBglSceneryObject::GetTaxiwaySigns() const
+flightsimlib::io::IBglTaxiwaySigns* flightsimlib::io::CBglSceneryObject::GetTaxiwaySigns()
 {
-	return dynamic_cast<const IBglTaxiwaySigns*>(this);
+	return dynamic_cast<IBglTaxiwaySigns*>(this);
 }
 
-const flightsimlib::io::IBglTrigger* flightsimlib::io::CBglSceneryObject::GetTrigger() const
+flightsimlib::io::IBglTrigger* flightsimlib::io::CBglSceneryObject::GetTrigger()
 {
-	return dynamic_cast<const IBglTrigger*>(this);
+	return dynamic_cast<IBglTrigger*>(this);
 }
 
-const flightsimlib::io::IBglBeacon* flightsimlib::io::CBglSceneryObject::GetBeacon() const
+flightsimlib::io::IBglBeacon* flightsimlib::io::CBglSceneryObject::GetBeacon()
 {
-	return dynamic_cast<const IBglBeacon*>(this);
+	return dynamic_cast<IBglBeacon*>(this);
 }
 
-const flightsimlib::io::IBglExtrusionBridge* flightsimlib::io::CBglSceneryObject::GetExtrusionBridge() const
+flightsimlib::io::IBglExtrusionBridge* flightsimlib::io::CBglSceneryObject::GetExtrusionBridge()
 {
-	return dynamic_cast<const IBglExtrusionBridge*>(this);
+	return dynamic_cast<IBglExtrusionBridge*>(this);
 }
 
 int flightsimlib::io::CBglSceneryObject::RecordSize() const
@@ -3346,9 +3346,9 @@ auto flightsimlib::io::CBglTaxiwaySigns::GetSignCount() const -> int
 	return static_cast<int>(m_signs.read().size());
 }
 
-auto flightsimlib::io::CBglTaxiwaySigns::GetSignAt(int index) const -> const IBglTaxiwaySign*
+auto flightsimlib::io::CBglTaxiwaySigns::GetSignAt(int index) -> IBglTaxiwaySign*
 {
-	return &(m_signs.read()[index]);
+	return &(m_signs.write()[index]);
 }
 
 auto flightsimlib::io::CBglTaxiwaySigns::AddSign(const IBglTaxiwaySign* sign) -> void
@@ -3411,9 +3411,9 @@ auto flightsimlib::io::CBglTriggerRefuelRepair::GetVertexCount() const -> int
 	return m_data->PointCount;
 }
 
-auto flightsimlib::io::CBglTriggerRefuelRepair::GetVertexAt(int index) const -> const SBglVertexBias*
+auto flightsimlib::io::CBglTriggerRefuelRepair::GetVertexAt(int index) -> SBglVertexBias*
 {
-	return &(m_vertices.read()[index]);
+	return &(m_vertices.write()[index]);
 }
 
 auto flightsimlib::io::CBglTriggerRefuelRepair::AddVertex(const SBglVertexBias* point) -> void
@@ -3501,9 +3501,9 @@ auto flightsimlib::io::CBglTriggerWeather::GetVertexCount() const -> int
 	return m_data->PointCount;
 }
 
-auto flightsimlib::io::CBglTriggerWeather::GetVertexAt(int index) const -> const SBglVertexBias*
+auto flightsimlib::io::CBglTriggerWeather::GetVertexAt(int index) -> SBglVertexBias*
 {
-	return &(m_vertices.read()[index]);
+	return &(m_vertices.write()[index]);
 }
 
 auto flightsimlib::io::CBglTriggerWeather::AddVertex(const SBglVertexBias* point) -> void
@@ -3933,9 +3933,9 @@ auto flightsimlib::io::CBglExtrusionBridge::GetPointCount() const -> int
 	return static_cast<int>(m_data->PointCount);
 }
 
-auto flightsimlib::io::CBglExtrusionBridge::GetPlacementAt(int index) const -> const _GUID*
+auto flightsimlib::io::CBglExtrusionBridge::GetPlacementAt(int index) ->  _GUID*
 {
-	return &(m_placements.read()[index]);
+	return &(m_placements.write()[index]);
 }
 
 auto flightsimlib::io::CBglExtrusionBridge::AddPlacement(const _GUID* placement) -> void
@@ -3953,9 +3953,9 @@ auto flightsimlib::io::CBglExtrusionBridge::RemovePlacement(const _GUID* placeme
 	--m_data.write().PlacementCount;
 }
 
-auto flightsimlib::io::CBglExtrusionBridge::GetPointAt(int index) const -> const SBglVertexLLA*
+auto flightsimlib::io::CBglExtrusionBridge::GetPointAt(int index) -> SBglVertexLLA*
 {
-	return &(m_points.read()[index]);
+	return &(m_points.write()[index]);
 }
 
 auto flightsimlib::io::CBglExtrusionBridge::AddPoint(const SBglVertexLLA* point) -> void
