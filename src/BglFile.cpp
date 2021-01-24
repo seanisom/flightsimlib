@@ -132,6 +132,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::Marker:
 			record = std::make_unique<CBglMarker>();
 			break;
+		case EBglLayerType::Ndb:
+			record = std::make_unique<CBglNdb>();
+			break;
 		case EBglLayerType::SceneryObject:
 		{
 			auto child_type = uint16_t{};

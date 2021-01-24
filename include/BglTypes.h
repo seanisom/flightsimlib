@@ -143,6 +143,46 @@ public:
 };
 
 
+class IBglName
+{
+public:
+	virtual auto GetName() const -> const char* = 0;
+	virtual auto SetName(const char* value) -> void = 0;
+};
+
+
+class IBglNdb : virtual public IBglName
+{
+public:
+	enum class EType : uint16_t
+	{
+		CompassPoint = 0,
+		MH = 1,
+		H = 2,
+		HH = 3
+	};
+
+	virtual auto GetType() const->EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetFrequency() const -> uint32_t = 0;
+	virtual auto SetFrequency(uint32_t value) -> void = 0;
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetAltitude() const -> double = 0;
+	virtual auto SetAltitude(double value) -> void = 0;
+	virtual auto GetRange() const -> float = 0;
+	virtual auto SetRange(float value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetIcao() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcao(uint32_t value) -> void = 0;
+	virtual auto GetRegion() const->uint32_t = 0;
+	virtual auto SetRegion(uint32_t value) -> void = 0;
+};
+
+
 class IBglRunwayEnd
 {
 public:
@@ -435,7 +475,7 @@ public:
 
 
 // TODO ! Handle P3D5 (and FS9 and P20)
-class IBglAirport : virtual public IBglFuelAvailability
+class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglName
 {
 public:
 	virtual auto GetRunwayCount() const -> int = 0;

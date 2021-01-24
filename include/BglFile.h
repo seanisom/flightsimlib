@@ -84,6 +84,7 @@ enum class EBglLayerType : uint32_t
 	IlsVor = 0x13,
 	Ndb = 0x17,
 	Marker = 0x18,
+	Name = 0x19,
 	Boundary = 0x20,
 	Waypoint = 0x22,
 	Geopol = 0x23,

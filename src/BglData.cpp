@@ -338,6 +338,202 @@ auto flightsimlib::io::CBglFuelAvailability<T>::UpdateJetFuelAvailability(EFuelA
 
 
 //******************************************************************************
+// CBglName
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglName::ReadBinary(BinaryFileStream& in) -> void
+{
+	in >> m_data.write().Type
+		>> m_data.write().Size;
+
+	m_data.write().Name = in.ReadString(static_cast<int>(m_data->Size - 
+		sizeof(m_data->Type) - sizeof(m_data->Size)) - CalculatePadSize());
+}
+
+auto flightsimlib::io::CBglName::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size;
+	
+	const auto num_pad = CalculateSize();
+	const auto pad = uint8_t{ 0 };
+	for (auto i = 0; i < num_pad; ++i)
+	{
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglName::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglName::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) +
+		m_data->Name.size() + CalculatePadSize());
+}
+
+auto flightsimlib::io::CBglName::GetName() const -> const char*
+{
+	return m_data->Name.c_str();
+}
+
+auto flightsimlib::io::CBglName::SetName(const char* value) -> void
+{
+	m_data.write().Name = value;
+}
+
+auto flightsimlib::io::CBglName::CalculatePadSize() const -> int
+{
+	const auto pad_to = 4; // sizeof(uint32_t)
+	return pad_to - static_cast<int>(m_data->Name.size()) % pad_to;
+}
+
+
+//******************************************************************************
+// CBglNdb
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglNdb::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.NdbType
+		>> data.Frequency
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Range
+		>> data.MagVar
+		>> data.Icao
+		>> data.Region;
+	
+	CBglName::ReadBinary(in);
+}
+
+auto flightsimlib::io::CBglNdb::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->NdbType
+		<< m_data->Frequency
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Range
+		<< m_data->MagVar
+		<< m_data->Icao
+		<< m_data->Region;
+	
+	CBglName::WriteBinary(out);
+}
+
+auto flightsimlib::io::CBglNdb::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglNdb::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglNdbData)) + CBglName::CalculateSize();
+}
+
+auto flightsimlib::io::CBglNdb::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->NdbType);
+}
+
+auto flightsimlib::io::CBglNdb::SetType(EType value) -> void
+{
+	m_data.write().NdbType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglNdb::GetFrequency() const -> uint32_t
+{
+	return m_data->Frequency;
+}
+
+auto flightsimlib::io::CBglNdb::SetFrequency(uint32_t value) -> void
+{
+	m_data.write().Frequency = value;
+}
+
+auto flightsimlib::io::CBglNdb::GetLongitude() const -> double
+{
+	return Longitude::Value(m_data->Longitude);
+}
+
+auto flightsimlib::io::CBglNdb::SetLongitude(double value) -> void
+{
+	m_data.write().Longitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglNdb::GetLatitude() const -> double
+{
+	return Latitude::Value(m_data->Latitude);
+}
+
+auto flightsimlib::io::CBglNdb::SetLatitude(double value) -> void
+{
+	m_data.write().Latitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglNdb::GetAltitude() const -> double
+{
+	return PackedAltitude::Value(m_data->Altitude);
+}
+
+auto flightsimlib::io::CBglNdb::SetAltitude(double value) -> void
+{
+	m_data.write().Altitude = PackedAltitude::FromDouble(value);
+}
+
+auto flightsimlib::io::CBglNdb::GetRange() const -> float
+{
+	return m_data->Range;
+}
+
+auto flightsimlib::io::CBglNdb::SetRange(float value) -> void
+{
+	m_data.write().MagVar = value;
+}
+
+auto flightsimlib::io::CBglNdb::GetMagVar() const -> float
+{
+	return m_data->MagVar;
+}
+
+auto flightsimlib::io::CBglNdb::SetMagVar(float value) -> void
+{
+	m_data.write().MagVar = value;
+}
+
+auto flightsimlib::io::CBglNdb::GetIcao() const -> uint32_t
+{
+	return m_data->Icao;
+}
+
+auto flightsimlib::io::CBglNdb::SetIcao(uint32_t value) -> void
+{
+	m_data.write().Icao = value;
+}
+
+auto flightsimlib::io::CBglNdb::GetRegion() const -> uint32_t
+{
+	return m_data->Region;
+}
+
+auto flightsimlib::io::CBglNdb::SetRegion(uint32_t value) -> void
+{
+	m_data.write().Region = value;
+}
+
+
+//******************************************************************************
 // CBglRunwayEnd
 //******************************************************************************  
 
@@ -1486,6 +1682,9 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				m_runways.write().emplace_back(std::move(runway));
 			}
 			break;
+		case EBglLayerType::Name:
+			CBglName::ReadBinary(in);
+			break;
 		default:
 			break;
 		}
@@ -1517,6 +1716,8 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 		<< m_data->TrafficScalar
 		<< m_data->Pad;
 
+	CBglName::WriteBinary(out);
+	
 	for (auto& runway : m_runways.write())
 	{
 		runway.WriteBinary(out);
@@ -1527,7 +1728,8 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 {
 	// TODO - static size
 	m_data.write().Size = sizeof(SBglAirportData) +
-		sizeof(SBglRunwayData) * m_data->RunwayCount;
+		sizeof(SBglRunwayData) * m_data->RunwayCount +
+		CBglName::CalculateSize();
 
 	return m_data->Type == 0x3C;
 }

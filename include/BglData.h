@@ -255,6 +255,100 @@ private:
 
 
 //******************************************************************************
+// CBglName
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglNameData
+{
+	uint16_t Type;
+	uint32_t Size;
+	std::string Name;
+};
+
+#pragma pack(pop)
+
+
+class CBglName : public IBglSerializable, virtual public IBglName
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetName() const -> const char* override;
+	auto SetName(const char* value) -> void override;
+
+private:
+	auto CalculatePadSize() const -> int;
+	
+	stlab::copy_on_write<SBglNameData> m_data;
+};
+
+
+//******************************************************************************
+// CBglNdb
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglNdbData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t NdbType;
+	uint32_t Frequency;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	float Range;
+	float MagVar;
+	uint32_t Icao;
+	uint32_t Region;
+};
+
+#pragma pack(pop)
+
+
+class CBglNdb final : public CBglName, public IBglNdb
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetType() const->EType override;
+	auto SetType(EType value) -> void override;
+	auto GetFrequency() const->uint32_t override;
+	auto SetFrequency(uint32_t value) -> void override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetAltitude() const -> double override;
+	auto SetAltitude(double value) -> void override;
+	auto GetRange() const -> float override;
+	auto SetRange(float value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetIcao() const -> uint32_t override;
+	auto SetIcao(uint32_t value) -> void override;
+	auto GetRegion() const -> uint32_t override;
+	auto SetRegion(uint32_t value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglNdbData> m_data;
+};
+
+
+//******************************************************************************
 // CBglRunway
 //******************************************************************************  
 
@@ -627,8 +721,8 @@ struct SBglAirportData
 #pragma pack(pop)
 
 
-class CBglAirport final : public CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>,
-	public IBglSerializable, public IBglAirport
+class CBglAirport final : public CBglName, public CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>,
+	public IBglAirport
 {
 public:
 	CBglAirport() : CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>(m_data) { }
