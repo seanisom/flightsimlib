@@ -348,15 +348,20 @@ auto flightsimlib::io::CBglName::ReadBinary(BinaryFileStream& in) -> void
 		>> m_data.write().Size;
 
 	m_data.write().Name = in.ReadString(static_cast<int>(m_data->Size - 
-		sizeof(m_data->Type) - sizeof(m_data->Size)) - CalculatePadSize());
+		sizeof(m_data->Type) - sizeof(m_data->Size)));
+	m_data.write().Name.erase(std::find(
+		m_data->Name.begin(), m_data->Name.end(), '\0'), m_data->Name.end());
+
 }
 
 auto flightsimlib::io::CBglName::WriteBinary(BinaryFileStream& out) -> void
 {
 	out << m_data->Type
 		<< m_data->Size;
+
+	out.Write(m_data->Name.c_str(), m_data->Name.size());
 	
-	const auto num_pad = CalculateSize();
+	const auto num_pad = CalculatePadSize();
 	const auto pad = uint8_t{ 0 };
 	for (auto i = 0; i < num_pad; ++i)
 	{
@@ -373,6 +378,8 @@ auto flightsimlib::io::CBglName::CalculateSize() const -> int
 {
 	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) +
 		m_data->Name.size() + CalculatePadSize());
+	//return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) +
+	//	m_data->Name.size());
 }
 
 auto flightsimlib::io::CBglName::GetName() const -> const char*
@@ -388,7 +395,9 @@ auto flightsimlib::io::CBglName::SetName(const char* value) -> void
 auto flightsimlib::io::CBglName::CalculatePadSize() const -> int
 {
 	const auto pad_to = 4; // sizeof(uint32_t)
-	return pad_to - static_cast<int>(m_data->Name.size()) % pad_to;
+	const auto remainder = static_cast<int>(m_data->Name.size() +
+		sizeof(m_data->Type) + sizeof(m_data->Size)) % pad_to;
+	return pad_to - (remainder == 0 ? pad_to : remainder);
 }
 
 
@@ -606,9 +615,9 @@ bool flightsimlib::io::CBglRunway::CBglRunwayEnd::IsEmpty() const
 {
 	if (m_data->Position == 0)
 	{
-		return false;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 auto flightsimlib::io::CBglRunway::CBglRunwayEnd::SetPosition(EPosition value) -> void
@@ -714,9 +723,9 @@ auto flightsimlib::io::CBglRunway::CBglRunwayVasi::IsEmpty() const -> bool
 {
 	if (m_data->Position == 0)
 	{
-		return false;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 auto flightsimlib::io::CBglRunway::CBglRunwayVasi::SetPosition(EPosition value) -> void
@@ -816,9 +825,9 @@ auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::IsEmpty() const -> 
 {
 	if (m_data->Position == 0)
 	{
-		return false;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 auto flightsimlib::io::CBglRunway::CBglRunwayApproachLights::SetPosition(EPosition value) -> void
@@ -941,19 +950,112 @@ void flightsimlib::io::CBglRunway::WriteBinary(BinaryFileStream& out)
 		<< m_data->LightFlags
 		<< m_data->PatternFlags;
 
-	/*
+	
 	if (!m_primary_offset_threshold->IsEmpty())
 	{
 		m_primary_offset_threshold.write().WriteBinary(out);
 	}
-	
-	m_secondary_offset_threshold.write().WriteBinary(out);
-	*/
+	if (!m_secondary_offset_threshold->IsEmpty())
+	{
+		m_secondary_offset_threshold.write().WriteBinary(out);
+	}
+	if (!m_primary_blast_pad->IsEmpty())
+	{
+		m_primary_blast_pad.write().WriteBinary(out);
+	}
+	if (!m_secondary_blast_pad->IsEmpty())
+	{
+		m_secondary_blast_pad.write().WriteBinary(out);
+	}
+	if (!m_primary_overrun->IsEmpty())
+	{
+		m_primary_overrun.write().WriteBinary(out);
+	}
+	if (!m_secondary_overrun->IsEmpty())
+	{
+		m_secondary_overrun.write().WriteBinary(out);
+	}
+	if (!m_primary_left_vasi->IsEmpty())
+	{
+		m_primary_left_vasi.write().WriteBinary(out);
+	}
+	if (!m_primary_right_vasi->IsEmpty())
+	{
+		m_primary_right_vasi.write().WriteBinary(out);
+	}
+	if (!m_secondary_left_vasi->IsEmpty())
+	{
+		m_secondary_left_vasi.write().WriteBinary(out);
+	}
+	if (!m_secondary_right_vasi->IsEmpty())
+	{
+		m_secondary_right_vasi.write().WriteBinary(out);
+	}
+	if (!m_primary_approach_lights->IsEmpty())
+	{
+		m_primary_approach_lights.write().WriteBinary(out);
+	}
+	if (!m_secondary_approach_lights->IsEmpty())
+	{
+		m_secondary_approach_lights.write().WriteBinary(out);
+	}
 }
 
 bool flightsimlib::io::CBglRunway::Validate()
 {
-	m_data.write().Size = sizeof(SBglRunwayData);
+	auto count = static_cast<int>(sizeof(SBglRunwayData));
+
+	if (!m_primary_offset_threshold->IsEmpty())
+	{
+		count += m_primary_offset_threshold->CalculateSize();
+	}
+	if (!m_secondary_offset_threshold->IsEmpty())
+	{
+		count += m_secondary_offset_threshold->CalculateSize();
+	}
+	if (!m_primary_blast_pad->IsEmpty())
+	{
+		count += m_primary_blast_pad->CalculateSize();
+	}
+	if (!m_secondary_blast_pad->IsEmpty())
+	{
+		count += m_secondary_blast_pad->CalculateSize();
+	}
+	if (!m_primary_overrun->IsEmpty())
+	{
+		count += m_primary_overrun->CalculateSize();
+	}
+	if (!m_secondary_overrun->IsEmpty())
+	{
+		count += m_secondary_overrun->CalculateSize();
+	}
+	if (!m_primary_left_vasi->IsEmpty())
+	{
+		count += m_primary_left_vasi->CalculateSize();
+	}
+	if (!m_primary_right_vasi->IsEmpty())
+	{
+		count += m_primary_right_vasi->CalculateSize();
+	}
+	if (!m_secondary_left_vasi->IsEmpty())
+	{
+		count += m_secondary_left_vasi->CalculateSize();
+	}
+	if (!m_secondary_right_vasi->IsEmpty())
+	{
+		count += m_secondary_right_vasi->CalculateSize();
+	}
+	if (!m_primary_approach_lights->IsEmpty())
+	{
+		count += m_primary_approach_lights->CalculateSize();
+	}
+	if (!m_secondary_approach_lights->IsEmpty())
+	{
+		count += m_secondary_approach_lights->CalculateSize();
+	}
+	
+	m_data.write().Size = count;
+	
 	// TODO: This should be set by factory
 	return m_data->Type == 0x4;
 }
@@ -1679,6 +1781,10 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 			{
 				auto runway = CBglRunway{};
 				runway.ReadBinary(in);
+				if (!runway.Validate())
+				{
+					return; // TODO - error handling?
+				}
 				m_runways.write().emplace_back(std::move(runway));
 			}
 			break;
@@ -1727,10 +1833,16 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 auto flightsimlib::io::CBglAirport::Validate() -> bool
 {
 	// TODO - static size
-	m_data.write().Size = sizeof(SBglAirportData) +
-		sizeof(SBglRunwayData) * m_data->RunwayCount +
+	auto count = static_cast<int>(sizeof(SBglAirportData)) +
 		CBglName::CalculateSize();
 
+	for (auto& runway : m_runways.write())
+	{
+		count += runway.CalculateSize();
+	}
+
+	m_data.write().Size = count;
+	
 	return m_data->Type == 0x3C;
 }
 
