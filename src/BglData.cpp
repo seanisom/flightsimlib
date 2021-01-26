@@ -1722,6 +1722,87 @@ auto flightsimlib::io::CBglRunway::SetSecondaryApproachLights(IBglRunwayApproach
 
 
 //******************************************************************************
+// CBglStart
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglStart::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Number
+		>> data.Designator
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Heading;
+}
+
+auto flightsimlib::io::CBglStart::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Number
+		<< m_data->Designator
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Heading;
+}
+
+auto flightsimlib::io::CBglStart::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglStart::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglStartData));
+}
+
+auto flightsimlib::io::CBglStart::GetRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->Number);
+}
+
+auto flightsimlib::io::CBglStart::SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().Number = to_integral(value);
+}
+
+auto flightsimlib::io::CBglStart::GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(get_packed_bits(m_data->Designator, 4, 0));
+}
+
+auto flightsimlib::io::CBglStart::SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	set_packed_bits(m_data.write().Designator, to_integral(value), 4,0);
+}
+
+auto flightsimlib::io::CBglStart::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->Designator, 4, 4));
+}
+
+auto flightsimlib::io::CBglStart::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().Designator, to_integral(value), 4, 4);
+}
+
+auto flightsimlib::io::CBglStart::GetHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglStart::SetHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -1752,6 +1833,9 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 		>> data.TrafficScalar
 		>> data.Pad;
 
+	m_runways.write().reserve(m_data->RunwayCount);
+	m_starts.write().reserve(m_data->StartCount);
+	
 	const auto final_position = initial_pos + static_cast<int>(m_data->Size);
 	while (in.GetPosition() < final_position)
 	{
@@ -1763,7 +1847,7 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 
 		switch (static_cast<EBglLayerType>(type))
 		{
-		case EBglLayerType::Runway: // runway
+		case EBglLayerType::Runway:
 			{
 				auto runway = CBglRunway{};
 				runway.ReadBinary(in);
@@ -1774,6 +1858,17 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				m_runways.write().emplace_back(std::move(runway));
 			}
 			break;
+		case EBglLayerType::Start:
+		{
+			auto start = CBglStart{};
+			start.ReadBinary(in);
+			if (!start.Validate())
+			{
+				return; // TODO - error handling?
+			}
+			m_starts.write().emplace_back(std::move(start));
+		}
+		break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -1814,6 +1909,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		runway.WriteBinary(out);
 	}
+
+	for (auto& start : m_starts.write())
+	{
+		start.WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -1825,6 +1925,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	for (auto& runway : m_runways.write())
 	{
 		count += runway.CalculateSize();
+	}
+
+	for (auto& start : m_starts.write())
+	{
+		count += start.CalculateSize();
 	}
 
 	m_data.write().Size = count;
@@ -1965,6 +2070,23 @@ auto flightsimlib::io::CBglAirport::RemoveRunway(const IBglRunway* runway) -> vo
 	const auto iter = m_runways.read().begin() +
 		std::distance(m_runways.read().data(), static_cast<const CBglRunway*>(runway));
 	m_runways.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetStartAt(int index) -> IBglStart*
+{
+	return &(m_starts.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddStart(const IBglStart* start) -> void
+{
+	m_starts.write().emplace_back(*static_cast<const CBglStart*>(start));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveStart(const IBglStart* start) -> void
+{
+	const auto iter = m_starts.read().begin() +
+		std::distance(m_starts.read().data(), static_cast<const CBglStart*>(start));
+	m_starts.write().erase(iter);
 }
 
 

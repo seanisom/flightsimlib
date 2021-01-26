@@ -702,6 +702,53 @@ private:
 
 
 //******************************************************************************
+// CBglStart
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglStartData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t Number;
+	uint8_t Designator;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	float Heading;
+};
+
+#pragma pack(pop)
+
+
+class CBglStart final : public CBglLLA<stlab::copy_on_write<SBglStartData>>, public IBglSerializable, public IBglStart
+{
+public:
+	CBglStart() : CBglLLA<stlab::copy_on_write<SBglStartData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetRunwayNumber() const->IBglRunway::ERunwayNumber override;
+	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator override;
+	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglStartData> m_data;
+};
+	
+	
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -774,9 +821,14 @@ public:
 	auto GetRunwayAt(int index) -> IBglRunway* override;
 	auto AddRunway(const IBglRunway* runway) -> void override;
 	auto RemoveRunway(const IBglRunway* runway) -> void override;
+
+	auto GetStartAt(int index) -> IBglStart* override;
+	auto AddStart(const IBglStart* start) -> void override;
+	auto RemoveStart(const IBglStart* start) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
+	stlab::copy_on_write<std::vector<CBglStart>> m_starts;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

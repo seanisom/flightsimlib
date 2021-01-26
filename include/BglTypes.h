@@ -474,6 +474,28 @@ public:
 };
 
 
+class IBglStart : virtual public IBglLLA
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0,
+		Runway = 1,
+		Water = 2,
+		Helipad = 3
+	};
+	
+	virtual auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+};
+
+
 // TODO ! Handle P3D5 (and FS9 and P20)
 class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
 {
@@ -504,6 +526,10 @@ public:
 	virtual IBglRunway* GetRunwayAt(int index) = 0;
 	virtual void AddRunway(const IBglRunway* runway) = 0;
 	virtual void RemoveRunway(const IBglRunway* runway) = 0;
+
+	virtual IBglStart* GetStartAt(int index) = 0;
+	virtual void AddStart(const IBglStart* start) = 0;
+	virtual void RemoveStart(const IBglStart* start) = 0;
 };
 
 
