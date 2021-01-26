@@ -151,7 +151,19 @@ public:
 };
 
 
-class IBglNdb : virtual public IBglName
+class IBglLLA
+{
+public:
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetAltitude() const -> double = 0;
+	virtual auto SetAltitude(double value) -> void = 0;
+};
+
+
+class IBglNdb : virtual public IBglLLA, virtual public IBglName
 {
 public:
 	enum class EType : uint16_t
@@ -166,12 +178,6 @@ public:
 	virtual auto SetType(EType value) -> void = 0;
 	virtual auto GetFrequency() const -> uint32_t = 0;
 	virtual auto SetFrequency(uint32_t value) -> void = 0;
-	virtual auto GetLongitude() const -> double = 0;
-	virtual auto SetLongitude(double value) -> void = 0;
-	virtual auto GetLatitude() const -> double = 0;
-	virtual auto SetLatitude(double value) -> void = 0;
-	virtual auto GetAltitude() const -> double = 0;
-	virtual auto SetAltitude(double value) -> void = 0;
 	virtual auto GetRange() const -> float = 0;
 	virtual auto SetRange(float value) -> void = 0;
 	virtual auto GetMagVar() const -> float = 0;
@@ -291,7 +297,7 @@ public:
 };
 
 
-class IBglRunway
+class IBglRunway : virtual public IBglLLA
 {
 public:
 
@@ -376,12 +382,6 @@ public:
 	virtual auto SetPrimaryIcaoIdent(uint32_t value) -> void = 0;
 	virtual auto GetSecondaryIcaoIdent() const -> uint32_t = 0;
 	virtual auto SetSecondaryIcaoIdent(uint32_t value) -> void = 0;
-	virtual auto GetLongitude() const -> double = 0;
-	virtual auto SetLongitude(double value) -> void = 0;
-	virtual auto GetLatitude() const -> double = 0;
-	virtual auto SetLatitude(double value) -> void = 0;
-	virtual auto GetAltitude() const -> double = 0;
-	virtual auto SetAltitude(double value) -> void = 0;
 	virtual auto GetLength() const -> float = 0;
 	virtual auto SetLength(float value) -> void = 0;
 	virtual auto GetWidth() const -> float = 0;
@@ -475,7 +475,7 @@ public:
 
 
 // TODO ! Handle P3D5 (and FS9 and P20)
-class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglName
+class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
 {
 public:
 	virtual auto GetRunwayCount() const -> int = 0;
@@ -486,12 +486,6 @@ public:
 	virtual auto IsDeleteAirport() const -> bool = 0;
 	virtual auto SetDeleteAirport(bool value) -> void = 0;
 	virtual auto GetHelipadCount() const -> int = 0;
-	virtual auto GetLongitude() const -> double = 0;
-	virtual auto SetLongitude(double value) -> void = 0;
-	virtual auto GetLatitude() const -> double = 0;
-	virtual auto SetLatitude(double value) -> void = 0;
-	virtual auto GetAltitude() const -> double = 0;
-	virtual auto SetAltitude(double value) -> void = 0;
 	virtual auto GetTowerLongitude() const -> double = 0;
 	virtual auto SetTowerLongitude(double value) -> void = 0;
 	virtual auto GetTowerLatitude() const -> double = 0;
@@ -502,7 +496,7 @@ public:
 	virtual auto SetMagVar(float value) -> void = 0;
 	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
 	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
-	virtual auto GetRegionIdent() const->uint32_t = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
 	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
 	virtual auto GetTrafficScalar() const -> float = 0;
 	virtual auto SetTrafficScalar(float value) -> void = 0;
@@ -512,6 +506,50 @@ public:
 	virtual void RemoveRunway(const IBglRunway* runway) = 0;
 };
 
+
+class IBglAirportSummary : virtual public IBglFuelAvailability, virtual public IBglLLA
+{
+public:
+	virtual auto HasCom() const -> bool = 0;
+	virtual auto SetCom(bool value) -> void = 0;
+	virtual auto HasPavedRunway() const -> bool = 0;
+	virtual auto SetPavedRunway(bool value) -> void = 0;
+	virtual auto HasOnlyWaterRunway() const -> bool = 0;
+	virtual auto SetOnlyWaterRunway(bool value) -> void = 0;
+	virtual auto HasGpsApproach() const -> bool = 0;
+	virtual auto SetGpsApproach(bool value) -> void = 0;
+	virtual auto HasVorApproach() const -> bool = 0;
+	virtual auto SetVorApproach(bool value) -> void = 0;
+	virtual auto HasNdbApproach() const -> bool = 0;
+	virtual auto SetNdbApproach(bool value) -> void = 0;
+	virtual auto HasIlsApproach() const -> bool = 0;
+	virtual auto SetIlsApproach(bool value) -> void = 0;
+	virtual auto HasLocApproach() const -> bool = 0;
+	virtual auto SetLocApproach(bool value) -> void = 0;
+	virtual auto HasSdfApproach() const -> bool = 0;
+	virtual auto SetSdfApproach(bool value) -> void = 0;
+	virtual auto HasLdaApproach() const -> bool = 0;
+	virtual auto SetLdaApproach(bool value) -> void = 0;
+	virtual auto HasVorDmeApproach() const -> bool = 0;
+	virtual auto SetVorDmeApproach(bool value) -> void = 0;
+	virtual auto HasNdbDmeApproach() const -> bool = 0;
+	virtual auto SetNdbDmeApproach(bool value) -> void = 0;
+	virtual auto HasRnavApproach() const -> bool = 0;
+	virtual auto SetRnavApproach(bool value) -> void = 0;
+	virtual auto HasLocBcApproach() const -> bool = 0;
+	virtual auto SetLocBcApproach(bool value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const->uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetLongestRunwayLength() const -> float = 0;
+	virtual auto SetLongestRunwayLength(float value) -> void = 0;
+	virtual auto GetLongestRunwayHeading() const -> float = 0;
+	virtual auto SetLongestRunwayHeading(float value) -> void = 0;
+};
+	
 
 class IBglExclusion
 {

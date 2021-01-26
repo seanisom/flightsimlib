@@ -338,6 +338,51 @@ auto flightsimlib::io::CBglFuelAvailability<T>::UpdateJetFuelAvailability(EFuelA
 
 
 //******************************************************************************
+// CBglLLA
+//******************************************************************************  
+
+
+template <typename T>
+flightsimlib::io::CBglLLA<T>::CBglLLA(T& data) : m_data(data) { }
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::GetLongitude() const -> double
+{
+	return Longitude::Value(m_data.get()->Longitude);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::SetLongitude(double value) -> void
+{
+	m_data.get().write().Longitude = Longitude::ToPacked(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::GetLatitude() const -> double
+{
+	return Latitude::Value(m_data.get()->Latitude);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::SetLatitude(double value) -> void
+{
+	m_data.get().write().Latitude = Latitude::ToPacked(value);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::GetAltitude() const -> double
+{
+	return PackedAltitude::Value(m_data.get()->Altitude);
+}
+
+template <typename T>
+auto flightsimlib::io::CBglLLA<T>::SetAltitude(double value) -> void
+{
+	m_data.get().write().Altitude = PackedAltitude::FromDouble(value);
+}
+
+
+//******************************************************************************
 // CBglName
 //******************************************************************************  
 
@@ -471,35 +516,6 @@ auto flightsimlib::io::CBglNdb::SetFrequency(uint32_t value) -> void
 	m_data.write().Frequency = value;
 }
 
-auto flightsimlib::io::CBglNdb::GetLongitude() const -> double
-{
-	return Longitude::Value(m_data->Longitude);
-}
-
-auto flightsimlib::io::CBglNdb::SetLongitude(double value) -> void
-{
-	m_data.write().Longitude = Longitude::ToPacked(value);
-}
-
-auto flightsimlib::io::CBglNdb::GetLatitude() const -> double
-{
-	return Latitude::Value(m_data->Latitude);
-}
-
-auto flightsimlib::io::CBglNdb::SetLatitude(double value) -> void
-{
-	m_data.write().Latitude = Latitude::ToPacked(value);
-}
-
-auto flightsimlib::io::CBglNdb::GetAltitude() const -> double
-{
-	return PackedAltitude::Value(m_data->Altitude);
-}
-
-auto flightsimlib::io::CBglNdb::SetAltitude(double value) -> void
-{
-	m_data.write().Altitude = PackedAltitude::FromDouble(value);
-}
 
 auto flightsimlib::io::CBglNdb::GetRange() const -> float
 {
@@ -1133,36 +1149,6 @@ auto flightsimlib::io::CBglRunway::GetSecondaryIcaoIdent() const -> uint32_t
 auto flightsimlib::io::CBglRunway::SetSecondaryIcaoIdent(uint32_t value) -> void
 {
 	m_data.write().IlsIcaoSecondary = value;
-}
-
-double flightsimlib::io::CBglRunway::GetLongitude() const
-{
-	return Longitude::Value(m_data->Longitude);
-}
-
-void flightsimlib::io::CBglRunway::SetLongitude(double value)
-{
-	m_data.write().Longitude = Longitude::ToPacked(value);
-}
-
-double flightsimlib::io::CBglRunway::GetLatitude() const
-{
-	return Latitude::Value(m_data->Latitude);
-}
-
-void flightsimlib::io::CBglRunway::SetLatitude(double value)
-{
-	m_data.write().Latitude = Latitude::ToPacked(value);
-}
-
-double flightsimlib::io::CBglRunway::GetAltitude() const
-{
-	return PackedAltitude::Value(m_data->Altitude);
-}
-
-void flightsimlib::io::CBglRunway::SetAltitude(double value)
-{
-	m_data.write().Altitude = PackedAltitude::FromDouble(value);
 }
 
 float flightsimlib::io::CBglRunway::GetLength() const
@@ -1891,36 +1877,6 @@ auto flightsimlib::io::CBglAirport::GetHelipadCount() const -> int
 	return m_data->HelipadCount;
 }
 
-auto flightsimlib::io::CBglAirport::GetLongitude() const -> double
-{
-	return Longitude::Value(m_data->Longitude);
-}
-
-auto flightsimlib::io::CBglAirport::SetLongitude(double value) -> void
-{
-	m_data.write().Longitude = Longitude::ToPacked(value);
-}
-
-auto flightsimlib::io::CBglAirport::GetLatitude() const -> double
-{
-	return Latitude::Value(m_data->Latitude);
-}
-
-auto flightsimlib::io::CBglAirport::SetLatitude(double value) -> void
-{
-	m_data.write().Latitude = Latitude::ToPacked(value);
-}
-
-auto flightsimlib::io::CBglAirport::GetAltitude() const -> double
-{
-	return PackedAltitude::Value(m_data->Altitude);
-}
-
-auto flightsimlib::io::CBglAirport::SetAltitude(double value) -> void
-{
-	m_data.write().Altitude = PackedAltitude::FromDouble(value);
-}
-
 auto flightsimlib::io::CBglAirport::GetTowerLongitude() const -> double
 {
 	return Longitude::Value(m_data->TowerLongitude);
@@ -2009,6 +1965,259 @@ auto flightsimlib::io::CBglAirport::RemoveRunway(const IBglRunway* runway) -> vo
 	const auto iter = m_runways.read().begin() +
 		std::distance(m_runways.read().data(), static_cast<const CBglRunway*>(runway));
 	m_runways.write().erase(iter);
+}
+
+
+//******************************************************************************
+// CBglAirportSummary
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglAirportSummary::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.ApproachAvailability
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.IcaoIdent
+		>> data.RegionIdent
+		>> data.MagVar
+		>> data.LongestRunwayLength
+		>> data.LongestRunwayHeading
+		>> data.FuelAvailability;
+}
+
+auto flightsimlib::io::CBglAirportSummary::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->ApproachAvailability
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent
+		<< m_data->MagVar
+		<< m_data->LongestRunwayLength
+		<< m_data->LongestRunwayHeading
+		<< m_data->FuelAvailability;
+}
+
+auto flightsimlib::io::CBglAirportSummary::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglAirportSummary::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglAirportSummaryData));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasCom() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::Com)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetCom(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::Com));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasPavedRunway() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::PavedRunway)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetPavedRunway(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::PavedRunway));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasOnlyWaterRunway() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::OnlyWaterRunway)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetOnlyWaterRunway(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::OnlyWaterRunway));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasGpsApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::GpsApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetGpsApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::GpsApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasVorApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::VorApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetVorApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::VorApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasNdbApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::NdbApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetNdbApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::NdbApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasIlsApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::IlsApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetIlsApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::IlsApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasLocApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::LocApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetLocApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::LocApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasSdfApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::SdfApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetSdfApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::SdfApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasLdaApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::LdaApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetLdaApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::LdaApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasVorDmeApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::VorDmeApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetVorDmeApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::VorDmeApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasNdbDmeApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::NdbDmeApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetNdbDmeApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::NdbDmeApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasRnavApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::RnavApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetRnavApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::RnavApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::HasLocBcApproach() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->ApproachAvailability, 1, to_integral(EFlags::LocBcApproach)));
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetLocBcApproach(bool value) -> void
+{
+	set_packed_bits(m_data.write().ApproachAvailability, value, 1, to_integral(EFlags::LocBcApproach));
+}
+
+auto flightsimlib::io::CBglAirportSummary::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->IcaoIdent;
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IcaoIdent = value;
+}
+
+auto flightsimlib::io::CBglAirportSummary::GetRegionIdent() const -> uint32_t
+{
+	return m_data->RegionIdent;
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetRegionIdent(uint32_t value) -> void
+{
+	m_data.write().RegionIdent = value;
+}
+
+auto flightsimlib::io::CBglAirportSummary::GetMagVar() const -> float
+{
+	return m_data->MagVar;
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetMagVar(float value) -> void
+{
+	m_data.write().MagVar = value;
+}
+
+auto flightsimlib::io::CBglAirportSummary::GetLongestRunwayLength() const -> float
+{
+	return m_data->LongestRunwayLength;
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetLongestRunwayLength(float value) -> void
+{
+	m_data.write().LongestRunwayLength = value;
+}
+
+auto flightsimlib::io::CBglAirportSummary::GetLongestRunwayHeading() const -> float
+{
+	return m_data->LongestRunwayHeading;
+}
+
+auto flightsimlib::io::CBglAirportSummary::SetLongestRunwayHeading(float value) -> void
+{
+	m_data.write().LongestRunwayHeading = value;
 }
 
 
@@ -4633,3 +4842,9 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglTriggerRefuelRepairData>>;
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;
+template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportSummaryData>>;
+
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglNdbData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglRunwayData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportSummaryData>>;

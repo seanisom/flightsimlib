@@ -31,6 +31,7 @@
 #include "../external/stlab/copy_on_write.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -289,7 +290,29 @@ private:
 	stlab::copy_on_write<SBglNameData> m_data;
 };
 
+	
+//******************************************************************************
+// CBglLla
+//******************************************************************************  
 
+	
+template <typename T>
+class CBglLLA : virtual public IBglLLA
+{
+public:
+	explicit CBglLLA(T& data);
+	
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetAltitude() const -> double override;
+	auto SetAltitude(double value) -> void override;
+
+private:
+	std::reference_wrapper<T> m_data;
+};
+	
 //******************************************************************************
 // CBglNdb
 //******************************************************************************  
@@ -316,24 +339,20 @@ struct SBglNdbData
 #pragma pack(pop)
 
 
-class CBglNdb final : public CBglName, public IBglNdb
+class CBglNdb final : public CBglLLA<stlab::copy_on_write<SBglNdbData>>, public CBglName, public IBglNdb
 {
 public:
+	CBglNdb() : CBglLLA<stlab::copy_on_write<SBglNdbData>>(m_data) { }
+	
 	auto ReadBinary(BinaryFileStream& in) -> void override;
 	auto WriteBinary(BinaryFileStream& out) -> void override;
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 
-	auto GetType() const->EType override;
+	auto GetType() const -> EType override;
 	auto SetType(EType value) -> void override;
-	auto GetFrequency() const->uint32_t override;
+	auto GetFrequency() const -> uint32_t override;
 	auto SetFrequency(uint32_t value) -> void override;
-	auto GetLongitude() const -> double override;
-	auto SetLongitude(double value) -> void override;
-	auto GetLatitude() const -> double override;
-	auto SetLatitude(double value) -> void override;
-	auto GetAltitude() const -> double override;
-	auto SetAltitude(double value) -> void override;
 	auto GetRange() const -> float override;
 	auto SetRange(float value) -> void override;
 	auto GetMagVar() const -> float override;
@@ -428,9 +447,11 @@ struct SBglRunwayApproachLightsData
 #pragma pack(pop)
 
 
-class CBglRunway final : public IBglSerializable, public IBglRunway
+class CBglRunway final : public CBglLLA<stlab::copy_on_write<SBglRunwayData>>, public IBglSerializable, public IBglRunway
 {
 public:
+	CBglRunway() : CBglLLA<stlab::copy_on_write<SBglRunwayData>>(m_data) { }
+	
 	class CBglRunwayEnd final : public IBglSerializable, public IBglRunwayEnd
 	{
 	public:
@@ -573,12 +594,6 @@ public:
 	auto SetPrimaryIcaoIdent(uint32_t value) -> void override;
 	auto GetSecondaryIcaoIdent() const->uint32_t override;
 	auto SetSecondaryIcaoIdent(uint32_t value) -> void override;
-	auto GetLongitude() const -> double override;
-	auto SetLongitude(double value) -> void override;
-	auto GetLatitude() const -> double override;
-	auto SetLatitude(double value) -> void override;
-	auto GetAltitude() const -> double override;
-	auto SetAltitude(double value) -> void override;
 	auto GetLength() const -> float override;
 	auto SetLength(float value) -> void override;
 	auto GetWidth() const -> float override;
@@ -721,11 +736,12 @@ struct SBglAirportData
 #pragma pack(pop)
 
 
-class CBglAirport final : public CBglName, public CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>,
-	public IBglAirport
+class CBglAirport final : public CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>,
+	public CBglLLA<stlab::copy_on_write<SBglAirportData>>, public CBglName, public IBglAirport
 {
 public:
-	CBglAirport() : CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>(m_data) { }
+	CBglAirport() : CBglFuelAvailability<stlab::copy_on_write<SBglAirportData>>(m_data),
+		CBglLLA<stlab::copy_on_write<SBglAirportData>>(m_data) { }
 
 	auto ReadBinary(BinaryFileStream& in) -> void override;
 	auto WriteBinary(BinaryFileStream& out) -> void override;
@@ -740,12 +756,6 @@ public:
 	auto IsDeleteAirport() const -> bool override;
 	auto SetDeleteAirport(bool value) -> void override;
 	auto GetHelipadCount() const -> int override;
-	auto GetLongitude() const -> double override;
-	auto SetLongitude(double value) -> void override;
-	auto GetLatitude() const -> double override;
-	auto SetLatitude(double value) -> void override;
-	auto GetAltitude() const -> double override;
-	auto SetAltitude(double value) -> void override;
 	auto GetTowerLongitude() const -> double override;
 	auto SetTowerLongitude(double value) -> void override;
 	auto GetTowerLatitude() const -> double override;
@@ -770,6 +780,110 @@ private:
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
+
+//******************************************************************************
+// CBglAirportSummary
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglAirportSummaryData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t ApproachAvailability;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	float MagVar;
+	float LongestRunwayLength;
+	float LongestRunwayHeading;
+	uint32_t FuelAvailability;
+};
+
+#pragma pack(pop)
+	
+
+class CBglAirportSummary final : public CBglFuelAvailability<stlab::copy_on_write<SBglAirportSummaryData>>,
+	public CBglLLA<stlab::copy_on_write<SBglAirportSummaryData>>, public IBglSerializable, public IBglAirportSummary
+{
+public:
+	CBglAirportSummary() : CBglFuelAvailability<stlab::copy_on_write<SBglAirportSummaryData>>(m_data),
+		CBglLLA<stlab::copy_on_write<SBglAirportSummaryData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto HasCom() const -> bool override;
+	auto SetCom(bool value) -> void override;
+	auto HasPavedRunway() const -> bool override;
+	auto SetPavedRunway(bool value) -> void override;
+	auto HasOnlyWaterRunway() const -> bool override;
+	auto SetOnlyWaterRunway(bool value) -> void override;
+	auto HasGpsApproach() const -> bool override;
+	auto SetGpsApproach(bool value) -> void override;
+	auto HasVorApproach() const -> bool override;
+	auto SetVorApproach(bool value) -> void override;
+	auto HasNdbApproach() const -> bool override;
+	auto SetNdbApproach(bool value) -> void override;
+	auto HasIlsApproach() const -> bool override;
+	auto SetIlsApproach(bool value) -> void override;
+	auto HasLocApproach() const -> bool override;
+	auto SetLocApproach(bool value) -> void override;
+	auto HasSdfApproach() const -> bool override;
+	auto SetSdfApproach(bool value) -> void override;
+	auto HasLdaApproach() const -> bool override;
+	auto SetLdaApproach(bool value) -> void override;
+	auto HasVorDmeApproach() const -> bool override;
+	auto SetVorDmeApproach(bool value) -> void override;
+	auto HasNdbDmeApproach() const -> bool override;
+	auto SetNdbDmeApproach(bool value) -> void override;
+	auto HasRnavApproach() const -> bool override;
+	auto SetRnavApproach(bool value) -> void override;
+	auto HasLocBcApproach() const -> bool override;
+	auto SetLocBcApproach(bool value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetLongestRunwayLength() const -> float override;
+	auto SetLongestRunwayLength(float value) -> void override;
+	auto GetLongestRunwayHeading() const -> float override;
+	auto SetLongestRunwayHeading(float value) -> void override;
+	
+private:
+
+	enum class EFlags : uint16_t
+	{
+		Com = 0,
+		PavedRunway = 1,
+		OnlyWaterRunway = 2,
+		Unknown3 = 3,
+		Unknown4 = 4,
+		GpsApproach = 5,
+		VorApproach = 6,
+		NdbApproach = 7,
+		IlsApproach = 8,
+		LocApproach = 9,
+		SdfApproach = 10,
+		LdaApproach = 11,
+		VorDmeApproach = 12,
+		NdbDmeApproach = 13,
+		RnavApproach = 14,
+		LocBcApproach = 15
+	};
+	
+	stlab::copy_on_write<SBglAirportSummaryData> m_data;
+};
+	
 
 //******************************************************************************
 // CBglExclusion
