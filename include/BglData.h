@@ -789,6 +789,65 @@ private:
 	stlab::copy_on_write<SBglComData> m_data;
 };
 
+
+//******************************************************************************
+// CBglHelipad
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglHelipadData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t SurfaceType;
+	uint8_t HelipadType;
+	uint32_t Color;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	float Length;
+	float Width;
+	float Heading;
+};
+
+#pragma pack(pop)
+
+
+class CBglHelipad final : public CBglLLA<stlab::copy_on_write<SBglHelipadData>>,
+	public IBglSerializable, public IBglHelipad
+{
+public:
+	CBglHelipad() : CBglLLA<stlab::copy_on_write<SBglHelipadData>>(m_data) { }
+	
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetSurfaceType() -> ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto IsTransparent() const -> bool override;
+	auto SetTransparent(bool value) -> void override;
+	auto IsClosed() const -> bool override;
+	auto SetClosed(bool value) -> void override;
+	auto GetColor() const -> uint32_t override;
+	auto SetColor(uint32_t value) -> void override;
+	auto GetLength() const -> float override;
+	auto SetLength(float value) -> void override;
+	auto GetWidth() const -> float override;
+	auto SetWidth(float value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglHelipadData> m_data;
+};
+
 	
 //******************************************************************************
 // CBglAirport
@@ -869,11 +928,15 @@ public:
 	auto GetComAt(int index) -> IBglCom* override;
 	auto AddCom(const IBglCom* start) -> void override;
 	auto RemoveCom(const IBglCom* start) -> void override;
+	auto GetHelipadAt(int index) -> IBglHelipad* override;
+	auto AddHelipad(const IBglHelipad* start) -> void override;
+	auto RemoveHelipad(const IBglHelipad* start) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
 	stlab::copy_on_write<std::vector<CBglStart>> m_starts;
 	stlab::copy_on_write<std::vector<CBglCom>> m_coms;
+	stlab::copy_on_write<std::vector<CBglHelipad>> m_helipads;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

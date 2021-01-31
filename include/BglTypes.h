@@ -526,6 +526,37 @@ public:
 	virtual auto GetName() const -> const char* = 0;
 	virtual auto SetName(const char* value) -> void = 0;
 };
+
+
+class IBglHelipad : virtual public IBglLLA
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0,
+		H = 1,
+		Square = 2,
+		Circle = 3,
+		Medical = 4
+	};
+
+	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto IsTransparent() const -> bool = 0;
+	virtual auto SetTransparent(bool value) -> void = 0;
+	virtual auto IsClosed() const -> bool = 0;
+	virtual auto SetClosed(bool value) -> void = 0;
+	virtual auto GetColor() const -> uint32_t = 0;
+	virtual auto SetColor(uint32_t value) -> void = 0;
+	virtual auto GetLength() const -> float = 0;
+	virtual auto SetLength(float value) -> void = 0;
+	virtual auto GetWidth() const -> float = 0;
+	virtual auto SetWidth(float value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+};
 	
 
 // TODO ! Handle P3D5 (and FS9 and P20)
@@ -564,6 +595,9 @@ public:
 	virtual auto GetComAt(int index) -> IBglCom* = 0;
 	virtual auto AddCom(const IBglCom* start) -> void = 0;
 	virtual auto RemoveCom(const IBglCom* start) -> void = 0;
+	virtual auto GetHelipadAt(int index) -> IBglHelipad* = 0;
+	virtual auto AddHelipad(const IBglHelipad* start) -> void = 0;
+	virtual auto RemoveHelipad(const IBglHelipad* start) -> void = 0;
 };
 
 

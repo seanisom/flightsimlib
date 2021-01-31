@@ -89,6 +89,7 @@ enum class EBglLayerType : uint32_t
 	Waypoint = 0x22,
 	Geopol = 0x23,
 	SceneryObject = 0x25,
+	Helipad = 0x26,
 	NameList = 0x27,
 	VorIndex = 0x28,
 	NdbIndex = 0x29,

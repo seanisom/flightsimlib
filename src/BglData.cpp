@@ -1901,6 +1901,133 @@ auto flightsimlib::io::CBglCom::CalculateRemainingSize() const -> int
 
 
 //******************************************************************************
+// CBglHelipad
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglHelipad::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.SurfaceType
+		>> data.HelipadType
+		>> data.Color
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Length
+		>> data.Width
+		>> data.Heading;
+}
+
+auto flightsimlib::io::CBglHelipad::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->SurfaceType
+		<< m_data->HelipadType
+		<< m_data->Color
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Length
+		<< m_data->Width
+		<< m_data->Heading;
+}
+
+auto flightsimlib::io::CBglHelipad::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglHelipad::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglHelipadData));
+}
+
+auto flightsimlib::io::CBglHelipad::GetSurfaceType() -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->SurfaceType);
+}
+
+auto flightsimlib::io::CBglHelipad::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().SurfaceType = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglHelipad::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->HelipadType, 4, 0));
+}
+
+auto flightsimlib::io::CBglHelipad::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().HelipadType, to_integral(value), 4, 0);
+}
+
+auto flightsimlib::io::CBglHelipad::IsTransparent() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->HelipadType, 1, 4));
+}
+
+auto flightsimlib::io::CBglHelipad::SetTransparent(bool value) -> void
+{
+	set_packed_bits(m_data.write().HelipadType, value, 1, 4);
+}
+
+auto flightsimlib::io::CBglHelipad::IsClosed() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->HelipadType, 1, 5));
+}
+
+auto flightsimlib::io::CBglHelipad::SetClosed(bool value) -> void
+{
+	set_packed_bits(m_data.write().HelipadType, value, 1, 5);
+}
+
+auto flightsimlib::io::CBglHelipad::GetColor() const -> uint32_t
+{
+	return m_data->Color;
+}
+
+auto flightsimlib::io::CBglHelipad::SetColor(uint32_t value) -> void
+{
+	m_data.write().Color = value;
+}
+
+auto flightsimlib::io::CBglHelipad::GetLength() const -> float
+{
+	return m_data->Length;
+}
+
+auto flightsimlib::io::CBglHelipad::SetLength(float value) -> void
+{
+	m_data.write().Length = value;
+}
+
+auto flightsimlib::io::CBglHelipad::GetWidth() const -> float
+{
+	return m_data->Width;
+}
+
+auto flightsimlib::io::CBglHelipad::SetWidth(float value) -> void
+{
+	m_data.write().Width = value;
+}
+
+auto flightsimlib::io::CBglHelipad::GetHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglHelipad::SetHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -1978,6 +2105,17 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				m_coms.write().emplace_back(std::move(com));
 			}
 			break;
+		case EBglLayerType::Helipad:
+		{
+			auto helipad = CBglHelipad{};
+			helipad.ReadBinary(in);
+			if (!helipad.Validate())
+			{
+				return;
+			}
+			m_helipads.write().emplace_back(std::move(helipad));
+		}
+		break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -2028,6 +2166,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		com.WriteBinary(out);
 	}
+
+	for (auto& helipad : m_helipads.write())
+	{
+		helipad.WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -2049,6 +2192,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	for (auto& com : m_coms.write())
 	{
 		count += com.CalculateSize();
+	}
+
+	for (auto& helipad : m_helipads.write())
+	{
+		count += helipad.CalculateSize();
 	}
 
 	m_data.write().Size = count;
@@ -2223,6 +2371,23 @@ auto flightsimlib::io::CBglAirport::RemoveCom(const IBglCom* start) -> void
 	const auto iter = m_coms.read().begin() +
 		std::distance(m_coms.read().data(), static_cast<const CBglCom*>(start));
 	m_coms.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetHelipadAt(int index) -> IBglHelipad*
+{
+	return &(m_helipads.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddHelipad(const IBglHelipad* start) -> void
+{
+	m_helipads.write().emplace_back(*static_cast<const CBglHelipad*>(start));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveHelipad(const IBglHelipad* start) -> void
+{
+	const auto iter = m_helipads.read().begin() +
+		std::distance(m_helipads.read().data(), static_cast<const CBglHelipad*>(start));
+	m_helipads.write().erase(iter);
 }
 
 
@@ -5104,5 +5269,7 @@ template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<fligh
 
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglNdbData>>;
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglRunwayData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglStartData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglHelipadData>>;
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportSummaryData>>;
