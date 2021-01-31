@@ -285,12 +285,12 @@ public:
 	auto SetName(const char* value) -> void override;
 
 private:
-	auto CalculatePadSize() const -> int;
+	auto CalculateRemainingSize() const -> int;
 	
 	stlab::copy_on_write<SBglNameData> m_data;
 };
 
-	
+
 //******************************************************************************
 // CBglLla
 //******************************************************************************  
@@ -746,7 +746,49 @@ public:
 private:
 	stlab::copy_on_write<SBglStartData> m_data;
 };
+
+
+//******************************************************************************
+// CBglCom
+//******************************************************************************
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglComData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t ComType;
+	uint32_t Frequency;
+	std::string Name;
+};
+
+#pragma pack(pop)
+
+
+class CBglCom final : public IBglSerializable, public IBglCom
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetFrequency() const -> uint32_t override;
+	auto SetFrequency(uint32_t value) -> void override;
+	auto GetName() const -> const char* override;
+	auto SetName(const char* value) -> void override;
+
+private:
+	auto CalculateRemainingSize() const -> int;
 	
+	stlab::copy_on_write<SBglComData> m_data;
+};
+
 	
 //******************************************************************************
 // CBglAirport
@@ -821,14 +863,17 @@ public:
 	auto GetRunwayAt(int index) -> IBglRunway* override;
 	auto AddRunway(const IBglRunway* runway) -> void override;
 	auto RemoveRunway(const IBglRunway* runway) -> void override;
-
 	auto GetStartAt(int index) -> IBglStart* override;
 	auto AddStart(const IBglStart* start) -> void override;
 	auto RemoveStart(const IBglStart* start) -> void override;
+	auto GetComAt(int index) -> IBglCom* override;
+	auto AddCom(const IBglCom* start) -> void override;
+	auto RemoveCom(const IBglCom* start) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
 	stlab::copy_on_write<std::vector<CBglStart>> m_starts;
+	stlab::copy_on_write<std::vector<CBglCom>> m_coms;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

@@ -496,6 +496,38 @@ public:
 };
 
 
+class IBglCom
+{
+public:
+	enum class EType : uint16_t
+	{
+		None = 0,
+		Atis = 1,
+		Multicom = 2,
+		Unicom = 3,
+		Ctaf = 4,
+		Ground = 5,
+		Tower = 6,
+		Clearance = 7,
+		Approach = 8,
+		Departure = 9,
+		Center = 10,
+		Fss = 11,
+		Awos = 12,
+		Asos = 13,
+		ClearancePreTaxi = 14,
+		RemoteClearanceDelivery = 15
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetFrequency() const -> uint32_t = 0;
+	virtual auto SetFrequency(uint32_t value) -> void = 0;
+	virtual auto GetName() const -> const char* = 0;
+	virtual auto SetName(const char* value) -> void = 0;
+};
+	
+
 // TODO ! Handle P3D5 (and FS9 and P20)
 class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
 {
@@ -522,14 +554,16 @@ public:
 	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
 	virtual auto GetTrafficScalar() const -> float = 0;
 	virtual auto SetTrafficScalar(float value) -> void = 0;
-	
-	virtual IBglRunway* GetRunwayAt(int index) = 0;
-	virtual void AddRunway(const IBglRunway* runway) = 0;
-	virtual void RemoveRunway(const IBglRunway* runway) = 0;
 
-	virtual IBglStart* GetStartAt(int index) = 0;
-	virtual void AddStart(const IBglStart* start) = 0;
-	virtual void RemoveStart(const IBglStart* start) = 0;
+	virtual auto GetRunwayAt(int index) -> IBglRunway* = 0;
+	virtual auto AddRunway(const IBglRunway* runway) -> void = 0;
+	virtual auto RemoveRunway(const IBglRunway* runway) -> void = 0;
+	virtual auto GetStartAt(int index) -> IBglStart* = 0;
+	virtual auto AddStart(const IBglStart* start) -> void = 0;
+	virtual auto RemoveStart(const IBglStart* start) -> void = 0;
+	virtual auto GetComAt(int index) -> IBglCom* = 0;
+	virtual auto AddCom(const IBglCom* start) -> void = 0;
+	virtual auto RemoveCom(const IBglCom* start) -> void = 0;
 };
 
 

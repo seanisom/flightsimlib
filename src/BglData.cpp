@@ -381,6 +381,39 @@ auto flightsimlib::io::CBglLLA<T>::SetAltitude(double value) -> void
 	m_data.get().write().Altitude = PackedAltitude::FromDouble(value);
 }
 
+class CBglString
+{
+public:
+	template <typename T>
+	static auto CalculatePadSize(T& m_data, const int remaining_size, int pad_to = 4) -> int
+	{
+		const auto remainder = static_cast<int>(m_data->Name.size() +
+			remaining_size) % pad_to;
+		return pad_to - (remainder == 0 ? pad_to : remainder);
+	}
+	
+	template <typename T>
+	static auto ReadBinary(T& m_data, const int remaining_size, flightsimlib::io::BinaryFileStream& in) -> void
+	{
+		m_data.write().Name = in.ReadString(static_cast<int>(m_data->Size) - remaining_size);
+		m_data.write().Name.erase(std::find(
+			m_data->Name.begin(), m_data->Name.end(), '\0'), m_data->Name.end());
+	}
+
+	template <typename T>
+	static auto WriteBinary(T& m_data, const int remaining_size, flightsimlib::io::BinaryFileStream& out) -> void
+	{
+		out.Write(m_data->Name.c_str(), static_cast<int>(m_data->Name.size()));
+
+		const auto num_pad = CalculatePadSize(m_data, remaining_size);
+		const auto pad = uint8_t{ 0 };
+		for (auto i = 0; i < num_pad; ++i)
+		{
+			out << pad;
+		}
+	}
+};
+
 
 //******************************************************************************
 // CBglName
@@ -392,11 +425,7 @@ auto flightsimlib::io::CBglName::ReadBinary(BinaryFileStream& in) -> void
 	in >> m_data.write().Type
 		>> m_data.write().Size;
 
-	m_data.write().Name = in.ReadString(static_cast<int>(m_data->Size - 
-		sizeof(m_data->Type) - sizeof(m_data->Size)));
-	m_data.write().Name.erase(std::find(
-		m_data->Name.begin(), m_data->Name.end(), '\0'), m_data->Name.end());
-
+	CBglString::ReadBinary(m_data, CalculateRemainingSize(), in);
 }
 
 auto flightsimlib::io::CBglName::WriteBinary(BinaryFileStream& out) -> void
@@ -404,14 +433,7 @@ auto flightsimlib::io::CBglName::WriteBinary(BinaryFileStream& out) -> void
 	out << m_data->Type
 		<< m_data->Size;
 
-	out.Write(m_data->Name.c_str(), m_data->Name.size());
-	
-	const auto num_pad = CalculatePadSize();
-	const auto pad = uint8_t{ 0 };
-	for (auto i = 0; i < num_pad; ++i)
-	{
-		out << pad;
-	}
+	CBglString::WriteBinary(m_data, CalculateRemainingSize(), out);
 }
 
 auto flightsimlib::io::CBglName::Validate() -> bool
@@ -421,10 +443,8 @@ auto flightsimlib::io::CBglName::Validate() -> bool
 
 auto flightsimlib::io::CBglName::CalculateSize() const -> int
 {
-	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) +
-		m_data->Name.size() + CalculatePadSize());
-	//return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) +
-	//	m_data->Name.size());
+	return static_cast<int>(CalculateRemainingSize() + m_data->Name.size() + 
+		CBglString::CalculatePadSize(m_data, CalculateRemainingSize()));
 }
 
 auto flightsimlib::io::CBglName::GetName() const -> const char*
@@ -437,12 +457,9 @@ auto flightsimlib::io::CBglName::SetName(const char* value) -> void
 	m_data.write().Name = value;
 }
 
-auto flightsimlib::io::CBglName::CalculatePadSize() const -> int
+auto flightsimlib::io::CBglName::CalculateRemainingSize() const -> int
 {
-	const auto pad_to = 4; // sizeof(uint32_t)
-	const auto remainder = static_cast<int>(m_data->Name.size() +
-		sizeof(m_data->Type) + sizeof(m_data->Size)) % pad_to;
-	return pad_to - (remainder == 0 ? pad_to : remainder);
+	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size));
 }
 
 
@@ -515,7 +532,6 @@ auto flightsimlib::io::CBglNdb::SetFrequency(uint32_t value) -> void
 {
 	m_data.write().Frequency = value;
 }
-
 
 auto flightsimlib::io::CBglNdb::GetRange() const -> float
 {
@@ -1803,6 +1819,88 @@ auto flightsimlib::io::CBglStart::SetHeading(float value) -> void
 
 
 //******************************************************************************
+// CBglCom
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglCom::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.ComType
+		>> data.Frequency;
+
+	const auto size = CalculateRemainingSize();
+	if (static_cast<int>(m_data->Size) != size)
+	{
+		CBglString::ReadBinary(m_data, size, in);
+	}
+}
+
+auto flightsimlib::io::CBglCom::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->ComType
+		<< m_data->Frequency;
+
+	const auto size = CalculateRemainingSize();
+	if (static_cast<int>(m_data->Size) != size)
+	{
+		CBglString::WriteBinary(m_data, size, out);
+	}
+}
+
+auto flightsimlib::io::CBglCom::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglCom::CalculateSize() const -> int
+{
+	return static_cast<int>(CalculateRemainingSize() + m_data->Name.size() +
+		CBglString::CalculatePadSize(m_data, CalculateRemainingSize()));
+}
+
+auto flightsimlib::io::CBglCom::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->Type);
+}
+
+auto flightsimlib::io::CBglCom::SetType(EType value) -> void
+{
+	m_data.write().ComType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglCom::GetFrequency() const -> uint32_t
+{
+	return m_data->Frequency;
+}
+
+auto flightsimlib::io::CBglCom::SetFrequency(uint32_t value) -> void
+{
+	m_data.write().Frequency = value;
+}
+
+auto flightsimlib::io::CBglCom::GetName() const -> const char*
+{
+	return m_data->Name.c_str();
+}
+
+auto flightsimlib::io::CBglCom::SetName(const char* value) -> void
+{
+	m_data.write().Name = value;
+}
+
+auto flightsimlib::io::CBglCom::CalculateRemainingSize() const -> int
+{
+	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size) + 
+		sizeof(m_data->ComType) + sizeof(m_data->Frequency));
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -1859,16 +1957,27 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 			}
 			break;
 		case EBglLayerType::Start:
-		{
-			auto start = CBglStart{};
-			start.ReadBinary(in);
-			if (!start.Validate())
 			{
-				return; // TODO - error handling?
+				auto start = CBglStart{};
+				start.ReadBinary(in);
+				if (!start.Validate())
+				{
+					return; // TODO - error handling?
+				}
+				m_starts.write().emplace_back(std::move(start));
 			}
-			m_starts.write().emplace_back(std::move(start));
-		}
-		break;
+			break;
+		case EBglLayerType::Com:
+			{
+				auto com = CBglCom{};
+				com.ReadBinary(in);
+				if (!com.Validate())
+				{
+					return; 
+				}
+				m_coms.write().emplace_back(std::move(com));
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -1914,6 +2023,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		start.WriteBinary(out);
 	}
+
+	for (auto& com : m_coms.write())
+	{
+		com.WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -1930,6 +2044,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	for (auto& start : m_starts.write())
 	{
 		count += start.CalculateSize();
+	}
+
+	for (auto& com : m_coms.write())
+	{
+		count += com.CalculateSize();
 	}
 
 	m_data.write().Size = count;
@@ -2087,6 +2206,23 @@ auto flightsimlib::io::CBglAirport::RemoveStart(const IBglStart* start) -> void
 	const auto iter = m_starts.read().begin() +
 		std::distance(m_starts.read().data(), static_cast<const CBglStart*>(start));
 	m_starts.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetComAt(int index) -> IBglCom*
+{
+	return &(m_coms.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddCom(const IBglCom* start) -> void
+{
+	m_coms.write().emplace_back(*static_cast<const CBglCom*>(start));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveCom(const IBglCom* start) -> void
+{
+	const auto iter = m_coms.read().begin() +
+		std::distance(m_coms.read().data(), static_cast<const CBglCom*>(start));
+	m_coms.write().erase(iter);
 }
 
 
