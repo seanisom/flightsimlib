@@ -98,6 +98,7 @@ enum class EBglLayerType : uint32_t
 	AirportSummary = 0x2C,
 	Exclusion = 0x2E,
 	TimeZone = 0x2F,
+	AirportDelete = 0x33,
 	TerrainVectorDb = 0x65,
 	TerrainElevation = 0x67,
 	TerrainLandClass = 0x68,

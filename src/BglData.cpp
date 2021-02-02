@@ -2028,6 +2028,443 @@ auto flightsimlib::io::CBglHelipad::SetHeading(float value) -> void
 
 
 //******************************************************************************
+// CBglRunwayDelete
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglRunwayDelete::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.SurfaceType
+		>> data.NumberPrimary
+		>> data.NumberSecondary
+		>> data.Designator;
+}
+
+auto flightsimlib::io::CBglRunwayDelete::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->SurfaceType
+		<< m_data->NumberPrimary
+		<< m_data->NumberSecondary
+		<< m_data->Designator;
+}
+
+auto flightsimlib::io::CBglRunwayDelete::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglRunwayDelete::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglRunwayDeleteData));
+}
+
+auto flightsimlib::io::CBglRunwayDelete::GetSurfaceType() -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->SurfaceType);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().SurfaceType = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->NumberPrimary);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().NumberPrimary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::GetPrimaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(get_packed_bits(m_data->Designator, 4, 0));
+}
+
+auto flightsimlib::io::CBglRunwayDelete::SetPrimaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	set_packed_bits(m_data.write().Designator, to_integral(value), 4, 0);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::GetSecondaryRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->NumberPrimary);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::SetSecondaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().NumberPrimary = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRunwayDelete::GetSecondaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(get_packed_bits(m_data->Designator, 4, 4));
+}
+
+auto flightsimlib::io::CBglRunwayDelete::SetSecondaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	set_packed_bits(m_data.write().Designator, to_integral(value), 4, 0);
+}
+
+
+//******************************************************************************
+// CBglStartDelete
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglStartDelete::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Number
+		>> data.Designator
+		>> data.Type
+		>> data.Pad;
+}
+
+auto flightsimlib::io::CBglStartDelete::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Number
+		<< m_data->Designator
+		<< m_data->Type
+		<< m_data->Pad;
+}
+
+auto flightsimlib::io::CBglStartDelete::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglStartDelete::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglStartDeleteData));
+}
+
+auto flightsimlib::io::CBglStartDelete::GetRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->Number);
+}
+
+auto flightsimlib::io::CBglStartDelete::SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().Number = to_integral(value);
+}
+
+auto flightsimlib::io::CBglStartDelete::GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(m_data->Designator);
+}
+
+auto flightsimlib::io::CBglStartDelete::SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	m_data.write().Designator = to_integral(value);
+}
+
+auto flightsimlib::io::CBglStartDelete::GetType() const -> IBglStart::EType
+{
+	return static_cast<IBglStart::EType>(m_data->Type);
+}
+
+auto flightsimlib::io::CBglStartDelete::SetType(IBglStart::EType value) -> void
+{
+	m_data.write().Type = to_integral(value);
+}
+
+
+//******************************************************************************
+// CBglComDelete
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglComDelete::ReadBinary(BinaryFileStream& in) -> void
+{
+	in >> m_data.write().Frequency;
+}
+
+auto flightsimlib::io::CBglComDelete::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Frequency;
+}
+
+auto flightsimlib::io::CBglComDelete::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglComDelete::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglComDeleteData));
+}
+
+auto flightsimlib::io::CBglComDelete::GetType() const -> IBglCom::EType
+{
+	return static_cast<IBglCom::EType>(get_packed_bits(m_data->Frequency, 4, 28));
+}
+
+auto flightsimlib::io::CBglComDelete::SetType(IBglCom::EType value) -> void
+{
+	set_packed_bits(m_data.write().Frequency, to_integral(value), 4, 28);
+}
+
+auto flightsimlib::io::CBglComDelete::GetFrequency() const -> uint32_t
+{
+	return get_packed_bits(m_data->Frequency, 28, 0);
+}
+
+auto flightsimlib::io::CBglComDelete::SetFrequency(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Frequency, value, 28, 0);
+}
+
+
+//******************************************************************************
+// CBglAirportDelete
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglAirportDelete::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Flags
+		>> data.RunwayCount
+		>> data.StartCount
+		>> data.ComCount
+		>> data.Pad;
+
+	m_runway_deletes.write().reserve(data.RunwayCount);
+	m_start_deletes.write().reserve(data.StartCount);
+	m_com_deletes.write().reserve(data.ComCount);
+	
+	for (auto& runway : m_runway_deletes.write())
+	{
+		runway.ReadBinary(in);
+	}
+
+	for (auto& start : m_start_deletes.write())
+	{
+		start.ReadBinary(in);
+	}
+
+	for (auto& com : m_com_deletes.write())
+	{
+		com.ReadBinary(in);
+	}
+}
+
+auto flightsimlib::io::CBglAirportDelete::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Flags
+		<< m_data->RunwayCount
+		<< m_data->StartCount
+		<< m_data->ComCount
+		<< m_data->Pad;
+
+	for (auto& runway : m_runway_deletes.write())
+	{
+		runway.WriteBinary(out);
+	}
+
+	for (auto& start : m_start_deletes.write())
+	{
+		start.WriteBinary(out);
+	}
+
+	for (auto& com : m_com_deletes.write())
+	{
+		com.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglAirportDelete::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglAirportDelete::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglAirportDeleteData));
+	
+	for (const auto& runway : m_runway_deletes.read())
+	{
+		count += runway.CalculateSize();
+	}
+
+	for (const auto& start : m_start_deletes.read())
+	{
+		count += start.CalculateSize();
+	}
+
+	for (const auto& com : m_com_deletes.read())
+	{
+		count += com.CalculateSize();
+	}
+	
+	return count;
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllApproaches() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Approaches));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllApproaches(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Approaches));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllApronLights() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::ApronLights));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllApronLights(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::ApronLights));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllAprons() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Aprons));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllAprons(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Aprons));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllFrequencies() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Aprons));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllFrequencies(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Frequencies));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllHelipads() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Helipads));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllHelipads(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Helipads));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllRunways() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Runways));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllRunways(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Runways));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllStarts() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Starts));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllStarts(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Starts));
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsAllTaxiways() const -> bool
+{
+	return get_packed_bits(m_data->Flags, 1, to_integral(EFlags::Taxiways));
+}
+
+auto flightsimlib::io::CBglAirportDelete::SetAllTaxiways(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, to_integral(EFlags::Taxiways));
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetRunwayDeleteCount() const -> int
+{
+	return static_cast<int>(m_data->RunwayCount);
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetStartDeleteCount() const -> int
+{
+	return static_cast<int>(m_data->StartCount);
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetComDeleteCount() const -> int
+{
+	return static_cast<int>(m_data->ComCount);
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetRunwayDeleteAt(int index) -> IBglRunwayDelete*
+{
+	return &(m_runway_deletes.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirportDelete::AddRunwayDelete(const IBglRunwayDelete* runway) -> void
+{
+	m_runway_deletes.write().emplace_back(*static_cast<const CBglRunwayDelete*>(runway));
+}
+
+auto flightsimlib::io::CBglAirportDelete::RemoveRunwayDelete(const IBglRunwayDelete* runway) -> void
+{
+	const auto iter = m_runway_deletes.read().begin() +
+		std::distance(m_runway_deletes.read().data(), static_cast<const CBglRunwayDelete*>(runway));
+	m_runway_deletes.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetStartDeleteAt(int index) -> IBglStartDelete*
+{
+	return &(m_start_deletes.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirportDelete::AddStartDelete(const IBglStartDelete* start) -> void
+{
+	m_start_deletes.write().emplace_back(*static_cast<const CBglStartDelete*>(start));
+}
+
+auto flightsimlib::io::CBglAirportDelete::RemoveStartDelete(const IBglStartDelete* start) -> void
+{
+	const auto iter = m_start_deletes.read().begin() +
+		std::distance(m_start_deletes.read().data(), static_cast<const CBglStartDelete*>(start));
+	m_start_deletes.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirportDelete::GetComDeleteAt(int index) -> IBglComDelete*
+{
+	return &(m_com_deletes.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirportDelete::AddComDelete(const IBglComDelete* com) -> void
+{
+	m_com_deletes.write().emplace_back(*static_cast<const CBglComDelete*>(com));
+}
+
+auto flightsimlib::io::CBglAirportDelete::RemoveComDelete(const IBglComDelete* com) -> void
+{
+	const auto iter = m_com_deletes.read().begin() +
+		std::distance(m_com_deletes.read().data(), static_cast<const CBglComDelete*>(com));
+	m_com_deletes.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirportDelete::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -2106,16 +2543,23 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 			}
 			break;
 		case EBglLayerType::Helipad:
-		{
-			auto helipad = CBglHelipad{};
-			helipad.ReadBinary(in);
-			if (!helipad.Validate())
+			{
+				auto helipad = CBglHelipad{};
+				helipad.ReadBinary(in);
+				if (!helipad.Validate())
+				{
+					return;
+				}
+				m_helipads.write().emplace_back(std::move(helipad));
+			}
+			break;
+		case EBglLayerType::AirportDelete:
+			m_delete.write().ReadBinary(in);
+			if (!m_delete.write().Validate())
 			{
 				return;
 			}
-			m_helipads.write().emplace_back(std::move(helipad));
-		}
-		break;
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -2171,6 +2615,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		helipad.WriteBinary(out);
 	}
+
+	if (!m_delete->IsEmpty())
+	{
+		m_delete.write().WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -2179,26 +2628,31 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	auto count = static_cast<int>(sizeof(SBglAirportData)) +
 		CBglName::CalculateSize();
 
-	for (auto& runway : m_runways.write())
+	for (const auto& runway : m_runways.read())
 	{
 		count += runway.CalculateSize();
 	}
 
-	for (auto& start : m_starts.write())
+	for (const auto& start : m_starts.read())
 	{
 		count += start.CalculateSize();
 	}
 
-	for (auto& com : m_coms.write())
+	for (const auto& com : m_coms.read())
 	{
 		count += com.CalculateSize();
 	}
 
-	for (auto& helipad : m_helipads.write())
+	for (const auto& helipad : m_helipads.read())
 	{
 		count += helipad.CalculateSize();
 	}
 
+	if (!m_delete->IsEmpty())
+	{
+		count += m_delete.read().CalculateSize();
+	}
+	
 	m_data.write().Size = count;
 	
 	return m_data->Type == 0x3C;
@@ -2361,15 +2815,15 @@ auto flightsimlib::io::CBglAirport::GetComAt(int index) -> IBglCom*
 	return &(m_coms.write()[index]);
 }
 
-auto flightsimlib::io::CBglAirport::AddCom(const IBglCom* start) -> void
+auto flightsimlib::io::CBglAirport::AddCom(const IBglCom* com) -> void
 {
-	m_coms.write().emplace_back(*static_cast<const CBglCom*>(start));
+	m_coms.write().emplace_back(*static_cast<const CBglCom*>(com));
 }
 
-auto flightsimlib::io::CBglAirport::RemoveCom(const IBglCom* start) -> void
+auto flightsimlib::io::CBglAirport::RemoveCom(const IBglCom* com) -> void
 {
 	const auto iter = m_coms.read().begin() +
-		std::distance(m_coms.read().data(), static_cast<const CBglCom*>(start));
+		std::distance(m_coms.read().data(), static_cast<const CBglCom*>(com));
 	m_coms.write().erase(iter);
 }
 
@@ -2378,15 +2832,15 @@ auto flightsimlib::io::CBglAirport::GetHelipadAt(int index) -> IBglHelipad*
 	return &(m_helipads.write()[index]);
 }
 
-auto flightsimlib::io::CBglAirport::AddHelipad(const IBglHelipad* start) -> void
+auto flightsimlib::io::CBglAirport::AddHelipad(const IBglHelipad* helipad) -> void
 {
-	m_helipads.write().emplace_back(*static_cast<const CBglHelipad*>(start));
+	m_helipads.write().emplace_back(*static_cast<const CBglHelipad*>(helipad));
 }
 
-auto flightsimlib::io::CBglAirport::RemoveHelipad(const IBglHelipad* start) -> void
+auto flightsimlib::io::CBglAirport::RemoveHelipad(const IBglHelipad* helipad) -> void
 {
 	const auto iter = m_helipads.read().begin() +
-		std::distance(m_helipads.read().data(), static_cast<const CBglHelipad*>(start));
+		std::distance(m_helipads.read().data(), static_cast<const CBglHelipad*>(helipad));
 	m_helipads.write().erase(iter);
 }
 

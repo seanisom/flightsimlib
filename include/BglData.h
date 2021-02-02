@@ -848,6 +848,204 @@ private:
 	stlab::copy_on_write<SBglHelipadData> m_data;
 };
 
+
+//******************************************************************************
+// CBglRunwayDelete
+//******************************************************************************
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglRunwayDeleteData
+{
+	uint8_t SurfaceType;
+	uint8_t NumberPrimary;
+	uint8_t NumberSecondary;
+	uint8_t Designator;
+};
+
+#pragma pack(pop)
+
+
+class CBglRunwayDelete : public IBglSerializable, public IBglRunwayDelete
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetSurfaceType() -> ESurfaceType  override;
+	auto SetSurfaceType(ESurfaceType value) -> void  override;
+	auto GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber  override;
+	auto SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void  override;
+	auto GetPrimaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator  override;
+	auto SetPrimaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void  override;
+	auto GetSecondaryRunwayNumber() const -> IBglRunway::ERunwayNumber  override;
+	auto SetSecondaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void  override;
+	auto GetSecondaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator  override;
+	auto SetSecondaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void  override;
+
+private:
+	stlab::copy_on_write<SBglRunwayDeleteData> m_data;
+};
+	
+
+//******************************************************************************
+// CBglStartDelete
+//******************************************************************************
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglStartDeleteData
+{
+	uint8_t Number;
+	uint8_t Designator;
+	uint8_t Type;
+	uint8_t Pad;
+};
+
+#pragma pack(pop)
+
+
+class CBglStartDelete : public IBglSerializable, public IBglStartDelete
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator override;
+	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetType() const -> IBglStart::EType override;
+	auto SetType(IBglStart::EType value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglStartDeleteData> m_data;
+};
+	
+
+//******************************************************************************
+// CBglComDelete
+//******************************************************************************
+
+	
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglComDeleteData
+{
+	uint32_t Frequency;
+};
+
+#pragma pack(pop)
+	
+
+class CBglComDelete : public IBglSerializable, public IBglComDelete
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> IBglCom::EType override;
+	auto SetType(IBglCom::EType value) -> void override;
+	auto GetFrequency() const -> uint32_t override;
+	auto SetFrequency(uint32_t value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglComDeleteData> m_data;
+};
+	
+	
+//******************************************************************************
+// CBglAirportDelete
+//******************************************************************************
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglAirportDeleteData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t Flags;
+	uint8_t RunwayCount;
+	uint8_t StartCount;
+	uint8_t ComCount;
+	uint8_t Pad;
+};
+
+#pragma pack(pop)
+
+
+class CBglAirportDelete : public IBglSerializable, public IBglAirportDelete
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto IsAllApproaches() const -> bool override;
+	auto SetAllApproaches(bool value) -> void override;
+	auto IsAllApronLights() const -> bool override;
+	auto SetAllApronLights(bool value) -> void override;
+	auto IsAllAprons() const -> bool override;
+	auto SetAllAprons(bool value) -> void override;
+	auto IsAllFrequencies() const -> bool override;
+	auto SetAllFrequencies(bool value) -> void override;
+	auto IsAllHelipads() const -> bool override;
+	auto SetAllHelipads(bool value) -> void override;
+	auto IsAllRunways() const -> bool override;
+	auto SetAllRunways(bool value) -> void override;
+	auto IsAllStarts() const -> bool override;
+	auto SetAllStarts(bool value) -> void override;
+	auto IsAllTaxiways() const -> bool override;
+	auto SetAllTaxiways(bool value) -> void override;
+
+	auto GetRunwayDeleteCount() const -> int override;
+	auto GetStartDeleteCount() const -> int override;
+	auto GetComDeleteCount() const -> int override;
+	auto GetRunwayDeleteAt(int index) -> IBglRunwayDelete* override;
+	auto AddRunwayDelete(const IBglRunwayDelete* runway) -> void override;
+	auto RemoveRunwayDelete(const IBglRunwayDelete* runway) -> void override;
+	auto GetStartDeleteAt(int index) -> IBglStartDelete* override;
+	auto AddStartDelete(const IBglStartDelete* start) -> void override;
+	auto RemoveStartDelete(const IBglStartDelete* start) -> void override;
+	auto GetComDeleteAt(int index) -> IBglComDelete* override;
+	auto AddComDelete(const IBglComDelete* com) -> void override;
+	auto RemoveComDelete(const IBglComDelete* com) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	enum class EFlags : uint16_t
+	{
+		Approaches = 0,
+		ApronLights = 1,
+		Aprons = 2,
+		Frequencies = 3,
+		Helipads = 4,
+		Runways = 5,
+		Starts = 6,
+		Taxiways = 7,
+	};
+
+	stlab::copy_on_write<std::vector<CBglRunwayDelete>> m_runway_deletes;
+	stlab::copy_on_write<std::vector<CBglStartDelete>> m_start_deletes;
+	stlab::copy_on_write<std::vector<CBglComDelete>> m_com_deletes;
+	stlab::copy_on_write<SBglAirportDeleteData> m_data;
+};
+	
 	
 //******************************************************************************
 // CBglAirport
@@ -926,17 +1124,18 @@ public:
 	auto AddStart(const IBglStart* start) -> void override;
 	auto RemoveStart(const IBglStart* start) -> void override;
 	auto GetComAt(int index) -> IBglCom* override;
-	auto AddCom(const IBglCom* start) -> void override;
-	auto RemoveCom(const IBglCom* start) -> void override;
+	auto AddCom(const IBglCom* com) -> void override;
+	auto RemoveCom(const IBglCom* com) -> void override;
 	auto GetHelipadAt(int index) -> IBglHelipad* override;
-	auto AddHelipad(const IBglHelipad* start) -> void override;
-	auto RemoveHelipad(const IBglHelipad* start) -> void override;
+	auto AddHelipad(const IBglHelipad* helipad) -> void override;
+	auto RemoveHelipad(const IBglHelipad* helipad) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
 	stlab::copy_on_write<std::vector<CBglStart>> m_starts;
 	stlab::copy_on_write<std::vector<CBglCom>> m_coms;
 	stlab::copy_on_write<std::vector<CBglHelipad>> m_helipads;
+	stlab::copy_on_write<CBglAirportDelete> m_delete;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

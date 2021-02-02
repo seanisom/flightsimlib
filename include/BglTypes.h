@@ -557,8 +557,81 @@ public:
 	virtual auto GetHeading() const -> float = 0;
 	virtual auto SetHeading(float value) -> void = 0;
 };
-	
 
+
+class IBglRunwayDelete
+{
+public: // TODO - shared interface?
+	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetPrimaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetPrimaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetSecondaryRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetSecondaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetSecondaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetSecondaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+};
+
+	
+class IBglStartDelete
+{
+public:
+	virtual auto GetRunwayNumber() const->IBglRunway::ERunwayNumber = 0;
+	virtual auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetType() const -> IBglStart::EType = 0;
+	virtual auto SetType(IBglStart::EType value) -> void = 0;
+};
+
+	
+class IBglComDelete
+{
+public:
+	virtual auto GetType() const -> IBglCom::EType = 0;
+	virtual auto SetType(IBglCom::EType value) -> void = 0;
+	virtual auto GetFrequency() const -> uint32_t = 0;
+	virtual auto SetFrequency(uint32_t value) -> void = 0;
+};
+
+
+class IBglAirportDelete
+{
+public:
+	virtual auto IsAllApproaches() const -> bool = 0;
+	virtual auto SetAllApproaches(bool value) -> void = 0;
+	virtual auto IsAllApronLights() const -> bool = 0;
+	virtual auto SetAllApronLights(bool value) -> void = 0;
+	virtual auto IsAllAprons() const -> bool = 0;
+	virtual auto SetAllAprons(bool value) -> void = 0;
+	virtual auto IsAllFrequencies() const -> bool = 0;
+	virtual auto SetAllFrequencies(bool value) -> void = 0;
+	virtual auto IsAllHelipads() const -> bool = 0;
+	virtual auto SetAllHelipads(bool value) -> void = 0;
+	virtual auto IsAllRunways() const -> bool = 0;
+	virtual auto SetAllRunways(bool value) -> void = 0;
+	virtual auto IsAllStarts() const -> bool = 0;
+	virtual auto SetAllStarts(bool value) -> void = 0;
+	virtual auto IsAllTaxiways() const -> bool = 0;
+	virtual auto SetAllTaxiways(bool value) -> void = 0;
+
+	virtual auto GetRunwayDeleteCount() const -> int = 0;
+	virtual auto GetStartDeleteCount() const -> int = 0;
+	virtual auto GetComDeleteCount() const -> int = 0;
+	virtual auto GetRunwayDeleteAt(int index) -> IBglRunwayDelete* = 0;
+	virtual auto AddRunwayDelete(const IBglRunwayDelete* runway) -> void = 0;
+	virtual auto RemoveRunwayDelete(const IBglRunwayDelete* runway) -> void = 0;
+	virtual auto GetStartDeleteAt(int index) -> IBglStartDelete* = 0;
+	virtual auto AddStartDelete(const IBglStartDelete* start) -> void = 0;
+	virtual auto RemoveStartDelete(const IBglStartDelete* start) -> void = 0;
+	virtual auto GetComDeleteAt(int index) -> IBglComDelete* = 0;
+	virtual auto AddComDelete(const IBglComDelete* com) -> void = 0;
+	virtual auto RemoveComDelete(const IBglComDelete* com) -> void = 0;
+};
+
+	
 // TODO ! Handle P3D5 (and FS9 and P20)
 class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
 {
@@ -593,11 +666,11 @@ public:
 	virtual auto AddStart(const IBglStart* start) -> void = 0;
 	virtual auto RemoveStart(const IBglStart* start) -> void = 0;
 	virtual auto GetComAt(int index) -> IBglCom* = 0;
-	virtual auto AddCom(const IBglCom* start) -> void = 0;
-	virtual auto RemoveCom(const IBglCom* start) -> void = 0;
+	virtual auto AddCom(const IBglCom* com) -> void = 0;
+	virtual auto RemoveCom(const IBglCom* com) -> void = 0;
 	virtual auto GetHelipadAt(int index) -> IBglHelipad* = 0;
-	virtual auto AddHelipad(const IBglHelipad* start) -> void = 0;
-	virtual auto RemoveHelipad(const IBglHelipad* start) -> void = 0;
+	virtual auto AddHelipad(const IBglHelipad* helipad) -> void = 0;
+	virtual auto RemoveHelipad(const IBglHelipad* helipad) -> void = 0;
 };
 
 
