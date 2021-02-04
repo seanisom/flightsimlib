@@ -73,7 +73,7 @@ struct SBglVertexLL
 
 #pragma pack(pop)
 
-
+	
 #pragma pack(push)
 #pragma pack(1)
 
@@ -99,6 +99,19 @@ struct SBglVertexBias
 #pragma pack(pop)
 
 
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglEdge
+{
+	float Spacing;
+	uint16_t Start;
+	uint16_t End;
+};
+
+#pragma pack(pop)
+
+	
 class IBglFuelAvailability
 {
 public:
@@ -631,6 +644,26 @@ public:
 	virtual auto RemoveComDelete(const IBglComDelete* com) -> void = 0;
 };
 
+
+class IBglApronEdgeLights
+{
+public:
+	virtual auto GetVertexCount() const -> int = 0;
+	virtual auto GetEdgeCount() const -> int = 0;
+	virtual auto GetColor() const -> uint32_t = 0;
+	virtual auto SetColor(uint32_t value) -> void = 0;
+	virtual auto GetBrightness() const -> float = 0;
+	virtual auto SetBrightness(float value) -> void = 0;
+	virtual auto GetMaxAltitude() const -> float = 0;
+	virtual auto SetMaxAltitude(float value) -> void = 0;
+	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
+	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto GetEdgeAt(int index) -> SBglEdge* = 0;
+	virtual auto AddEdge(const SBglEdge* edge) -> void = 0;
+	virtual auto RemoveEdge(const SBglEdge* edge) -> void = 0;
+};
+	
 	
 // TODO ! Handle P3D5 (and FS9 and P20)
 class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
@@ -671,6 +704,10 @@ public:
 	virtual auto GetHelipadAt(int index) -> IBglHelipad* = 0;
 	virtual auto AddHelipad(const IBglHelipad* helipad) -> void = 0;
 	virtual auto RemoveHelipad(const IBglHelipad* helipad) -> void = 0;
+	virtual auto GetDelete() -> const IBglAirportDelete* = 0;
+	virtual auto SetDelete(IBglAirportDelete* value) -> void = 0;
+	virtual auto GetApronEdgeLights() -> const IBglApronEdgeLights* = 0;
+	virtual auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void = 0;
 };
 
 

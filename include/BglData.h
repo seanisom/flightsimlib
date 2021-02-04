@@ -1046,6 +1046,60 @@ private:
 	stlab::copy_on_write<SBglAirportDeleteData> m_data;
 };
 	
+
+//******************************************************************************
+// CBglApronEdgeLights
+//******************************************************************************
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglApronEdgeLightsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t Flags; // Are these draw flags with pad? Who knows
+	uint16_t VertexCount;
+	uint16_t EdgeCount;
+	uint32_t Color;
+	float Brightness;
+	float MaxAltitude;
+};
+
+#pragma pack(pop)
+
+	
+class CBglApronEdgeLights : public IBglSerializable, public IBglApronEdgeLights
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetVertexCount() const -> int override;
+	auto GetEdgeCount() const -> int override;
+	auto GetColor() const->uint32_t override;
+	auto SetColor(uint32_t value) -> void  override;
+	auto GetBrightness() const -> float override;
+	auto SetBrightness(float value) -> void override;
+	auto GetMaxAltitude() const -> float override;
+	auto SetMaxAltitude(float value) -> void override;
+	auto GetVertexAt(int index) -> SBglVertexLL* override;
+	auto AddVertex(const SBglVertexLL* vertex) -> void override;
+	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
+	auto GetEdgeAt(int index) -> SBglEdge* override;
+	auto AddEdge(const SBglEdge* edge) -> void override;
+	auto RemoveEdge(const SBglEdge* edge) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglApronEdgeLightsData> m_data;
+	stlab::copy_on_write<std::vector<SBglEdge>> m_edges;
+	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
+};
 	
 //******************************************************************************
 // CBglAirport
@@ -1129,6 +1183,10 @@ public:
 	auto GetHelipadAt(int index) -> IBglHelipad* override;
 	auto AddHelipad(const IBglHelipad* helipad) -> void override;
 	auto RemoveHelipad(const IBglHelipad* helipad) -> void override;
+	auto GetDelete() -> const IBglAirportDelete* override;
+	auto SetDelete(IBglAirportDelete* value) -> void override;
+	auto GetApronEdgeLights() -> const IBglApronEdgeLights* override;
+	auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1136,6 +1194,7 @@ private:
 	stlab::copy_on_write<std::vector<CBglCom>> m_coms;
 	stlab::copy_on_write<std::vector<CBglHelipad>> m_helipads;
 	stlab::copy_on_write<CBglAirportDelete> m_delete;
+	stlab::copy_on_write<CBglApronEdgeLights> m_apron_edge_lights;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

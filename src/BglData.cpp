@@ -2465,6 +2465,153 @@ auto flightsimlib::io::CBglAirportDelete::IsEmpty() const -> bool
 
 
 //******************************************************************************
+// CBglApronEdgeLights
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglApronEdgeLights::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Flags
+		>> data.VertexCount
+		>> data.EdgeCount
+		>> data.Color
+		>> data.Brightness
+		>> data.MaxAltitude;
+
+	m_vertices.write().resize(m_data->VertexCount);
+	m_edges.write().resize(m_data->EdgeCount);
+	
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.Longitude >> vertex.Latitude;
+	}
+
+	for (auto& edge : m_edges.write())
+	{
+		in >> edge.Spacing >> edge.Start >> edge.End;
+	}
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Flags
+		<< m_data->VertexCount
+		<< m_data->EdgeCount
+		<< m_data->Color
+		<< m_data->Brightness
+		<< m_data->MaxAltitude;
+	
+	for (const auto& vertex : m_vertices.read())
+	{
+		out << vertex.Longitude << vertex.Latitude;
+	}
+
+	for (const auto& edge : m_edges.read())
+	{
+		out << edge.Spacing << edge.Start << edge.End;
+	}
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglApronEdgeLightsData) + 
+		m_data->VertexCount * sizeof(SBglVertexBias) +
+		m_data->EdgeCount * sizeof(SBglEdge));
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetVertexCount() const -> int
+{
+	return m_data->VertexCount;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetEdgeCount() const -> int
+{
+	return m_data->EdgeCount;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetColor() const -> uint32_t
+{
+	return m_data->Color;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::SetColor(uint32_t value) -> void
+{
+	m_data.write().Color = value;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetBrightness() const -> float
+{
+	return m_data->Brightness;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::SetBrightness(float value) -> void
+{
+	m_data.write().Brightness = value;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetMaxAltitude() const -> float
+{
+	return m_data->MaxAltitude;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::SetMaxAltitude(float value) -> void
+{
+	m_data.write().MaxAltitude = value;
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetVertexAt(int index) -> SBglVertexLL*
+{
+	return &(m_vertices.write()[index]);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::AddVertex(const SBglVertexLL* vertex) -> void
+{
+	// TODO Need validation, self check, update count
+	m_vertices.write().emplace_back(*vertex);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::RemoveVertex(const SBglVertexLL* vertex) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), vertex);
+	m_vertices.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::GetEdgeAt(int index) -> SBglEdge*
+{
+	return &(m_edges.write()[index]);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::AddEdge(const SBglEdge* edge) -> void
+{
+	// TODO Need validation, self check, update count
+	m_edges.write().emplace_back(*edge);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::RemoveEdge(const SBglEdge* edge) -> void
+{
+	const auto iter = m_edges.read().begin() +
+		std::distance(m_edges.read().data(), edge);
+	m_edges.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglApronEdgeLights::IsEmpty() const -> bool
+{
+	return m_data->Type == 0;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -2560,6 +2707,13 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::ApronEdgeLights:
+			m_apron_edge_lights.write().ReadBinary(in);
+			if (!m_apron_edge_lights.write().Validate())
+			{
+				return;
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -2620,6 +2774,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_delete.write().WriteBinary(out);
 	}
+
+	if (!m_apron_edge_lights->IsEmpty())
+	{
+		m_apron_edge_lights.write().WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -2651,6 +2810,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	if (!m_delete->IsEmpty())
 	{
 		count += m_delete.read().CalculateSize();
+	}
+
+	if (!m_apron_edge_lights->IsEmpty())
+	{
+		count += m_apron_edge_lights.read().CalculateSize();
 	}
 	
 	m_data.write().Size = count;
@@ -2842,6 +3006,36 @@ auto flightsimlib::io::CBglAirport::RemoveHelipad(const IBglHelipad* helipad) ->
 	const auto iter = m_helipads.read().begin() +
 		std::distance(m_helipads.read().data(), static_cast<const CBglHelipad*>(helipad));
 	m_helipads.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetDelete() -> const IBglAirportDelete*
+{
+	if (m_delete->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_delete.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetDelete(IBglAirportDelete* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_delete = { *static_cast<CBglAirportDelete*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetApronEdgeLights() -> const IBglApronEdgeLights*
+{
+	if (m_apron_edge_lights->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_apron_edge_lights.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetApronEdgeLights(IBglApronEdgeLights* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_apron_edge_lights = { *static_cast<CBglApronEdgeLights*>(value) };
 }
 
 
