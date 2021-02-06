@@ -613,7 +613,7 @@ auto flightsimlib::io::CBglRunway::CBglRunwayEnd::GetPosition() const -> EPositi
 	return static_cast<EPosition>(m_data->Position);
 }
 
-flightsimlib::io::ESurfaceType flightsimlib::io::CBglRunway::CBglRunwayEnd::GetSurfaceType()
+flightsimlib::io::ESurfaceType flightsimlib::io::CBglRunway::CBglRunwayEnd::GetSurfaceType() const
 {
 	return static_cast<ESurfaceType>(m_data->SurfaceType);
 }
@@ -1097,7 +1097,7 @@ int flightsimlib::io::CBglRunway::CalculateSize() const
 	return m_data->Size;
 }
 
-auto flightsimlib::io::CBglRunway::GetSurfaceType() -> ESurfaceType
+auto flightsimlib::io::CBglRunway::GetSurfaceType() const -> ESurfaceType
 {
 	return static_cast<ESurfaceType>(m_data->SurfaceType);
 }
@@ -1946,7 +1946,7 @@ auto flightsimlib::io::CBglHelipad::CalculateSize() const -> int
 	return static_cast<int>(sizeof(SBglHelipadData));
 }
 
-auto flightsimlib::io::CBglHelipad::GetSurfaceType() -> ESurfaceType
+auto flightsimlib::io::CBglHelipad::GetSurfaceType() const -> ESurfaceType
 {
 	return static_cast<ESurfaceType>(m_data->SurfaceType);
 }
@@ -2059,7 +2059,7 @@ auto flightsimlib::io::CBglRunwayDelete::CalculateSize() const -> int
 	return static_cast<int>(sizeof(SBglRunwayDeleteData));
 }
 
-auto flightsimlib::io::CBglRunwayDelete::GetSurfaceType() -> ESurfaceType
+auto flightsimlib::io::CBglRunwayDelete::GetSurfaceType() const -> ESurfaceType
 {
 	return static_cast<ESurfaceType>(m_data->SurfaceType);
 }
@@ -2670,7 +2670,7 @@ auto flightsimlib::io::CBglApron::CalculateSize() const -> int
 		m_data->VertexCount * sizeof(SBglVertexLL));
 }
 
-auto flightsimlib::io::CBglApron::GetSurfaceType() -> ESurfaceType
+auto flightsimlib::io::CBglApron::GetSurfaceType() const -> ESurfaceType
 {
 	return static_cast<ESurfaceType>(m_data->Surface);
 }
@@ -2778,7 +2778,7 @@ auto flightsimlib::io::CBglApronPolygons::CalculateSize() const -> int
 		(m_data->IndexCount % 2 ? sizeof(uint16_t) : 0));
 }
 
-auto flightsimlib::io::CBglApronPolygons::GetSurfaceType() -> ESurfaceType
+auto flightsimlib::io::CBglApronPolygons::GetSurfaceType() const -> ESurfaceType
 {
 	return static_cast<ESurfaceType>(m_data->Surface);
 }
@@ -2852,6 +2852,142 @@ auto flightsimlib::io::CBglApronPolygons::RemoveIndex(const SBglIndex* index) ->
 	const auto iter = m_indices.read().begin() +
 		std::distance(m_indices.read().data(), index);
 	m_indices.write().erase(iter);
+}
+
+
+//******************************************************************************
+// CBglTaxiwayPoint
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwayPoint::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Orientation
+		>> data.Pad
+		>> data.Vertex.Longitude
+		>> data.Vertex.Latitude;
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Orientation
+		<< m_data->Pad
+		<< m_data->Vertex.Longitude
+		<< m_data->Vertex.Latitude;
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayPointData));
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->Type);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::SetType(EType value) -> void
+{
+	m_data.write().Type = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::GetOrientation() const -> EOrientation
+{
+	return static_cast<EOrientation>(m_data->Orientation);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::SetOrientation(EOrientation value) -> void
+{
+	m_data.write().Orientation = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::GetVertex() -> SBglVertexLL*
+{
+	return &(m_data.write().Vertex); // TODO - do we want a const form for readers?
+}
+
+auto flightsimlib::io::CBglTaxiwayPoint::SetVertex(SBglVertexLL* vertex) -> void
+{
+	m_data.write().Vertex = *vertex;
+}
+
+
+//******************************************************************************
+// CBglTaxiwayPoints
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwayPoints::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.PointCount;
+
+	m_points.write().resize(m_data->PointCount);
+
+	for (auto& point : m_points.write())
+	{
+		point.ReadBinary(in);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->PointCount;
+
+	for (auto& point : m_points.write())
+	{
+		point.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayPointsData) + // could sum CalculateSize() but this
+		m_data->PointCount * sizeof(SBglTaxiwayPointData)); // seems like unnecessary performance hit 
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::GetPointCount() const -> int
+{
+	return static_cast<int>(m_data->PointCount);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::GetPointAt(int index) -> IBglTaxiwayPoint*
+{
+	return &(m_points.write()[index]);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::AddPoint(const IBglTaxiwayPoint* point) -> void
+{
+	m_points.write().emplace_back(*static_cast<const CBglTaxiwayPoint*>(point));
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::RemovePoint(const IBglTaxiwayPoint* point) -> void
+{
+	const auto iter = m_points.read().begin() +
+		std::distance(m_points.read().data(), static_cast<const CBglTaxiwayPoint*>(point));
+	m_points.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglTaxiwayPoints::IsEmpty() const -> bool
+{
+	return m_data->Type == 0;
 }
 
 
@@ -2980,6 +3116,13 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				m_apron_polygons.write().emplace_back(std::move(apron_polygons));
 			}
 			break;
+		case EBglLayerType::TaxiwayPoint:
+			m_taxiway_points.write().ReadBinary(in);
+			if (!m_taxiway_points.write().Validate())
+			{
+				return;
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -3051,6 +3194,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 		m_aprons.write()[i].WriteBinary(out);
 		m_apron_polygons.write()[i].WriteBinary(out);
 	}
+
+	if (!m_taxiway_points->IsEmpty())
+	{
+		m_taxiway_points.write().WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -3097,6 +3245,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	for (const auto& apron_polygons : m_apron_polygons.read())
 	{
 		count += apron_polygons.CalculateSize();
+	}
+
+	if (!m_taxiway_points->IsEmpty())
+	{
+		count +=  m_taxiway_points.read().CalculateSize();
 	}
 	
 	m_data.write().Size = count;
@@ -3352,6 +3505,21 @@ auto flightsimlib::io::CBglAirport::RemoveApronPolygons(const IBglApronPolygons*
 	const auto iter = m_apron_polygons.read().begin() +
 		std::distance(m_apron_polygons.read().data(), static_cast<const CBglApronPolygons*>(polygons));
 	m_apron_polygons.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetTaxiwayPoints() -> const IBglTaxiwayPoints*
+{
+	if (m_taxiway_points->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_taxiway_points.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_taxiway_points = { *static_cast<CBglTaxiwayPoints*>(value) };
 }
 
 

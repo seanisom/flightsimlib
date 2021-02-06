@@ -229,7 +229,7 @@ public:
 	};
 	
 	virtual auto GetPosition() const -> EPosition = 0;
-	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto GetLength() const -> float = 0;
 	virtual auto SetLength(float value) -> void = 0;
@@ -394,7 +394,7 @@ public:
 		High = 3
 	};
 
-	virtual auto GetSurfaceType()->ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto GetPrimaryRunwayNumber() const -> ERunwayNumber = 0;
 	virtual auto SetPrimaryRunwayNumber(ERunwayNumber value) -> void = 0;
@@ -566,7 +566,7 @@ public:
 		Medical = 4
 	};
 
-	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto GetType() const -> EType = 0;
 	virtual auto SetType(EType value) -> void = 0;
@@ -588,7 +588,7 @@ public:
 class IBglRunwayDelete
 {
 public: // TODO - shared interface?
-	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
 	virtual auto SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
@@ -681,7 +681,7 @@ public:
 class IBglApron
 {
 public:
-	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto GetVertexCount() const -> int = 0;
 	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
@@ -693,7 +693,7 @@ public:
 class IBglApronPolygons
 {
 public:
-	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
 	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
 	virtual auto IsDrawSurface() const -> bool = 0;
 	virtual auto SetDrawSurface(bool value) -> void = 0;
@@ -707,6 +707,44 @@ public:
 	virtual auto GetIndexAt(int index) -> SBglIndex* = 0;
 	virtual auto AddIndex(const SBglIndex* index) -> void = 0;
 	virtual auto RemoveIndex(const SBglIndex* index) -> void = 0;
+};
+
+
+class IBglTaxiwayPoint
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0,
+		Normal = 1,
+		HoldShort = 2,
+		IlsHoldShort = 4,
+		HoldShortNoDraw = 5,
+		IlsHoldShortNoDraw = 6
+	};
+
+	enum class EOrientation : uint8_t
+	{
+		Forward = 0,
+		Reverse = 1
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetOrientation() const -> EOrientation = 0;
+	virtual auto SetOrientation(EOrientation value) -> void = 0;
+	virtual auto GetVertex() -> SBglVertexLL* = 0;
+	virtual auto SetVertex(SBglVertexLL* vertex) -> void = 0;
+};
+	
+
+class IBglTaxiwayPoints
+{
+public:
+	virtual auto GetPointCount() const -> int = 0;
+	virtual auto GetPointAt(int index) -> IBglTaxiwayPoint* = 0;
+	virtual auto AddPoint(const IBglTaxiwayPoint* point) -> void = 0;
+	virtual auto RemovePoint(const IBglTaxiwayPoint* point) -> void = 0;
 };
 	
 	
@@ -759,6 +797,8 @@ public:
 	virtual auto GetApronPolygonsAt(int index) -> IBglApronPolygons* = 0;
 	virtual auto AddApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
 	virtual auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
+	virtual auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* = 0;
+	virtual auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void = 0;
 };
 
 

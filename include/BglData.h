@@ -460,8 +460,8 @@ public:
 		auto Validate() -> bool override;
 		auto CalculateSize() const -> int override;
 
-		auto GetPosition() const->EPosition override;
-		auto GetSurfaceType() -> ESurfaceType override;
+		auto GetPosition() const -> EPosition override;
+		auto GetSurfaceType() const -> ESurfaceType override;
 		auto SetSurfaceType(ESurfaceType value) -> void override;
 		auto GetLength() const -> float override;
 		auto SetLength(float value) -> void override;
@@ -580,19 +580,19 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 
-	auto GetSurfaceType()->ESurfaceType override;
+	auto GetSurfaceType() const -> ESurfaceType override;
 	auto SetSurfaceType(ESurfaceType value) -> void override;
-	auto GetPrimaryRunwayNumber() const->ERunwayNumber override;
+	auto GetPrimaryRunwayNumber() const -> ERunwayNumber override;
 	auto SetPrimaryRunwayNumber(ERunwayNumber value) -> void override;
-	auto GetPrimaryRunwayDesignator() const->ERunwayDesignator override;
+	auto GetPrimaryRunwayDesignator() const -> ERunwayDesignator override;
 	auto SetPrimaryRunwayDesignator(ERunwayDesignator value) -> void override;
-	auto GetSecondaryRunwayNumber() const->ERunwayNumber override;
+	auto GetSecondaryRunwayNumber() const -> ERunwayNumber override;
 	auto SetSecondaryRunwayNumber(ERunwayNumber value) -> void override;
-	auto GetSecondaryRunwayDesignator() const->ERunwayDesignator override;
+	auto GetSecondaryRunwayDesignator() const -> ERunwayDesignator override;
 	auto SetSecondaryRunwayDesignator(ERunwayDesignator value) -> void override;
-	auto GetPrimaryIcaoIdent() const->uint32_t override;
+	auto GetPrimaryIcaoIdent() const -> uint32_t override;
 	auto SetPrimaryIcaoIdent(uint32_t value) -> void override;
-	auto GetSecondaryIcaoIdent() const->uint32_t override;
+	auto GetSecondaryIcaoIdent() const -> uint32_t override;
 	auto SetSecondaryIcaoIdent(uint32_t value) -> void override;
 	auto GetLength() const -> float override;
 	auto SetLength(float value) -> void override;
@@ -734,9 +734,9 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 	
-	auto GetRunwayNumber() const->IBglRunway::ERunwayNumber override;
+	auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber override;
 	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
-	auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator override;
+	auto GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator override;
 	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
 	auto GetType() const -> EType override;
 	auto SetType(EType value) -> void override;
@@ -827,7 +827,7 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 	
-	auto GetSurfaceType() -> ESurfaceType override;
+	auto GetSurfaceType() const -> ESurfaceType override;
 	auto SetSurfaceType(ESurfaceType value) -> void override;
 	auto GetType() const -> EType override;
 	auto SetType(EType value) -> void override;
@@ -876,16 +876,16 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 	
-	auto GetSurfaceType() -> ESurfaceType  override;
-	auto SetSurfaceType(ESurfaceType value) -> void  override;
-	auto GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber  override;
-	auto SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void  override;
-	auto GetPrimaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator  override;
-	auto SetPrimaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void  override;
-	auto GetSecondaryRunwayNumber() const -> IBglRunway::ERunwayNumber  override;
-	auto SetSecondaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void  override;
-	auto GetSecondaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator  override;
-	auto SetSecondaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void  override;
+	auto GetSurfaceType() const -> ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto GetPrimaryRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetPrimaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetPrimaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator override;
+	auto SetPrimaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetSecondaryRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetSecondaryRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetSecondaryRunwayDesignator() const -> IBglRunway::ERunwayDesignator override;
+	auto SetSecondaryRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
 
 private:
 	stlab::copy_on_write<SBglRunwayDeleteData> m_data;
@@ -1080,8 +1080,8 @@ public:
 	
 	auto GetVertexCount() const -> int override;
 	auto GetEdgeCount() const -> int override;
-	auto GetColor() const->uint32_t override;
-	auto SetColor(uint32_t value) -> void  override;
+	auto GetColor() const -> uint32_t override;
+	auto SetColor(uint32_t value) -> void override;
 	auto GetBrightness() const -> float override;
 	auto SetBrightness(float value) -> void override;
 	auto GetMaxAltitude() const -> float override;
@@ -1129,7 +1129,7 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 
-	auto GetSurfaceType() -> ESurfaceType override;
+	auto GetSurfaceType() const -> ESurfaceType override;
 	auto SetSurfaceType(ESurfaceType value) -> void override;
 	auto GetVertexCount() const -> int override;
 	auto GetVertexAt(int index) -> SBglVertexLL* override;
@@ -1173,7 +1173,7 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 
-	auto GetSurfaceType() -> ESurfaceType override;
+	auto GetSurfaceType() const -> ESurfaceType override;
 	auto SetSurfaceType(ESurfaceType value) -> void override;
 	auto IsDrawSurface() const -> bool override;
 	auto SetDrawSurface(bool value) -> void override;
@@ -1192,6 +1192,84 @@ private:
 	stlab::copy_on_write<SBglApronPolygonsData> m_data;
 	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
 	stlab::copy_on_write<std::vector<SBglIndex>> m_indices;
+};
+
+
+//******************************************************************************
+// CBglTaxiwayPoint
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayPointData
+{
+	uint8_t Type;
+	uint8_t Orientation;
+	uint16_t Pad;
+	SBglVertexLL Vertex;
+};
+
+#pragma pack(pop)
+
+	
+class CBglTaxiwayPoint final : public IBglSerializable, public IBglTaxiwayPoint
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetOrientation() const -> EOrientation override;
+	auto SetOrientation(EOrientation value) -> void override;
+	auto GetVertex() -> SBglVertexLL* override;
+	auto SetVertex(SBglVertexLL* vertex) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayPointData> m_data;
+};
+
+
+//******************************************************************************
+// CBglTaxiwayPoints
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayPointsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t PointCount;
+};
+
+#pragma pack(pop)
+	
+
+class CBglTaxiwayPoints final : public IBglSerializable, public IBglTaxiwayPoints
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetPointCount() const -> int override;
+	auto GetPointAt(int index) -> IBglTaxiwayPoint* override;
+	auto AddPoint(const IBglTaxiwayPoint* point) -> void override;
+	auto RemovePoint(const IBglTaxiwayPoint* point) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayPointsData> m_data;
+	stlab::copy_on_write<std::vector<CBglTaxiwayPoint>> m_points;
 };
 
 	
@@ -1287,6 +1365,8 @@ public:
 	auto GetApronPolygonsAt(int index) -> IBglApronPolygons* override;
 	auto AddApronPolygons(const IBglApronPolygons* polygons) -> void override;
 	auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void override;
+	auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* override;
+	auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1297,6 +1377,7 @@ private:
 	stlab::copy_on_write<CBglApronEdgeLights> m_apron_edge_lights;
 	stlab::copy_on_write<std::vector<CBglApron>> m_aprons;
 	stlab::copy_on_write<std::vector<CBglApronPolygons>> m_apron_polygons;
+	stlab::copy_on_write<CBglTaxiwayPoints> m_taxiway_points;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
