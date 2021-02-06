@@ -1070,7 +1070,7 @@ struct SBglApronEdgeLightsData
 #pragma pack(pop)
 
 	
-class CBglApronEdgeLights : public IBglSerializable, public IBglApronEdgeLights
+class CBglApronEdgeLights final : public IBglSerializable, public IBglApronEdgeLights
 {
 public:
 	auto ReadBinary(BinaryFileStream& in) -> void override;
@@ -1100,6 +1100,100 @@ private:
 	stlab::copy_on_write<std::vector<SBglEdge>> m_edges;
 	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
 };
+
+
+//******************************************************************************
+// CBglApron
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglApronData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t Surface;
+	uint16_t VertexCount;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglApron final : public IBglSerializable, public IBglApron
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetSurfaceType() -> ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto GetVertexCount() const -> int override;
+	auto GetVertexAt(int index) -> SBglVertexLL* override;
+	auto AddVertex(const SBglVertexLL* vertex) -> void override;
+	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
+	
+private:
+	stlab::copy_on_write<SBglApronData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
+
+	static constexpr int s_num_pad = 3;
+};
+
+
+//******************************************************************************
+// CBglApronPolygons
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglApronPolygonsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t Surface;
+	uint8_t Flags;
+	uint16_t VertexCount;
+	uint16_t IndexCount;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglApronPolygons final : public IBglSerializable, public IBglApronPolygons
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetSurfaceType() -> ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto IsDrawSurface() const -> bool override;
+	auto SetDrawSurface(bool value) -> void override;
+	auto IsDrawDetail() const -> bool override;
+	auto SetDrawDetail(bool value) -> void override;
+	auto GetVertexCount() const -> int override;
+	auto GetIndexCount() const -> int override;
+	auto GetVertexAt(int index) -> SBglVertexLL* override;
+	auto AddVertex(const SBglVertexLL* vertex) -> void override;
+	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
+	auto GetIndexAt(int index) -> SBglIndex* override;
+	auto AddIndex(const SBglIndex* index) -> void override;
+	auto RemoveIndex(const SBglIndex* index) -> void override;
+
+private:
+	stlab::copy_on_write<SBglApronPolygonsData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
+	stlab::copy_on_write<std::vector<SBglIndex>> m_indices;
+};
+
 	
 //******************************************************************************
 // CBglAirport
@@ -1187,6 +1281,12 @@ public:
 	auto SetDelete(IBglAirportDelete* value) -> void override;
 	auto GetApronEdgeLights() -> const IBglApronEdgeLights* override;
 	auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void override;
+	auto GetApronAt(int index) -> IBglApron* override;
+	auto AddApron(const IBglApron* apron) -> void override;
+	auto RemoveApron(const IBglApron* apron) -> void override;
+	auto GetApronPolygonsAt(int index) -> IBglApronPolygons* override;
+	auto AddApronPolygons(const IBglApronPolygons* polygons) -> void override;
+	auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1195,6 +1295,8 @@ private:
 	stlab::copy_on_write<std::vector<CBglHelipad>> m_helipads;
 	stlab::copy_on_write<CBglAirportDelete> m_delete;
 	stlab::copy_on_write<CBglApronEdgeLights> m_apron_edge_lights;
+	stlab::copy_on_write<std::vector<CBglApron>> m_aprons;
+	stlab::copy_on_write<std::vector<CBglApronPolygons>> m_apron_polygons;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

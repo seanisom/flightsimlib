@@ -111,6 +111,19 @@ struct SBglEdge
 
 #pragma pack(pop)
 
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglIndex
+{
+	uint16_t I0;
+	uint16_t I1;
+	uint16_t I2;
+};
+
+#pragma pack(pop)
+
 	
 class IBglFuelAvailability
 {
@@ -663,6 +676,38 @@ public:
 	virtual auto AddEdge(const SBglEdge* edge) -> void = 0;
 	virtual auto RemoveEdge(const SBglEdge* edge) -> void = 0;
 };
+
+
+class IBglApron
+{
+public:
+	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetVertexCount() const -> int = 0;
+	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
+	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
+};
+
+	
+class IBglApronPolygons
+{
+public:
+	virtual auto GetSurfaceType() -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto IsDrawSurface() const -> bool = 0;
+	virtual auto SetDrawSurface(bool value) -> void = 0;
+	virtual auto IsDrawDetail() const -> bool = 0;
+	virtual auto SetDrawDetail(bool value) -> void = 0;
+	virtual auto GetVertexCount() const -> int = 0;
+	virtual auto GetIndexCount() const -> int = 0;
+	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
+	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto GetIndexAt(int index) -> SBglIndex* = 0;
+	virtual auto AddIndex(const SBglIndex* index) -> void = 0;
+	virtual auto RemoveIndex(const SBglIndex* index) -> void = 0;
+};
 	
 	
 // TODO ! Handle P3D5 (and FS9 and P20)
@@ -708,6 +753,12 @@ public:
 	virtual auto SetDelete(IBglAirportDelete* value) -> void = 0;
 	virtual auto GetApronEdgeLights() -> const IBglApronEdgeLights* = 0;
 	virtual auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void = 0;
+	virtual auto GetApronAt(int index) -> IBglApron* = 0; // TODO - should these be collapsed
+	virtual auto AddApron(const IBglApron* apron) -> void = 0; // into a single apron interface? 
+	virtual auto RemoveApron(const IBglApron* apron) -> void = 0; // AddApron(apron, polygons) 
+	virtual auto GetApronPolygonsAt(int index) -> IBglApronPolygons* = 0;
+	virtual auto AddApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
+	virtual auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
 };
 
 

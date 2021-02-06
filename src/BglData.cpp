@@ -2612,6 +2612,250 @@ auto flightsimlib::io::CBglApronEdgeLights::IsEmpty() const -> bool
 
 
 //******************************************************************************
+// CBglApron
+//******************************************************************************
+
+
+auto flightsimlib::io::CBglApron::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Surface
+		>> data.VertexCount;
+
+	m_vertices.write().resize(m_data->VertexCount);
+
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.Longitude >> vertex.Latitude;
+	}
+
+	auto pad = uint8_t{ 0 };
+	
+	for (auto i = 0; i < s_num_pad; ++i)
+	{
+		in >> pad;
+	}
+}
+
+auto flightsimlib::io::CBglApron::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Surface
+		<< m_data->VertexCount;
+
+	for (const auto& vertex : m_vertices.read())
+	{
+		out << vertex.Longitude << vertex.Latitude;
+	}
+
+	const auto pad = uint8_t{ 0 };
+
+	for (auto i = 0; i < s_num_pad; ++i)
+	{
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglApron::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglApron::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglApronData) + s_num_pad + 
+		m_data->VertexCount * sizeof(SBglVertexLL));
+}
+
+auto flightsimlib::io::CBglApron::GetSurfaceType() -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->Surface);
+}
+
+auto flightsimlib::io::CBglApron::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().Surface = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglApron::GetVertexCount() const -> int
+{
+	return m_data->VertexCount;
+}
+
+auto flightsimlib::io::CBglApron::GetVertexAt(int index) -> SBglVertexLL*
+{
+	return &(m_vertices.write()[index]);
+}
+
+auto flightsimlib::io::CBglApron::AddVertex(const SBglVertexLL* vertex) -> void
+{
+	// TODO Need validation, self check, update count
+	m_vertices.write().emplace_back(*vertex);
+}
+
+auto flightsimlib::io::CBglApron::RemoveVertex(const SBglVertexLL* vertex) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), vertex);
+	m_vertices.write().erase(iter);
+}
+
+
+//******************************************************************************
+// CBglApronPolygons
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglApronPolygons::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Surface
+		>> data.Flags
+		>> data.VertexCount
+		>> data.IndexCount;
+
+	m_vertices.write().resize(m_data->VertexCount);
+	m_indices.write().resize(m_data->IndexCount);
+
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.Longitude >> vertex.Latitude;
+	}
+
+	for (auto& index : m_indices.write())
+	{
+		in >> index.I0 >> index.I1 >> index.I2;
+	}
+
+	if (m_data->IndexCount % 2)
+	{
+		auto pad = uint16_t{ 0 };
+		in >> pad;
+	}
+}
+
+auto flightsimlib::io::CBglApronPolygons::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Surface
+		<< m_data->Flags
+		<< m_data->VertexCount
+		<< m_data->IndexCount;
+
+	for (const auto& vertex : m_vertices.read())
+	{
+		out << vertex.Longitude << vertex.Latitude;
+	}
+
+	for (const auto& index : m_indices.read())
+	{
+		out << index.I0 << index.I1 << index.I2;
+	}
+
+	if (m_data->IndexCount % 2)
+	{
+		const auto pad = uint16_t{ 0 };
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglApronPolygons::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglApronPolygons::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglApronPolygonsData) +
+		m_data->VertexCount * sizeof(SBglVertexLL) + 
+		m_data->IndexCount * sizeof(SBglIndex) + 
+		(m_data->IndexCount % 2 ? sizeof(uint16_t) : 0));
+}
+
+auto flightsimlib::io::CBglApronPolygons::GetSurfaceType() -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->Surface);
+}
+
+auto flightsimlib::io::CBglApronPolygons::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().Surface = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglApronPolygons::IsDrawSurface() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 1, 0));
+}
+
+auto flightsimlib::io::CBglApronPolygons::SetDrawSurface(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, 0);
+}
+
+auto flightsimlib::io::CBglApronPolygons::IsDrawDetail() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 1, 1));
+}
+
+auto flightsimlib::io::CBglApronPolygons::SetDrawDetail(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, 1);
+}
+
+auto flightsimlib::io::CBglApronPolygons::GetVertexCount() const -> int
+{
+	return static_cast<int>(m_data->VertexCount);
+}
+
+auto flightsimlib::io::CBglApronPolygons::GetIndexCount() const -> int
+{
+	return static_cast<int>(m_data->IndexCount);
+}
+
+auto flightsimlib::io::CBglApronPolygons::GetVertexAt(int index) -> SBglVertexLL*
+{
+	return &(m_vertices.write()[index]);
+}
+
+auto flightsimlib::io::CBglApronPolygons::AddVertex(const SBglVertexLL* vertex) -> void
+{
+	// TODO Need validation, self check, update count
+	m_vertices.write().emplace_back(*vertex);
+}
+
+auto flightsimlib::io::CBglApronPolygons::RemoveVertex(const SBglVertexLL* vertex) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), vertex);
+	m_vertices.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglApronPolygons::GetIndexAt(int index) -> SBglIndex*
+{
+	return &(m_indices.write()[index]);
+}
+
+auto flightsimlib::io::CBglApronPolygons::AddIndex(const SBglIndex* index) -> void
+{
+	// TODO Need validation, self check, update count
+	m_indices.write().emplace_back(*index);
+}
+
+auto flightsimlib::io::CBglApronPolygons::RemoveIndex(const SBglIndex* index) -> void
+{
+	const auto iter = m_indices.read().begin() +
+		std::distance(m_indices.read().data(), index);
+	m_indices.write().erase(iter);
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************  
 
@@ -2714,6 +2958,28 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::Apron:
+			{
+				auto apron = CBglApron{};
+				apron.ReadBinary(in);
+				if (!apron.Validate())
+				{
+					return;
+				}
+				m_aprons.write().emplace_back(std::move(apron));
+			}
+			break;
+		case EBglLayerType::ApronPolygons:
+			{
+				auto apron_polygons = CBglApronPolygons{};
+				apron_polygons.ReadBinary(in);
+				if (!apron_polygons.Validate())
+				{
+					return;
+				}
+				m_apron_polygons.write().emplace_back(std::move(apron_polygons));
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -2779,6 +3045,12 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_apron_edge_lights.write().WriteBinary(out);
 	}
+
+	for (auto i = 0; i < m_data->ApronCount; ++i)
+	{
+		m_aprons.write()[i].WriteBinary(out);
+		m_apron_polygons.write()[i].WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -2815,6 +3087,16 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	if (!m_apron_edge_lights->IsEmpty())
 	{
 		count += m_apron_edge_lights.read().CalculateSize();
+	}
+
+	for (const auto& apron : m_aprons.read())
+	{
+		count += apron.CalculateSize();
+	}
+
+	for (const auto& apron_polygons : m_apron_polygons.read())
+	{
+		count += apron_polygons.CalculateSize();
 	}
 	
 	m_data.write().Size = count;
@@ -3036,6 +3318,40 @@ auto flightsimlib::io::CBglAirport::SetApronEdgeLights(IBglApronEdgeLights* valu
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
 	m_apron_edge_lights = { *static_cast<CBglApronEdgeLights*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetApronAt(int index) -> IBglApron*
+{
+	return &(m_aprons.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddApron(const IBglApron* apron) -> void
+{
+	m_aprons.write().emplace_back(*static_cast<const CBglApron*>(apron));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveApron(const IBglApron* apron) -> void
+{
+	const auto iter = m_aprons.read().begin() +
+		std::distance(m_aprons.read().data(), static_cast<const CBglApron*>(apron));
+	m_aprons.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetApronPolygonsAt(int index) -> IBglApronPolygons*
+{
+	return &(m_apron_polygons.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddApronPolygons(const IBglApronPolygons* polygons) -> void
+{
+	m_apron_polygons.write().emplace_back(*static_cast<const CBglApronPolygons*>(polygons));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveApronPolygons(const IBglApronPolygons* polygons) -> void
+{
+	const auto iter = m_apron_polygons.read().begin() +
+		std::distance(m_apron_polygons.read().data(), static_cast<const CBglApronPolygons*>(polygons));
+	m_apron_polygons.write().erase(iter);
 }
 
 
