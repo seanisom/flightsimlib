@@ -1272,6 +1272,110 @@ private:
 	stlab::copy_on_write<std::vector<CBglTaxiwayPoint>> m_points;
 };
 
+
+//******************************************************************************
+// CBglTaxiwayParking
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayParkingData
+{
+	uint32_t Flags;
+	float Radius;
+	float Heading;
+	float TeeOffset1;
+	float TeeOffset2;
+	float TeeOffset3;
+	float TeeOffset4;
+	SBglVertexLL Vertex;
+};
+
+#pragma pack(pop)
+	
+	
+// TODO - Handle XML Index (and adjust)
+class CBglTaxiwayParking final : public IBglSerializable, public IBglTaxiwayParking
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetAirlineCodeCount() const -> int override;
+	auto GetNumber() const -> uint16_t override;
+	auto SetNumber(uint16_t value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetPushback() const -> EPushback override;
+	auto SetPushback(EPushback value) -> void override;
+	auto GetName() const -> EName override;
+	auto SetName(EName value) -> void override;
+	auto GetRadius() const -> float override;
+	auto SetRadius(float value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetTeeOffset1() const -> float override;
+	auto SetTeeOffset1(float value) -> void override;
+	auto GetTeeOffset2() const -> float override;
+	auto SetTeeOffset2(float value) -> void override;
+	auto GetTeeOffset3() const -> float override;
+	auto SetTeeOffset3(float value) -> void override;
+	auto GetTeeOffset4() const -> float override;
+	auto SetTeeOffset4(float value) -> void override;
+	auto GetAirlineCodeAt(int index) const -> const char* override;
+	auto AddAirlineCode(const char* code) -> void override;
+	auto RemoveAirlineCode(const char* code) -> void override;
+
+	auto SetAirlineCodeCount(int value) -> void;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayParkingData> m_data;
+	stlab::copy_on_write<std::vector<std::string>> m_codes;
+};
+
+
+//******************************************************************************
+// CBglTaxiwayParkings
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayParkingsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t ParkingCount;
+};
+
+#pragma pack(pop)
+
+
+class CBglTaxiwayParkings final : public IBglSerializable, public IBglTaxiwayParkings
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetParkingCount() const -> int override;
+	auto GetParkingAt(int index) -> IBglTaxiwayParking* override;
+	auto AddParking(const IBglTaxiwayParking* parking) -> void override;
+	auto RemoveParking(const IBglTaxiwayParking* parking) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayParkingsData> m_data;
+	stlab::copy_on_write<std::vector<CBglTaxiwayParking>> m_parkings;
+};
+	
 	
 //******************************************************************************
 // CBglAirport
@@ -1367,6 +1471,8 @@ public:
 	auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void override;
 	auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* override;
 	auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void override;
+	auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* override;
+	auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1378,6 +1484,7 @@ private:
 	stlab::copy_on_write<std::vector<CBglApron>> m_aprons;
 	stlab::copy_on_write<std::vector<CBglApronPolygons>> m_apron_polygons;
 	stlab::copy_on_write<CBglTaxiwayPoints> m_taxiway_points;
+	stlab::copy_on_write<CBglTaxiwayParkings> m_taxiway_parkings;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 

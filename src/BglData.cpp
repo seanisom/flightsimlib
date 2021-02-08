@@ -2992,8 +2992,283 @@ auto flightsimlib::io::CBglTaxiwayPoints::IsEmpty() const -> bool
 
 
 //******************************************************************************
-// CBglAirport
+// CBglTaxiwayParking
 //******************************************************************************  
+
+
+auto flightsimlib::io::CBglTaxiwayParking::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Flags
+		>> data.Radius
+		>> data.Heading
+		>> data.TeeOffset1
+		>> data.TeeOffset2
+		>> data.TeeOffset3
+		>> data.TeeOffset4
+		>> data.Vertex.Longitude
+		>> data.Vertex.Latitude;
+
+	m_codes.write().resize(GetAirlineCodeCount());
+
+	for (auto& code : m_codes.write())
+	{
+		code.assign(in.ReadString(static_cast<int>(sizeof(uint32_t))));
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Flags
+		<< m_data->Radius
+		<< m_data->Heading
+		<< m_data->TeeOffset1
+		<< m_data->TeeOffset2
+		<< m_data->TeeOffset3
+		<< m_data->TeeOffset4
+		<< m_data->Vertex.Longitude
+		<< m_data->Vertex.Latitude;
+
+	for (const auto& point : m_codes.read())
+	{
+		const auto size = static_cast<int>(point.size());
+		out.Write(point.c_str(), size);
+
+		const auto pad_size = size % 4;
+
+		for (auto i = 0; i < pad_size; ++i)
+		{
+			auto pad = uint8_t{ 0 };
+			out << pad;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayParkingData) +
+		m_codes->size() * sizeof(uint32_t));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetAirlineCodeCount() const -> int
+{
+	// TODO - these offsets should be flags
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 12, 24));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetNumber() const -> uint16_t
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 12, 12));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetNumber(uint16_t value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 12, 12);
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->Flags, 4, 8));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().Flags, to_integral(value), 4, 8);
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetPushback() const -> EPushback
+{
+	return static_cast<EPushback>(get_packed_bits(m_data->Flags, 2, 6));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetPushback(EPushback value) -> void
+{
+	set_packed_bits(m_data.write().Flags, to_integral(value), 2, 6);
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetName() const -> EName
+{
+	return static_cast<EName>(get_packed_bits(m_data->Flags, 6, 0));
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetName(EName value) -> void
+{
+	set_packed_bits(m_data.write().Flags, to_integral(value), 6, 0);
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetRadius() const -> float
+{
+	return m_data->Radius;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetRadius(float value) -> void
+{
+	m_data.write().Radius = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetTeeOffset1() const -> float
+{
+	return m_data->TeeOffset1;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetTeeOffset1(float value) -> void
+{
+	m_data.write().TeeOffset1 = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetTeeOffset2() const -> float
+{
+	return m_data->TeeOffset2;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetTeeOffset2(float value) -> void
+{
+	m_data.write().TeeOffset2 = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetTeeOffset3() const -> float
+{
+	return m_data->TeeOffset3;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetTeeOffset3(float value) -> void
+{
+	m_data.write().TeeOffset3 = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetTeeOffset4() const -> float
+{
+	return m_data->TeeOffset4;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetTeeOffset4(float value) -> void
+{
+	m_data.write().TeeOffset4 = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::GetAirlineCodeAt(int index) const -> const char*
+{
+	return m_codes.read()[index].c_str();
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::AddAirlineCode(const char* code) -> void
+{
+	m_codes.write().emplace_back(code);
+	SetAirlineCodeCount(GetAirlineCodeCount() + 1);
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::RemoveAirlineCode(const char* code) -> void
+{
+	const auto str_code = std::string{ code };
+	const auto iter = std::find(m_codes->begin(), m_codes->end(), str_code);
+	if (iter != m_codes->end())
+	{
+		m_codes.write().erase(iter);
+		SetAirlineCodeCount(GetAirlineCodeCount() - 1);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayParking::SetAirlineCodeCount(int value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 12, 24);
+}
+
+
+//******************************************************************************
+// CBglTaxiwayParkings
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwayParkings::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.ParkingCount;
+
+	m_parkings.write().resize(m_data->ParkingCount);
+
+	for (auto& parking : m_parkings.write())
+	{
+		parking.ReadBinary(in);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->ParkingCount;
+
+	for (auto& parking : m_parkings.write())
+	{
+		parking.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglTaxiwayParkingsData));
+
+	for (const auto& parking : m_parkings.read())
+	{
+		count += parking.CalculateSize();
+	}
+	
+	return count;
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::GetParkingCount() const -> int
+{
+	return static_cast<int>(m_data->ParkingCount);
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::GetParkingAt(int index) -> IBglTaxiwayParking*
+{
+	return &(m_parkings.write()[index]);
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::AddParking(const IBglTaxiwayParking* parking) -> void
+{
+	m_parkings.write().emplace_back(*static_cast<const CBglTaxiwayParking*>(parking));
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::RemoveParking(const IBglTaxiwayParking* parking) -> void
+{
+	const auto iter = m_parkings.read().begin() +
+		std::distance(m_parkings.read().data(), static_cast<const CBglTaxiwayParking*>(parking));
+	m_parkings.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglTaxiwayParkings::IsEmpty() const -> bool
+{
+	return m_data->Type == 0;
+}
+
+
+//******************************************************************************
+// CBglAirport
+//******************************************************************************
 
 
 auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
@@ -3123,6 +3398,13 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::TaxiwayParking:
+			m_taxiway_parkings.write().ReadBinary(in);
+			if (!m_taxiway_parkings.write().Validate())
+			{
+				return;
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -3199,11 +3481,15 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_taxiway_points.write().WriteBinary(out);
 	}
+
+	if (!m_taxiway_parkings->IsEmpty())
+	{
+		m_taxiway_parkings.write().WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
 {
-	// TODO - static size
 	auto count = static_cast<int>(sizeof(SBglAirportData)) +
 		CBglName::CalculateSize();
 
@@ -3229,12 +3515,12 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 
 	if (!m_delete->IsEmpty())
 	{
-		count += m_delete.read().CalculateSize();
+		count += m_delete->CalculateSize();
 	}
 
 	if (!m_apron_edge_lights->IsEmpty())
 	{
-		count += m_apron_edge_lights.read().CalculateSize();
+		count += m_apron_edge_lights->CalculateSize();
 	}
 
 	for (const auto& apron : m_aprons.read())
@@ -3249,7 +3535,12 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 
 	if (!m_taxiway_points->IsEmpty())
 	{
-		count +=  m_taxiway_points.read().CalculateSize();
+		count +=  m_taxiway_points->CalculateSize();
+	}
+
+	if (!m_taxiway_parkings->IsEmpty())
+	{
+		count += m_taxiway_parkings->CalculateSize();
 	}
 	
 	m_data.write().Size = count;
@@ -3520,6 +3811,21 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayPoints(IBglTaxiwayPoints* value) -
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
 	m_taxiway_points = { *static_cast<CBglTaxiwayPoints*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetTaxiwayParkings() -> const IBglTaxiwayParkings*
+{
+	if (m_taxiway_parkings->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_taxiway_parkings.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_taxiway_parkings = { *static_cast<CBglTaxiwayParkings*>(value) };
 }
 
 

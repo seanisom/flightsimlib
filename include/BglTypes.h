@@ -710,6 +710,7 @@ public:
 };
 
 
+// TODO - Handle XML Index (and adjust)
 class IBglTaxiwayPoint
 {
 public:
@@ -745,6 +746,115 @@ public:
 	virtual auto GetPointAt(int index) -> IBglTaxiwayPoint* = 0;
 	virtual auto AddPoint(const IBglTaxiwayPoint* point) -> void = 0;
 	virtual auto RemovePoint(const IBglTaxiwayPoint* point) -> void = 0;
+};
+
+
+// TODO - Handle XML Index (and adjust)
+class IBglTaxiwayParking
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		RampGa = 0x1,
+		RampGaSmall = 0x2,
+		RampGaMedium = 0x3,
+		RampGaLarge = 0x4,
+		RampCargo = 0x5,
+		RampMilCargo = 0x6,
+		RampMilCombat = 0x7,
+		GateSmall = 0x8,
+		GateMedium = 0x9,
+		HateHeavy = 0xA,
+		DockGa = 0xB,
+		Fuel = 0xC,
+		Vehicle = 0xD
+	};
+
+	enum class EPushback : uint8_t
+	{
+		None = 0,
+		Left = 0x1,
+		Right = 0x2,
+		Both = 0x3
+	};
+
+	enum class EName : uint8_t
+	{
+		None = 0x0,
+		Parking = 0x1,
+		ParkingN = 0x2,
+		ParkingNe = 0x3,
+		ParkingE = 0x4,
+		ParkingSe = 0x5,
+		ParkingS = 0x6,
+		ParkingSw = 0x7,
+		ParkingW = 0x8,
+		ParkingNw = 0x9,
+		Gate = 0xA,
+		Dock = 0xB,
+		GateA = 0xC,
+		GateB = 0xD,
+		GateC = 0xE,
+		GateD = 0xF,
+		GateE = 0x10,
+		GateF = 0x11,
+		GateG = 0x12,
+		GateH = 0x13,
+		GateI = 0x14,
+		GateJ = 0x15,
+		GateK = 0x16,
+		GateL = 0x17,
+		GateM = 0x18,
+		GateN = 0x19,
+		GateO = 0x1A,
+		GateP = 0x1B,
+		GateQ = 0x1C,
+		GateR = 0x1D,
+		GateS = 0x1E,
+		GateT = 0x1F,
+		GateU = 0x20,
+		GateV = 0x21,
+		GateW = 0x22,
+		GateX = 0x23,
+		GateY = 0x24,
+		GateZ = 0x25
+	};
+	
+	virtual auto GetAirlineCodeCount() const -> int = 0;
+	virtual auto GetNumber() const -> uint16_t = 0;
+	virtual auto SetNumber(uint16_t value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetPushback() const -> EPushback = 0;
+	virtual auto SetPushback(EPushback value) -> void = 0;
+	virtual auto GetName() const -> EName = 0;
+	virtual auto SetName(EName value) -> void = 0;
+	virtual auto GetRadius() const -> float = 0;
+	virtual auto SetRadius(float value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+	virtual auto GetTeeOffset1() const -> float = 0;
+	virtual auto SetTeeOffset1(float value) -> void = 0;
+	virtual auto GetTeeOffset2() const -> float = 0;
+	virtual auto SetTeeOffset2(float value) -> void = 0;
+	virtual auto GetTeeOffset3() const -> float = 0;
+	virtual auto SetTeeOffset3(float value) -> void = 0;
+	virtual auto GetTeeOffset4() const -> float = 0;
+	virtual auto SetTeeOffset4(float value) -> void = 0;
+	virtual auto GetAirlineCodeAt(int index) const -> const char* = 0;
+	virtual auto AddAirlineCode(const char* code) -> void = 0;
+	virtual auto RemoveAirlineCode(const char* code) -> void = 0;
+};
+
+	
+class IBglTaxiwayParkings
+{
+public:
+	virtual auto GetParkingCount() const -> int = 0;
+	virtual auto GetParkingAt(int index) -> IBglTaxiwayParking* = 0;
+	virtual auto AddParking(const IBglTaxiwayParking* parking) -> void = 0;
+	virtual auto RemoveParking(const IBglTaxiwayParking* parking) -> void = 0;
 };
 	
 	
@@ -799,6 +909,8 @@ public:
 	virtual auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
 	virtual auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* = 0;
 	virtual auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void = 0;
+	virtual auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* = 0;
+	virtual auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void = 0;
 };
 
 
