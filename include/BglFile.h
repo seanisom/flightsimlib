@@ -87,7 +87,7 @@ enum class EBglLayerType : uint32_t
 	Name = 0x19,
 	TaxiwayPoint = 0x1A,
 	TaxiwayPath = 0x1C,
-	TaxiNam = 0x1D,
+	TaxiName = 0x1D,
 	Boundary = 0x20,
 	Waypoint = 0x22,
 	Geopol = 0x23,

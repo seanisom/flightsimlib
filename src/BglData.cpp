@@ -3014,6 +3014,8 @@ auto flightsimlib::io::CBglTaxiwayParking::ReadBinary(BinaryFileStream& in) -> v
 	for (auto& code : m_codes.write())
 	{
 		code.assign(in.ReadString(static_cast<int>(sizeof(uint32_t))));
+		code.erase(std::find(
+			code.begin(), code.end(), '\0'), code.end());
 	}
 }
 
@@ -3029,12 +3031,17 @@ auto flightsimlib::io::CBglTaxiwayParking::WriteBinary(BinaryFileStream& out) ->
 		<< m_data->Vertex.Longitude
 		<< m_data->Vertex.Latitude;
 
-	for (const auto& point : m_codes.read())
+	for (const auto& code : m_codes.read())
 	{
-		const auto size = static_cast<int>(point.size());
-		out.Write(point.c_str(), size);
+		const auto size = static_cast<int>(code.size());
+		out.Write(code.c_str(), size);
 
-		const auto pad_size = size % 4;
+		// TODO - Pad utility
+		const auto pad_size = 4 - size % 4;
+		if (pad_size == 4 && size != 0)
+		{
+			continue;
+		}
 
 		for (auto i = 0; i < pad_size; ++i)
 		{
@@ -3267,6 +3274,382 @@ auto flightsimlib::io::CBglTaxiwayParkings::IsEmpty() const -> bool
 
 
 //******************************************************************************
+// CBglTaxiwayPath
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwayPath::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	
+	in >> data.StartIndex
+		>> data.EndIndex
+		>> data.TypeFlags
+		>> data.NameIndex
+		>> data.MarkingFlags
+		>> data.Surface
+		>> data.Width
+		>> data.WeightLimit
+		>> data.Unknown;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->StartIndex
+		<< m_data->EndIndex
+		<< m_data->TypeFlags
+		<< m_data->NameIndex
+		<< m_data->MarkingFlags
+		<< m_data->Surface
+		<< m_data->Width
+		<< m_data->WeightLimit
+		<< m_data->Unknown;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayPathData));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetStartIndex() const -> int
+{
+	return static_cast<int>(m_data->StartIndex);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetStartIndex(int value) -> void
+{
+	m_data.write().StartIndex = static_cast<uint16_t>(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetEndIndex() const -> int
+{
+	return static_cast<int>(get_packed_bits(m_data->EndIndex, 12, 0));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetEndIndex(int value) -> void
+{
+	set_packed_bits(m_data.write().EndIndex, value, 12, 0);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->TypeFlags, 5, 0));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().TypeFlags, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->NameIndex);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().NameIndex = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(get_packed_bits(m_data->EndIndex, 4, 12));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	set_packed_bits(m_data.write().EndIndex, to_integral(value), 4, 12);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetNameIndex() const -> int
+{
+	return static_cast<int>(m_data->NameIndex);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetNameIndex(int value) -> void
+{
+	m_data.write().NameIndex = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::IsDrawSurface() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->TypeFlags, 1, 5));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetDrawSurface(bool value) -> void
+{
+	set_packed_bits(m_data.write().TypeFlags, value, 1, 5);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::IsDrawDetail() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->TypeFlags, 1, 6));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetDrawDetail(bool value) -> void
+{
+	set_packed_bits(m_data.write().TypeFlags, value, 1, 6);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::HasCenterLine() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1, 0));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetCenterLine(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1, 0);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::IsCenterLineLighted() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1, 1));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetCenterLineLighted(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1, 1);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::IsLeftEdgeLighted() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1, 4));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetsLeftEdgeLighted(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1, 4);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::IsRightEdgeLighted() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->MarkingFlags, 1, 7));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetsRightEdgeLighted(bool value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, value, 1, 7);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetLeftEdge() const -> ELightType
+{
+	return static_cast<ELightType>(get_packed_bits(m_data->MarkingFlags, 2, 2));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetLeftEdge(ELightType value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, to_integral(value), 2, 2);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetRightEdge() const -> ELightType
+{
+	return static_cast<ELightType>(get_packed_bits(m_data->MarkingFlags, 2, 5));
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetRightEdge(ELightType value) -> void
+{
+	set_packed_bits(m_data.write().MarkingFlags, to_integral(value), 2, 5);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetSurfaceType() const -> ESurfaceType
+{
+	return static_cast<ESurfaceType>(m_data->Surface);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetSurfaceType(ESurfaceType value) -> void
+{
+	m_data.write().Surface = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetWidth() const -> float
+{
+	return m_data->Width;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetWidth(float value) -> void
+{
+	m_data.write().Width = value;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::GetWeightLimit() const -> float
+{
+	return m_data->WeightLimit;
+}
+
+auto flightsimlib::io::CBglTaxiwayPath::SetWeightLimit(float value) -> void
+{
+	m_data.write().WeightLimit = value;
+}
+
+
+//******************************************************************************
+// CBglTaxiwayPaths
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglTaxiwayPaths::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.PathCount;
+
+	m_paths.write().resize(m_data->PathCount);
+
+	for (auto& path : m_paths.write())
+	{
+		path.ReadBinary(in);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->PathCount;
+
+	for (auto& path : m_paths.write())
+	{
+		path.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayPathsData) + // could sum CalculateSize() but this
+		m_data->PathCount * sizeof(SBglTaxiwayPathData)); // seems like unnecessary performance hit 
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::GetPathCount() const -> int
+{
+	return static_cast<int>(m_data->PathCount);
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::GetPathAt(int index) -> IBglTaxiwayPath*
+{
+	return &(m_paths.write()[index]);
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::AddPath(const IBglTaxiwayPath* path) -> void
+{
+	m_paths.write().emplace_back(*static_cast<const CBglTaxiwayPath*>(path));
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::RemovePath(const IBglTaxiwayPath* path) -> void
+{
+	const auto iter = m_paths.read().begin() +
+		std::distance(m_paths.read().data(), static_cast<const CBglTaxiwayPath*>(path));
+	m_paths.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglTaxiwayPaths::IsEmpty() const -> bool
+{
+	return m_data->Type == 0;
+}
+
+
+//******************************************************************************
+// CBglTaxiwayNames
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTaxiwayNames::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.NameCount;
+
+	m_names.write().resize(m_data->NameCount);
+
+	for (auto& name : m_names.write())
+	{
+		name.assign(in.ReadString(static_cast<int>(sizeof(uint64_t))));
+		name.erase(std::find(
+			name.begin(), name.end(), '\0'), name.end());
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->NameCount;
+
+	for (const auto& name : m_names.read())
+	{
+		const auto size = static_cast<int>(name.size());
+		out.Write(name.c_str(), size);
+
+		const auto pad_size = 8 - size % 8;
+		if (pad_size == 8 && size != 0)
+		{
+			continue;
+		}
+
+		for (auto i = 0; i < pad_size; ++i)
+		{
+			auto pad = uint8_t{ 0 };
+			out << pad;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglTaxiwayNamesData) +
+		m_names->size() * sizeof(uint64_t));
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::GetNameCount() const -> int
+{
+	return static_cast<int>(m_data->NameCount);
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::GetNameAt(int index) const -> const char*
+{
+	return m_names.read()[index].c_str();
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::AddName(const char* name) -> void
+{
+	m_names.write().emplace_back(name);
+	++(m_data.write().NameCount);
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::RemoveName(const char* name) -> void
+{
+	const auto name_str = std::string{ name };
+	const auto iter = std::find(m_names->begin(), m_names->end(), name_str);
+	if (iter != m_names->end())
+	{
+		m_names.write().erase(iter);
+		--(m_data.write().NameCount);
+	}
+}
+
+auto flightsimlib::io::CBglTaxiwayNames::IsEmpty() const -> bool
+{
+	return m_data->Type == 0;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************
 
@@ -3405,6 +3788,20 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::TaxiwayPath:
+			m_taxiway_paths.write().ReadBinary(in);
+			if (!m_taxiway_paths.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EBglLayerType::TaxiName:
+			m_taxiway_names.write().ReadBinary(in);
+			if (!m_taxiway_names.write().Validate())
+			{
+				return;
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -3486,6 +3883,16 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_taxiway_parkings.write().WriteBinary(out);
 	}
+
+	if (!m_taxiway_paths->IsEmpty())
+	{
+		m_taxiway_paths.write().WriteBinary(out);
+	}
+
+	if (!m_taxiway_names->IsEmpty())
+	{
+		m_taxiway_names.write().WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -3541,6 +3948,16 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	if (!m_taxiway_parkings->IsEmpty())
 	{
 		count += m_taxiway_parkings->CalculateSize();
+	}
+
+	if (!m_taxiway_paths->IsEmpty())
+	{
+		count += m_taxiway_paths->CalculateSize();
+	}
+
+	if (!m_taxiway_names->IsEmpty())
+	{
+		count += m_taxiway_names->CalculateSize();
 	}
 	
 	m_data.write().Size = count;
@@ -3826,6 +4243,36 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayParkings(IBglTaxiwayParkings* valu
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
 	m_taxiway_parkings = { *static_cast<CBglTaxiwayParkings*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetTaxiwayPaths() -> const IBglTaxiwayPaths*
+{
+	if (m_taxiway_paths->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_taxiway_paths.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_taxiway_paths = { *static_cast<CBglTaxiwayPaths*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetTaxiwayNames() -> const IBglTaxiwayNames*
+{
+	if (m_taxiway_names->IsEmpty())
+	{
+		return nullptr;
+	}
+	return m_taxiway_names.operator->();
+}
+
+auto flightsimlib::io::CBglAirport::SetTaxiwayNames(IBglTaxiwayNames* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_taxiway_names = { *static_cast<CBglTaxiwayNames*>(value) };
 }
 
 

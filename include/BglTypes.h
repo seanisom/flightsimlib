@@ -856,6 +856,84 @@ public:
 	virtual auto AddParking(const IBglTaxiwayParking* parking) -> void = 0;
 	virtual auto RemoveParking(const IBglTaxiwayParking* parking) -> void = 0;
 };
+
+
+class IBglTaxiwayPath
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		Taxi = 0x1,
+		Runway = 0x2,
+		Parking = 0x3,
+		Path = 0x4,
+		Closed = 0x5,
+		Vehicle = 0x6
+	};
+
+	enum class ELightType : uint8_t
+	{
+		None = 0x0,
+		Solid = 0x1,
+		Dashed = 0x2,
+		SolidDashed = 0x3
+	};
+	
+	virtual auto GetStartIndex() const -> int = 0;
+	virtual auto SetStartIndex(int value) -> void = 0;
+	virtual auto GetEndIndex() const -> int = 0;
+	virtual auto SetEndIndex(int value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetNameIndex() const -> int = 0;
+	virtual auto SetNameIndex(int value) -> void = 0;
+	virtual auto IsDrawSurface() const -> bool = 0;
+	virtual auto SetDrawSurface(bool value) -> void = 0;
+	virtual auto IsDrawDetail() const -> bool = 0;
+	virtual auto SetDrawDetail(bool value) -> void = 0;
+	virtual auto HasCenterLine() const -> bool = 0;
+	virtual auto SetCenterLine(bool value) -> void = 0;
+	virtual auto IsCenterLineLighted() const -> bool = 0;
+	virtual auto SetCenterLineLighted(bool value) -> void = 0;
+	virtual auto IsLeftEdgeLighted() const -> bool = 0;
+	virtual auto SetsLeftEdgeLighted(bool value) -> void = 0;
+	virtual auto IsRightEdgeLighted() const -> bool = 0;
+	virtual auto SetsRightEdgeLighted(bool value) -> void = 0;
+	virtual auto GetLeftEdge() const->ELightType = 0;
+	virtual auto SetLeftEdge(ELightType value) -> void = 0;
+	virtual auto GetRightEdge() const->ELightType = 0;
+	virtual auto SetRightEdge(ELightType value) -> void = 0;
+	virtual auto GetSurfaceType() const -> ESurfaceType = 0;
+	virtual auto SetSurfaceType(ESurfaceType value) -> void = 0;
+	virtual auto GetWidth() const -> float = 0;
+	virtual auto SetWidth(float value) -> void = 0;
+	virtual auto GetWeightLimit() const -> float = 0;
+	virtual auto SetWeightLimit(float value) -> void = 0;
+};
+	
+class IBglTaxiwayPaths
+{
+public:
+	virtual auto GetPathCount() const -> int = 0;
+	virtual auto GetPathAt(int index) -> IBglTaxiwayPath* = 0;
+	virtual auto AddPath(const IBglTaxiwayPath* path) -> void = 0;
+	virtual auto RemovePath(const IBglTaxiwayPath* path) -> void = 0;
+};
+	
+	
+class IBglTaxiwayNames
+{
+public:
+	virtual auto GetNameCount() const -> int = 0;
+	virtual auto GetNameAt(int index) const -> const char* = 0;
+	virtual auto AddName(const char* name) -> void = 0;
+	virtual auto RemoveName(const char* name) -> void = 0;
+};
 	
 	
 // TODO ! Handle P3D5 (and FS9 and P20)
@@ -911,6 +989,10 @@ public:
 	virtual auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void = 0;
 	virtual auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* = 0;
 	virtual auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void = 0;
+	virtual auto GetTaxiwayPaths() -> const IBglTaxiwayPaths* = 0;
+	virtual auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void = 0;
+	virtual auto GetTaxiwayNames() -> const IBglTaxiwayNames* = 0;
+	virtual auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void = 0;
 };
 
 

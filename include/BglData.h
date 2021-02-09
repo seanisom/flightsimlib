@@ -1375,6 +1375,156 @@ private:
 	stlab::copy_on_write<SBglTaxiwayParkingsData> m_data;
 	stlab::copy_on_write<std::vector<CBglTaxiwayParking>> m_parkings;
 };
+
+
+//******************************************************************************
+// CBglTaxiwayPath
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayPathData
+{
+	uint16_t StartIndex;
+	uint16_t EndIndex;
+	uint8_t TypeFlags;
+	uint8_t NameIndex;
+	uint8_t MarkingFlags;
+	uint8_t Surface;
+	float Width;
+	float WeightLimit;
+	float Unknown;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglTaxiwayPath final : public IBglSerializable, public IBglTaxiwayPath
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetStartIndex() const -> int override;
+	auto SetStartIndex(int value) -> void override;
+	auto GetEndIndex() const -> int override;
+	auto SetEndIndex(int value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator override;
+	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetNameIndex() const -> int override;
+	auto SetNameIndex(int value) -> void override;
+	auto IsDrawSurface() const -> bool override;
+	auto SetDrawSurface(bool value) -> void override;
+	auto IsDrawDetail() const -> bool override;
+	auto SetDrawDetail(bool value) -> void override;
+	auto HasCenterLine() const -> bool override;
+	auto SetCenterLine(bool value) -> void override;
+	auto IsCenterLineLighted() const -> bool override;
+	auto SetCenterLineLighted(bool value) -> void override;
+	auto IsLeftEdgeLighted() const -> bool override;
+	auto SetsLeftEdgeLighted(bool value) -> void override;
+	auto IsRightEdgeLighted() const -> bool override;
+	auto SetsRightEdgeLighted(bool value) -> void override;
+	auto GetLeftEdge() const -> ELightType override;
+	auto SetLeftEdge(ELightType value) -> void override;
+	auto GetRightEdge() const -> ELightType override;
+	auto SetRightEdge(ELightType value) -> void override;
+	auto GetSurfaceType() const -> ESurfaceType override;
+	auto SetSurfaceType(ESurfaceType value) -> void override;
+	auto GetWidth() const -> float override;
+	auto SetWidth(float value) -> void override;
+	auto GetWeightLimit() const -> float override;
+	auto SetWeightLimit(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayPathData> m_data;
+};
+
+
+//******************************************************************************
+// CBglTaxiwayPaths
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayPathsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t PathCount;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglTaxiwayPaths final : public IBglSerializable, public IBglTaxiwayPaths
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetPathCount() const -> int override;
+	auto GetPathAt(int index) -> IBglTaxiwayPath* override;
+	auto AddPath(const IBglTaxiwayPath* path) -> void override;
+	auto RemovePath(const IBglTaxiwayPath* path) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglTaxiwayPathsData> m_data;
+	stlab::copy_on_write<std::vector<CBglTaxiwayPath>> m_paths;
+};
+	
+	
+//******************************************************************************
+// CBglTaxiwayNames
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTaxiwayNamesData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t NameCount;
+};
+
+#pragma pack(pop)
+	
+
+class CBglTaxiwayNames final : public IBglSerializable, public IBglTaxiwayNames
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetNameCount() const -> int override;
+	auto GetNameAt(int index) const -> const char* override;
+	auto AddName(const char* name) -> void override;
+	auto RemoveName(const char* name) -> void override;
+
+	auto IsEmpty() const -> bool;
+	
+private:
+	stlab::copy_on_write<SBglTaxiwayNamesData> m_data;
+	stlab::copy_on_write<std::vector<std::string>> m_names;
+};
 	
 	
 //******************************************************************************
@@ -1473,6 +1623,10 @@ public:
 	auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void override;
 	auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* override;
 	auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void override;
+	auto GetTaxiwayPaths() -> const IBglTaxiwayPaths* override;
+	auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void override;
+	auto GetTaxiwayNames() -> const IBglTaxiwayNames* override;
+	auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1485,6 +1639,8 @@ private:
 	stlab::copy_on_write<std::vector<CBglApronPolygons>> m_apron_polygons;
 	stlab::copy_on_write<CBglTaxiwayPoints> m_taxiway_points;
 	stlab::copy_on_write<CBglTaxiwayParkings> m_taxiway_parkings;
+	stlab::copy_on_write<CBglTaxiwayPaths> m_taxiway_paths;
+	stlab::copy_on_write<CBglTaxiwayNames> m_taxiway_names;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
