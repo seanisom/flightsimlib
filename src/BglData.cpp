@@ -3650,6 +3650,160 @@ auto flightsimlib::io::CBglTaxiwayNames::IsEmpty() const -> bool
 
 
 //******************************************************************************
+// CBglJetway
+//****************************************************************************** 
+
+
+flightsimlib::io::CBglJetway::CBglJetway(CBglJetway const& other)
+{
+	m_scenery_object = m_scenery_object->Clone();
+}
+
+flightsimlib::io::CBglJetway& flightsimlib::io::CBglJetway::operator=(CBglJetway const& other)
+{
+	m_scenery_object = other.m_scenery_object->Clone();
+	return *this;
+}
+
+auto flightsimlib::io::CBglJetway::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+
+	in >> data.Type
+		>> data.Size
+		>> data.Number
+		>> data.Name
+		>> data.SceneryObjectSize;
+	
+	const auto pos = in.GetPosition();
+	auto child_type = uint16_t{};
+	auto child_size = uint16_t{};
+	in >> child_type;
+	in >> child_size;
+	in.SetPosition(pos);
+
+	switch (static_cast<IBglSceneryObject::ESceneryObjectType>(child_type))
+	{
+	case IBglSceneryObject::ESceneryObjectType::GenericBuilding:
+		m_scenery_object = std::make_unique<CBglGenericBuilding>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::LibraryObject:
+		m_scenery_object = std::make_unique<CBglLibraryObject>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::Windsock:
+		m_scenery_object = std::make_unique<CBglWindsock>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::Effect:
+		m_scenery_object = std::make_unique<CBglEffect>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::TaxiwaySigns:
+		m_scenery_object = std::make_unique<CBglTaxiwaySigns>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::Trigger:
+		m_scenery_object = std::make_unique<CBglTrigger>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::Beacon:
+		m_scenery_object = std::make_unique<CBglBeacon>();
+		break;
+	case IBglSceneryObject::ESceneryObjectType::ExtrusionBridge:
+		m_scenery_object = std::make_unique<CBglExtrusionBridge>();
+		break;
+	default:
+		in.SetPosition(pos + static_cast<int>(child_size));
+		return;
+	}
+
+	m_scenery_object->ReadBinary(in);
+	
+	const auto pad_size = CalculatePadSize();
+	auto pad = uint8_t{ 0 };
+	
+	for (auto i = 0; i < pad_size; ++i)
+	{	
+		in >> pad;
+	}
+}
+
+auto flightsimlib::io::CBglJetway::WriteBinary(BinaryFileStream& out) -> void
+{
+	assert(m_scenery_object != nullptr);
+	
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Number
+		<< m_data->Name
+		<< m_data->SceneryObjectSize;
+	
+	m_scenery_object->WriteBinary(out);
+	
+	const auto pad_size = CalculatePadSize();
+	for (auto i = 0; i < pad_size; ++i)
+	{
+		auto pad = uint8_t{ 0 };
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglJetway::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglJetway::CalculateSize() const -> int
+{
+	// TODO - Padding!
+	assert(m_scenery_object != nullptr);
+	return static_cast<int>(sizeof(SBglJetwayData) + 
+		m_scenery_object->CalculateSize() + CalculatePadSize());
+}
+
+auto flightsimlib::io::CBglJetway::GetNumber() const -> uint16_t
+{
+	return m_data->Number;
+}
+
+auto flightsimlib::io::CBglJetway::SetNumber(uint16_t value) -> void
+{
+	m_data.write().Number = value;
+}
+
+auto flightsimlib::io::CBglJetway::GetName() const -> IBglTaxiwayParking::EName
+{
+	return static_cast<IBglTaxiwayParking::EName>(m_data->Name);
+}
+
+auto flightsimlib::io::CBglJetway::SetName(IBglTaxiwayParking::EName value) -> void
+{
+	m_data.write().Name = static_cast<uint8_t>(value);
+}
+
+auto flightsimlib::io::CBglJetway::GetSceneryObject() -> IBglSceneryObject*
+{
+	// TODO - read override
+	return m_scenery_object.get();
+}
+
+auto flightsimlib::io::CBglJetway::SetSceneryObject(IBglSceneryObject* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_scenery_object = dynamic_cast<CBglSceneryObject*>(value)->Clone();
+}
+
+auto flightsimlib::io::CBglJetway::CalculatePadSize() const -> int
+{
+	// TODO - Pad utility
+	assert(m_scenery_object != nullptr);
+	const auto size = static_cast<int>(sizeof(SBglJetwayData) + m_scenery_object->CalculateSize());
+	const auto pad_size = 4 - size % 4;
+	if (pad_size == 4)
+	{
+		return 0;
+	}
+	return pad_size;
+}
+
+
+//******************************************************************************
 // CBglAirport
 //******************************************************************************
 
@@ -3802,6 +3956,17 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::Jetway:
+		{
+			auto jetway = CBglJetway{};
+			jetway.ReadBinary(in);
+			if (!jetway.Validate())
+			{
+				return;
+			}
+			m_jetways.write().emplace_back(std::move(jetway));
+		}
+		break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -3893,6 +4058,11 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_taxiway_names.write().WriteBinary(out);
 	}
+
+	for (auto& jetway : m_jetways.write())
+	{
+		jetway.WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -3959,6 +4129,11 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	{
 		count += m_taxiway_names->CalculateSize();
 	}
+
+	for (const auto& jetway : m_jetways.read())
+	{
+		count += jetway.CalculateSize();
+	}
 	
 	m_data.write().Size = count;
 	
@@ -4008,6 +4183,11 @@ auto flightsimlib::io::CBglAirport::SetDeleteAirport(bool value) -> void
 auto flightsimlib::io::CBglAirport::GetHelipadCount() const -> int
 {
 	return m_data->HelipadCount;
+}
+
+auto flightsimlib::io::CBglAirport::GetJetwayCount() const -> int
+{
+	return static_cast<int>(m_jetways->size());
 }
 
 auto flightsimlib::io::CBglAirport::GetTowerLongitude() const -> double
@@ -4273,6 +4453,23 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayNames(IBglTaxiwayNames* value) -> 
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
 	m_taxiway_names = { *static_cast<CBglTaxiwayNames*>(value) };
+}
+
+auto flightsimlib::io::CBglAirport::GetJetwayAt(int index) -> IBglJetway*
+{
+	return &(m_jetways.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddJetway(const IBglJetway* jetway) -> void
+{
+	m_jetways.write().emplace_back(*static_cast<const CBglJetway*>(jetway));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveJetway(const IBglJetway* jetway) -> void
+{
+	const auto iter = m_jetways.read().begin() +
+		std::distance(m_jetways.read().data(), static_cast<const CBglJetway*>(jetway));
+	m_jetways.write().erase(iter);
 }
 
 
@@ -5248,6 +5445,15 @@ flightsimlib::io::IBglBeacon* flightsimlib::io::CBglSceneryObject::GetBeacon()
 flightsimlib::io::IBglExtrusionBridge* flightsimlib::io::CBglSceneryObject::GetExtrusionBridge()
 {
 	return dynamic_cast<IBglExtrusionBridge*>(this);
+}
+
+auto flightsimlib::io::CBglSceneryObject::IsEmpty() const -> bool
+{
+	if (m_data->SectionType == 0)
+	{
+		return true;
+	}
+	return false;
 }
 
 int flightsimlib::io::CBglSceneryObject::RecordSize() const

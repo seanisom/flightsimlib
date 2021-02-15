@@ -53,6 +53,7 @@ namespace io
 
 // Forward Declarations
 class BinaryFileStream;
+class CBglSceneryObject;
 
 
 class IBglSerializable
@@ -1525,6 +1526,58 @@ private:
 	stlab::copy_on_write<SBglTaxiwayNamesData> m_data;
 	stlab::copy_on_write<std::vector<std::string>> m_names;
 };
+
+	
+//******************************************************************************
+// CBglJetway
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglJetwayData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t Number;
+	uint16_t Name;
+	uint32_t SceneryObjectSize;
+};
+
+#pragma pack(pop)
+	
+
+// Needs to be padded!
+class CBglJetway final : public IBglSerializable, public IBglJetway
+{
+public:
+	//rule of five
+	CBglJetway() = default;
+	~CBglJetway() override = default;
+	CBglJetway(CBglJetway const& other);
+	CBglJetway(CBglJetway&& other) = default;
+	CBglJetway& operator=(CBglJetway const& other);
+	CBglJetway& operator=(CBglJetway&& other) = default;
+	
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetNumber() const -> uint16_t override;
+	auto SetNumber(uint16_t value) -> void override;
+	auto GetName() const -> IBglTaxiwayParking::EName override;
+	auto SetName(IBglTaxiwayParking::EName value) -> void override;
+	auto GetSceneryObject() -> IBglSceneryObject* override;
+	auto SetSceneryObject(IBglSceneryObject* value) -> void override;
+
+	auto CalculatePadSize() const -> int;
+
+private:
+	stlab::copy_on_write<SBglJetwayData> m_data;
+	std::unique_ptr<CBglSceneryObject> m_scenery_object;
+};
 	
 	
 //******************************************************************************
@@ -1582,6 +1635,7 @@ public:
 	auto IsDeleteAirport() const -> bool override;
 	auto SetDeleteAirport(bool value) -> void override;
 	auto GetHelipadCount() const -> int override;
+	auto GetJetwayCount() const -> int override;
 	auto GetTowerLongitude() const -> double override;
 	auto SetTowerLongitude(double value) -> void override;
 	auto GetTowerLatitude() const -> double override;
@@ -1627,6 +1681,9 @@ public:
 	auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void override;
 	auto GetTaxiwayNames() -> const IBglTaxiwayNames* override;
 	auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void override;
+	auto GetJetwayAt(int index) -> IBglJetway* override;
+	auto AddJetway(const IBglJetway* jetway) -> void override;
+	auto RemoveJetway(const IBglJetway* jetway) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1641,6 +1698,7 @@ private:
 	stlab::copy_on_write<CBglTaxiwayParkings> m_taxiway_parkings;
 	stlab::copy_on_write<CBglTaxiwayPaths> m_taxiway_paths;
 	stlab::copy_on_write<CBglTaxiwayNames> m_taxiway_names;
+	stlab::copy_on_write<std::vector<CBglJetway>> m_jetways;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
@@ -2001,9 +2059,13 @@ public:
 	IBglTrigger* GetTrigger() override;
 	IBglBeacon* GetBeacon() override;
 	IBglExtrusionBridge* GetExtrusionBridge() override;
+
+	auto IsEmpty() const -> bool;
+	auto Clone() const { return std::unique_ptr<CBglSceneryObject>(CloneImpl()); }
 	
 protected:
 	int RecordSize() const;
+	virtual CBglSceneryObject* CloneImpl() const = 0;
 
 private:
 	enum class Flags : uint16_t
@@ -2147,6 +2209,13 @@ public:
 private:
 	int CalculateSubrecordSize() const;
 
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglGenericBuilding(*this);
+	}
+
+private:
 	stlab::copy_on_write<SBglGenericBuildingData> m_data;
 };
 
@@ -2180,6 +2249,12 @@ public:
 	void SetName(_GUID value) override;
 	float GetScale() const override;
 	void SetScale(float value) override;
+
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglLibraryObject(*this);
+	}
 
 private:
 	stlab::copy_on_write<SBglLibraryObjectData> m_data;
@@ -2225,6 +2300,12 @@ public:
 	bool IsLighted() const override;
 	void SetLighted(bool value) override;
 
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglWindsock(*this);
+	}
+
 private:
 	stlab::copy_on_write<SBglWindsockData> m_data;
 };
@@ -2259,6 +2340,12 @@ public:
 	void SetName(const char* value) override;
 	const char* GetParams() const override;
 	void SetParams(const char* value) override;
+
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglEffect(*this);
+	}
 
 private:
 	stlab::copy_on_write<SBglEffectData> m_data;
@@ -2332,6 +2419,12 @@ public:
 	auto AddSign(const IBglTaxiwaySign* sign) -> void override;
 	auto RemoveSign(const IBglTaxiwaySign* sign) -> void override;
 
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglTaxiwaySigns(*this);
+	}
+	
 private:
 	stlab::copy_on_write<std::vector<CBglTaxiwaySign>> m_signs;
 };
@@ -2452,6 +2545,12 @@ public:
 	auto GetWeather() const -> const IBglTriggerWeather* override;
 	auto SetWeather(const IBglTriggerWeather* value) -> void override;
 
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglTrigger(*this);
+	}
+
 private:
 	stlab::copy_on_write<SBglTriggerData> m_data;
 	stlab::copy_on_write<CBglTriggerRefuelRepair> m_refuel;
@@ -2488,6 +2587,12 @@ public:
 	void SetBaseType(EBaseType value) override;
 	EType GetType() const override;
 	void SetType(EType value) override;
+
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglBeacon(*this);
+	}
 
 private:
 	stlab::copy_on_write<SBglBeaconData> m_data;
@@ -2560,6 +2665,12 @@ public:
 	auto GetPointAt(int index) -> SBglVertexLLA*  override;
 	auto AddPoint(const SBglVertexLLA* point) -> void  override;
 	auto RemovePoint(const SBglVertexLLA* point) -> void  override;
+
+protected:
+	auto CloneImpl() const -> CBglSceneryObject* override
+	{
+		return new CBglExtrusionBridge(*this);
+	}
 
 private:
 	stlab::copy_on_write<SBglExtrusionBridgeData> m_data;

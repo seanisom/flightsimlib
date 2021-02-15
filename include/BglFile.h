@@ -105,6 +105,7 @@ enum class EBglLayerType : uint32_t
 	ApronEdgeLights = 0x31,
 	AirportDelete = 0x33,
 	Apron = 0x37,
+	Jetway = 0x3A,
 	TaxiwayParking = 0x3D,
 	TerrainVectorDb = 0x65,
 	TerrainElevation = 0x67,

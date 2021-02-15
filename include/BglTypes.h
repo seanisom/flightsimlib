@@ -37,6 +37,8 @@ namespace flightsimlib
 namespace io
 {
 
+class IBglSceneryObject;
+	
 enum class ESurfaceType : uint16_t
 { 
 	Concrete = 0, // There are missing values, find them?
@@ -934,6 +936,18 @@ public:
 	virtual auto AddName(const char* name) -> void = 0;
 	virtual auto RemoveName(const char* name) -> void = 0;
 };
+
+
+class IBglJetway
+{
+public:
+	virtual auto GetNumber() const -> uint16_t = 0;
+	virtual auto SetNumber(uint16_t value) -> void = 0;
+	virtual auto GetName() const -> IBglTaxiwayParking::EName = 0;
+	virtual auto SetName(IBglTaxiwayParking::EName value) -> void = 0;
+	virtual auto GetSceneryObject() -> IBglSceneryObject* = 0;
+	virtual auto SetSceneryObject(IBglSceneryObject* value) -> void = 0;
+};
 	
 	
 // TODO ! Handle P3D5 (and FS9 and P20)
@@ -948,6 +962,7 @@ public:
 	virtual auto IsDeleteAirport() const -> bool = 0;
 	virtual auto SetDeleteAirport(bool value) -> void = 0;
 	virtual auto GetHelipadCount() const -> int = 0;
+	virtual auto GetJetwayCount() const -> int = 0;
 	virtual auto GetTowerLongitude() const -> double = 0;
 	virtual auto SetTowerLongitude(double value) -> void = 0;
 	virtual auto GetTowerLatitude() const -> double = 0;
@@ -993,8 +1008,11 @@ public:
 	virtual auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void = 0;
 	virtual auto GetTaxiwayNames() -> const IBglTaxiwayNames* = 0;
 	virtual auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void = 0;
+	virtual auto GetJetwayAt(int index) -> IBglJetway* = 0;
+	virtual auto AddJetway(const IBglJetway* jetway) -> void = 0;
+	virtual auto RemoveJetway(const IBglJetway* jetway) -> void = 0;
 };
-
+	
 
 class IBglAirportSummary : virtual public IBglFuelAvailability, virtual public IBglLLA
 {
