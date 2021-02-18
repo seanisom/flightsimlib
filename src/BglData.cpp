@@ -3751,7 +3751,6 @@ auto flightsimlib::io::CBglJetway::Validate() -> bool
 
 auto flightsimlib::io::CBglJetway::CalculateSize() const -> int
 {
-	// TODO - Padding!
 	assert(m_scenery_object != nullptr);
 	return static_cast<int>(sizeof(SBglJetwayData) + 
 		m_scenery_object->CalculateSize() + CalculatePadSize());
@@ -3779,7 +3778,11 @@ auto flightsimlib::io::CBglJetway::SetName(IBglTaxiwayParking::EName value) -> v
 
 auto flightsimlib::io::CBglJetway::GetSceneryObject() -> IBglSceneryObject*
 {
-	// TODO - read override
+	return m_scenery_object.get();
+}
+
+auto flightsimlib::io::CBglJetway::GetSceneryObject() const -> const IBglSceneryObject*
+{
 	return m_scenery_object.get();
 }
 
@@ -3800,6 +3803,1064 @@ auto flightsimlib::io::CBglJetway::CalculatePadSize() const -> int
 		return 0;
 	}
 	return pad_size;
+}
+
+
+//******************************************************************************
+// CBglLeg
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglLeg::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+
+	in >> data.LegType
+		>> data.AltitudeDescriptor
+		>> data.TurnDirection
+		>> data.Flags
+		>> data.IcaoIdent
+		>> data.RegionIdent
+		>> data.RecommendedIcaoIdent
+		>> data.RecommendedRegionIdent
+		>> data.Theta
+		>> data.Rho
+		>> data.Course
+		>> data.DistanceTime
+		>> data.Altitude1
+		>> data.Altitude2;
+}
+
+auto flightsimlib::io::CBglLeg::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->LegType
+		<< m_data->AltitudeDescriptor
+		<< m_data->TurnDirection
+		<< m_data->Flags
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent
+		<< m_data->RecommendedIcaoIdent
+		<< m_data->RecommendedRegionIdent
+		<< m_data->Theta
+		<< m_data->Rho
+		<< m_data->Course
+		<< m_data->DistanceTime
+		<< m_data->Altitude1
+		<< m_data->Altitude2;
+}
+
+auto flightsimlib::io::CBglLeg::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglLeg::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglLegData));
+}
+
+auto flightsimlib::io::CBglLeg::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->LegType);
+}
+
+auto flightsimlib::io::CBglLeg::SetType(EType value) -> void
+{
+	m_data.write().LegType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglLeg::GetAltitudeDescriptor() const -> EAltitudeDescriptor
+{
+	return static_cast<EAltitudeDescriptor>(m_data->AltitudeDescriptor);
+}
+
+auto flightsimlib::io::CBglLeg::SetAltitudeDescriptor(EAltitudeDescriptor value) -> void
+{
+	m_data.write().AltitudeDescriptor = to_integral(value);
+}
+
+auto flightsimlib::io::CBglLeg::GetTurnDirection() const -> ETurnDirection
+{
+	return static_cast<ETurnDirection>(m_data->TurnDirection);
+}
+
+auto flightsimlib::io::CBglLeg::SetTurnDirection(ETurnDirection value) -> void
+{
+	m_data.write().TurnDirection = to_integral(value);
+}
+
+auto flightsimlib::io::CBglLeg::IsTrueCourse() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 1, 0));
+}
+
+auto flightsimlib::io::CBglLeg::SetTrueCourse(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, 0);
+}
+
+auto flightsimlib::io::CBglLeg::IsTime() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 1, 1));
+}
+
+auto flightsimlib::io::CBglLeg::SetIsTime(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, 1);
+}
+
+auto flightsimlib::io::CBglLeg::IsFlyover() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->Flags, 1, 2));
+}
+
+auto flightsimlib::io::CBglLeg::SetFlyover(bool value) -> void
+{
+	set_packed_bits(m_data.write().Flags, value, 1, 2);
+}
+
+auto flightsimlib::io::CBglLeg::GetFixType() const -> EFixType
+{
+	return static_cast<EFixType>(get_packed_bits(m_data->IcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglLeg::SetFixType(EFixType value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglLeg::GetIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->IcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglLeg::SetIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, value, 27, 5);
+}
+
+auto flightsimlib::io::CBglLeg::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglLeg::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglLeg::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglLeg::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglLeg::GetRecommendedFixType() const -> EFixType
+{
+	return static_cast<EFixType>(get_packed_bits(
+		m_data->RecommendedIcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglLeg::SetRecommendedFixType(EFixType value) -> void
+{
+	set_packed_bits(m_data.write().RecommendedIcaoIdent, 
+		to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglLeg::GetRecommendedIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(
+		m_data->RecommendedIcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglLeg::SetRecommendedIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RecommendedIcaoIdent,
+		value, 27, 5);
+}
+
+auto flightsimlib::io::CBglLeg::GetRecommendedRegionIdent() const -> uint32_t
+{
+	return m_data->RecommendedRegionIdent;
+}
+
+auto flightsimlib::io::CBglLeg::SetRecommendedRegionIdent(uint32_t value) -> void
+{
+	m_data.write().RecommendedRegionIdent = value;
+}
+
+auto flightsimlib::io::CBglLeg::GetTheta() const -> float
+{
+	return m_data->Theta;
+}
+
+auto flightsimlib::io::CBglLeg::SetTheta(float value) -> void
+{
+	m_data.write().Theta = value;
+}
+
+auto flightsimlib::io::CBglLeg::GetRho() const -> float
+{
+	return m_data->Rho;
+}
+
+auto flightsimlib::io::CBglLeg::SetRho(float value) -> void
+{
+	m_data.write().Rho = value;
+}
+
+auto flightsimlib::io::CBglLeg::GetTrueCourse() const -> float
+{
+	// TODO - Validation
+	if (!IsTrueCourse())
+	{
+		return 0.0f;
+	}
+	return m_data->Course;
+}
+
+auto flightsimlib::io::CBglLeg::SetTrueCourse(float value) -> void
+{
+	if (IsTrueCourse())
+	{
+		m_data.write().Course = value;
+	}
+}
+
+auto flightsimlib::io::CBglLeg::GetMagneticCourse() const -> float
+{
+	if (IsTrueCourse())
+	{
+		return 0.0f;
+	}
+	return m_data->Course;
+}
+
+auto flightsimlib::io::CBglLeg::SetMagneticCourse(float value) -> void
+{
+	if (!IsTrueCourse())
+	{
+		m_data.write().Course = value;
+	}
+}
+
+auto flightsimlib::io::CBglLeg::GetDistance() const -> float
+{
+	if (IsTime())
+	{
+		return 0.0f;
+	}
+	return m_data->DistanceTime;
+}
+
+auto flightsimlib::io::CBglLeg::SetDistance(float value) -> void
+{
+	if (!IsTime())
+	{
+		m_data.write().DistanceTime = value;
+	}
+}
+
+auto flightsimlib::io::CBglLeg::GetTime() const -> float
+{
+	if (!IsTime())
+	{
+		return 0.0f;
+	}
+	return m_data->DistanceTime;
+}
+
+auto flightsimlib::io::CBglLeg::SetTime(float value) -> void
+{
+	if (IsTime())
+	{
+		m_data.write().DistanceTime = value;
+	}
+}
+
+auto flightsimlib::io::CBglLeg::GetAltitude1() const -> float
+{
+	return m_data->Altitude1;
+}
+
+auto flightsimlib::io::CBglLeg::SetAltitude1(float value) -> void
+{
+	m_data.write().Altitude1 = value;
+}
+
+auto flightsimlib::io::CBglLeg::GetAltitude2() const -> float
+{
+	return m_data->Altitude2;
+}
+
+auto flightsimlib::io::CBglLeg::SetAltitude2(float value) -> void
+{
+	m_data.write().Altitude2 = value;
+}
+
+
+//******************************************************************************
+// CBglLegs
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglLegs::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.LegCount;
+
+	m_legs.write().resize(m_data->LegCount);
+
+	for (auto& leg : m_legs.write())
+	{
+		leg.ReadBinary(in);
+	}
+}
+
+auto flightsimlib::io::CBglLegs::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->LegCount;
+	
+	for (auto& leg : m_legs.write())
+	{
+		leg.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglLegs::Validate() -> bool
+{
+	m_data.write().Size = static_cast<int>(CalculateSize());
+	return true;
+}
+
+auto flightsimlib::io::CBglLegs::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglLegsData) +
+		m_data->LegCount * sizeof(SBglLegData));
+}
+
+auto flightsimlib::io::CBglLegs::GetLegCount() const -> int
+{
+	return static_cast<int>(m_data->LegCount);
+}
+
+auto flightsimlib::io::CBglLegs::GetLegAt(int index) -> IBglLeg*
+{
+	return &(m_legs.write()[index]);
+}
+
+auto flightsimlib::io::CBglLegs::AddLeg(const IBglLeg* leg) -> void
+{
+	m_legs.write().emplace_back(*static_cast<const CBglLeg*>(leg));
+}
+
+auto flightsimlib::io::CBglLegs::RemoveLeg(const IBglLeg* leg) -> void
+{
+	const auto iter = m_legs.read().begin() +
+		std::distance(m_legs.read().data(), static_cast<const CBglLeg*>(leg));
+	m_legs.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglLegs::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
+// CBglDmeArc
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglDmeArc::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.IcaoIdent
+		>> data.RegionIdent
+		>> data.Radial
+		>> data.Distance;
+}
+
+auto flightsimlib::io::CBglDmeArc::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->IcaoIdent
+		<< m_data->RegionIdent
+		<< m_data->Radial
+		<< m_data->Radial;
+}
+
+auto flightsimlib::io::CBglDmeArc::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglDmeArc::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglDmeArcData));
+}
+
+auto flightsimlib::io::CBglDmeArc::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->IcaoIdent;
+}
+
+auto flightsimlib::io::CBglDmeArc::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IcaoIdent = value;
+}
+
+auto flightsimlib::io::CBglDmeArc::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglDmeArc::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglDmeArc::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglDmeArc::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglDmeArc::GetRadial() const -> int
+{
+	// Validate - 1-360
+	return static_cast<int>(m_data->Radial);
+}
+
+auto flightsimlib::io::CBglDmeArc::SetRadial(int value) -> void
+{
+	m_data.write().Radial = static_cast<uint32_t>(value);
+}
+
+auto flightsimlib::io::CBglDmeArc::GetDistance() const -> float
+{
+	return m_data->Distance;
+}
+
+auto flightsimlib::io::CBglDmeArc::SetDistance(float value) -> void
+{
+	m_data.write().Distance = value;
+}
+
+auto flightsimlib::io::CBglDmeArc::IsEmpty() const -> bool
+{
+	if (m_data->IcaoIdent == 0 && m_data->RegionIdent == 0 && 
+		m_data->Radial == 0 && m_data->Distance == 0.0f)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
+// CBglTransition
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTransition::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	
+	in >> data.Type
+		>> data.Size
+		>> data.TransitionType
+		>> data.LegCount
+		>> data.IcaoIdent
+		>> data.RegionIdent
+		>> data.Altitude;
+
+	if (GetType() == EType::Dme)
+	{
+		m_dme_arc.write().ReadBinary(in);
+	}
+	
+	if (m_data->LegCount > 0u)
+	{
+		const auto child_pos = in.GetPosition();
+		uint16_t type = 0;
+		in >> type;
+		in.SetPosition(child_pos);
+
+		if (type != s_transition_legs_type)
+		{
+			return;
+		}
+		
+		m_legs.write().ReadBinary(in);
+		// TODO - error handling
+		if (!m_legs.write().Validate())
+		{
+			return;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglTransition::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->TransitionType
+		<< m_data->LegCount
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent
+		<< m_data->Altitude;
+
+	if (!m_dme_arc->IsEmpty())
+	{
+		m_dme_arc.write().WriteBinary(out);
+	}
+
+	if (!m_legs->IsEmpty())
+	{
+		m_legs.write().WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglTransition::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTransition::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglTransitionData));
+	if (!m_legs->IsEmpty())
+	{
+		count += m_legs->CalculateSize();
+	}
+	if (!m_dme_arc->IsEmpty())
+	{
+		count += m_dme_arc->CalculateSize();
+	}
+	return count;
+}
+
+auto flightsimlib::io::CBglTransition::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->TransitionType);
+}
+
+auto flightsimlib::io::CBglTransition::SetType(EType value) -> void
+{
+	m_data.write().TransitionType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglTransition::GetLegCount() const -> int
+{
+	return static_cast<int>(m_data->LegCount);
+}
+
+auto flightsimlib::io::CBglTransition::GetFixType() const -> IBglLeg::EFixType
+{
+	return static_cast<IBglLeg::EFixType>(get_packed_bits(m_data->IcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglTransition::SetFixType(IBglLeg::EFixType value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglTransition::GetIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->IcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglTransition::SetIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, value, 27, 5);
+}
+
+auto flightsimlib::io::CBglTransition::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglTransition::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglTransition::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglTransition::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglTransition::GetAltitude() const -> float
+{
+	return m_data->Altitude;
+}
+
+auto flightsimlib::io::CBglTransition::SetAltitude(float value) -> void
+{
+	m_data.write().Altitude = value;
+}
+
+auto flightsimlib::io::CBglTransition::GetDmeArc() -> IBglDmeArc*
+{
+	if (m_dme_arc->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_dme_arc.write();
+}
+
+auto flightsimlib::io::CBglTransition::SetDmeArc(IBglDmeArc* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_dme_arc = { *static_cast<CBglDmeArc*>(value) };
+}
+
+auto flightsimlib::io::CBglTransition::GetTransitionLegs() -> IBglLegs*
+{
+	if (m_legs->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_legs.write();
+}
+
+auto flightsimlib::io::CBglTransition::SetTransitionLegs(IBglLegs* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_legs = { *static_cast<CBglLegs*>(value) };
+}
+
+
+//******************************************************************************
+// CBglApproach
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglApproach::ReadBinary(BinaryFileStream& in) -> void
+{
+	const auto initial_pos = in.GetPosition();
+	
+	auto& data = m_data.write();
+
+	in >> data.Type
+		>> data.Size
+		>> data.Suffix
+		>> data.Number
+		>> data.TypeDesignator
+		>> data.TransitionCount
+		>> data.ApproachLegCount
+		>> data.MissedApproachLegCount
+		>> data.IcaoIdent
+		>> data.RegionIdent
+		>> data.Altitude
+		>> data.Heading
+		>> data.MissedAltitude;
+
+	m_transitions.write().resize(m_data->TransitionCount);
+	auto transition_index = 0;
+	
+	const auto final_position = initial_pos + static_cast<int>(m_data->Size);
+	while (in.GetPosition() < final_position)
+	{
+		const auto child_pos = in.GetPosition();
+		uint16_t type = 0;
+		uint32_t size = 0;
+		in >> type >> size;
+		in.SetPosition(child_pos);
+		const auto type_enum = static_cast<EChildType>(type);
+
+		switch (type_enum)
+		{
+		case EChildType::ApproachLegs:
+			m_approach_legs.write().ReadBinary(in);
+			// TODO - error handling
+			if (!m_approach_legs.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EChildType::MissedApproachLegs:
+			m_missed_approach_legs.write().ReadBinary(in);
+			// TODO - error handling
+			if (!m_missed_approach_legs.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EChildType::Transition:
+			m_transitions.write()[transition_index++].ReadBinary(in);
+			break;
+		case EChildType::TransitionLegs: 
+			[[fallthrough]]
+		case EChildType::None:
+			return;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglApproach::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Suffix
+		<< m_data->Number
+		<< m_data->TypeDesignator
+		<< m_data->TransitionCount
+		<< m_data->ApproachLegCount
+		<< m_data->MissedApproachLegCount
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent
+		<< m_data->Altitude
+		<< m_data->Heading
+		<< m_data->MissedAltitude;
+
+	if (!m_approach_legs->IsEmpty())
+	{
+		m_approach_legs.write().WriteBinary(out);
+	}
+
+	if (!m_missed_approach_legs->IsEmpty())
+	{
+		m_missed_approach_legs.write().WriteBinary(out);
+	}
+	
+	for (auto& transition : m_transitions.write())
+	{
+		transition.WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglApproach::Validate() -> bool
+{
+	m_data.write().Size = static_cast<int>(CalculateSize());
+	return true;
+}
+
+auto flightsimlib::io::CBglApproach::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglApproachData));
+	if (!m_approach_legs->IsEmpty())
+	{
+		count += m_approach_legs->CalculateSize();
+	}
+	if (!m_missed_approach_legs->IsEmpty())
+	{
+		count += m_missed_approach_legs->CalculateSize();
+	}
+	for (const auto& transition : m_transitions.read())
+	{
+		count += transition.CalculateSize();
+	}
+	return count;
+}
+
+auto flightsimlib::io::CBglApproach::GetSuffix() const -> char
+{
+	return static_cast<char>(m_data->Suffix);
+}
+
+auto flightsimlib::io::CBglApproach::SetSuffix(char value) -> void
+{
+	m_data.write().Suffix = value;
+}
+
+auto flightsimlib::io::CBglApproach::GetRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->Number);
+}
+
+auto flightsimlib::io::CBglApproach::SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().Number = to_integral(value);
+}
+
+auto flightsimlib::io::CBglApproach::GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(
+		get_packed_bits(m_data->TypeDesignator, 3, 4));
+}
+
+auto flightsimlib::io::CBglApproach::SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	set_packed_bits(m_data.write().TypeDesignator, to_integral(value), 3, 4);
+}
+
+auto flightsimlib::io::CBglApproach::GetType() const -> EType
+{
+	return static_cast<EType>(get_packed_bits(m_data->TypeDesignator, 4, 0));
+}
+
+auto flightsimlib::io::CBglApproach::SetType(EType value) -> void
+{
+	set_packed_bits(m_data.write().TypeDesignator, to_integral(value), 4, 0);
+}
+
+auto flightsimlib::io::CBglApproach::HasGpsOverlay() const -> bool
+{
+	return static_cast<bool>(get_packed_bits(m_data->TypeDesignator, 1, 7));
+}
+
+auto flightsimlib::io::CBglApproach::SetGpsOverlay(bool value) -> void
+{
+	set_packed_bits(m_data.write().TypeDesignator, value, 1, 7);
+}
+
+auto flightsimlib::io::CBglApproach::GetFixType() const -> IBglLeg::EFixType
+{
+	return static_cast<IBglLeg::EFixType>(get_packed_bits(m_data->IcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglApproach::SetFixType(IBglLeg::EFixType value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglApproach::GetIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->IcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglApproach::SetIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().IcaoIdent, value, 27, 5);
+}
+
+auto flightsimlib::io::CBglApproach::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglApproach::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglApproach::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglApproach::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglApproach::GetAltitude() const -> float
+{
+	return m_data->Altitude;
+}
+
+auto flightsimlib::io::CBglApproach::SetAltitude(float value) -> void
+{
+	m_data.write().Altitude = value;
+}
+
+auto flightsimlib::io::CBglApproach::GetHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglApproach::SetHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+auto flightsimlib::io::CBglApproach::GetMissedAltitude() const -> float
+{
+	return m_data->MissedAltitude;
+}
+
+auto flightsimlib::io::CBglApproach::SetMissedAltitude(float value) -> void
+{
+	m_data.write().MissedAltitude = value;
+}
+
+auto flightsimlib::io::CBglApproach::GetTransitionCount() const -> int
+{
+	return static_cast<int>(m_data->TransitionCount);
+}
+
+auto flightsimlib::io::CBglApproach::GetApproachLegCount() const -> int
+{
+	return static_cast<int>(m_data->ApproachLegCount);
+}
+
+auto flightsimlib::io::CBglApproach::GetMissedApproachLegCount() const -> int
+{
+	return static_cast<int>(m_data->MissedApproachLegCount);
+}
+
+auto flightsimlib::io::CBglApproach::GetApproachLegs() -> IBglLegs*
+{
+	if (m_approach_legs->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_approach_legs.write();
+}
+
+auto flightsimlib::io::CBglApproach::SetApproachLegs(IBglLegs* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_approach_legs = { *static_cast<CBglLegs*>(value) };
+}
+
+auto flightsimlib::io::CBglApproach::GetMissedApproachLegs() -> IBglLegs*
+{
+	if (m_missed_approach_legs->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_missed_approach_legs.write();
+}
+
+auto flightsimlib::io::CBglApproach::SetMissedApproachLegs(IBglLegs* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_missed_approach_legs = { *static_cast<CBglLegs*>(value) };
+}
+
+auto flightsimlib::io::CBglApproach::GetTransitionAt(int index) -> IBglTransition*
+{
+	return &(m_transitions.write()[index]);
+}
+
+auto flightsimlib::io::CBglApproach::AddTransition(const IBglTransition* transition) -> void
+{
+	m_transitions.write().emplace_back(*static_cast<const CBglTransition*>(transition));
+}
+
+auto flightsimlib::io::CBglApproach::RemoveTransition(const IBglTransition* transition) -> void
+{
+	const auto iter = m_transitions.read().begin() +
+		std::distance(m_transitions.read().data(), static_cast<const CBglTransition*>(transition));
+	m_transitions.write().erase(iter);
+}
+
+
+//******************************************************************************
+// CBglFence
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglFence::ReadBinary(BinaryFileStream& in) -> void
+{
+	assert(m_vertices->empty());
+
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.VertexCount
+		>> data.InstanceId
+		>> data.Profile;
+
+	const auto count = GetVertexCount();
+	m_vertices.write().resize(count);
+
+	for (auto& vertex : m_vertices.write())
+	{
+		in >> vertex.Longitude >> vertex.Latitude;
+	}
+}
+
+auto flightsimlib::io::CBglFence::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->VertexCount
+		<< m_data->InstanceId
+		<< m_data->Profile;
+
+	for (const auto& vertex : m_vertices.read())
+	{
+		out << vertex.Longitude << vertex.Latitude;
+	}
+}
+
+auto flightsimlib::io::CBglFence::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglFence::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglFenceData) +
+		m_data->VertexCount * sizeof(SBglVertexLL));
+}
+
+auto flightsimlib::io::CBglFence::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->Type);
+}
+
+auto flightsimlib::io::CBglFence::SetType(EType value) -> void
+{
+	m_data.write().Type = to_integral(value);
+}
+
+auto flightsimlib::io::CBglFence::GetVertexCount() const -> int
+{
+	return static_cast<int>(m_data->VertexCount);
+}
+
+auto flightsimlib::io::CBglFence::GetInstanceId() const -> _GUID
+{
+	return m_data->InstanceId;
+}
+
+auto flightsimlib::io::CBglFence::SetInstanceId(_GUID value) -> void
+{
+	m_data.write().InstanceId = value;
+}
+
+auto flightsimlib::io::CBglFence::GetProfile() const -> _GUID
+{
+	return m_data->Profile;
+}
+
+auto flightsimlib::io::CBglFence::SetProfile(_GUID value) -> void
+{
+	m_data.write().Profile = value;
+}
+
+auto flightsimlib::io::CBglFence::GetVertexAt(int index) -> SBglVertexLL*
+{
+	return &(m_vertices.write()[index]);
+}
+
+auto flightsimlib::io::CBglFence::AddVertex(const SBglVertexLL* vertex) -> void
+{
+	m_vertices.write().emplace_back(*vertex);
+	++m_data.write().VertexCount;
+}
+
+auto flightsimlib::io::CBglFence::RemoveVertex(const SBglVertexLL* vertex) -> void
+{
+	const auto iter = m_vertices.read().begin() +
+		std::distance(m_vertices.read().data(), vertex);
+	m_vertices.write().erase(iter);
+	--m_data.write().VertexCount;
 }
 
 
@@ -3845,8 +4906,9 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 		uint32_t size = 0;
 		in >> type >> size;
 		in.SetPosition(child_pos);
+		const auto type_enum = static_cast<EBglLayerType>(type);
 
-		switch (static_cast<EBglLayerType>(type))
+		switch (type_enum)
 		{
 		case EBglLayerType::Runway:
 			{
@@ -3957,16 +5019,47 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 			}
 			break;
 		case EBglLayerType::Jetway:
-		{
-			auto jetway = CBglJetway{};
-			jetway.ReadBinary(in);
-			if (!jetway.Validate())
 			{
-				return;
+				auto jetway = CBglJetway{};
+				jetway.ReadBinary(in);
+				if (!jetway.Validate())
+				{
+					return;
+				}
+				m_jetways.write().emplace_back(std::move(jetway));
 			}
-			m_jetways.write().emplace_back(std::move(jetway));
-		}
-		break;
+			break;
+		case EBglLayerType::BlastFence:
+			[[fallthrough]]
+		case EBglLayerType::BoundaryFence:
+			{
+				auto fence = CBglFence{};
+				fence.ReadBinary(in);
+				if (!fence.Validate())
+				{
+					return;
+				}
+				if (type_enum == EBglLayerType::BlastFence)
+				{
+					m_blast_fences.write().emplace_back(std::move(fence));
+				}
+				else
+				{
+					m_boundary_fences.write().emplace_back(std::move(fence));
+				}
+			}
+			break;
+		case EBglLayerType::Approach:
+			{
+				auto approach = CBglApproach{};
+				approach.ReadBinary(in);
+				if (!approach.Validate())
+				{
+					return;
+				}
+				m_approaches.write().emplace_back(std::move(approach));
+			}
+			break;
 		case EBglLayerType::Name:
 			CBglName::ReadBinary(in);
 			break;
@@ -4063,6 +5156,21 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		jetway.WriteBinary(out);
 	}
+
+	for (auto& fence : m_blast_fences.write())
+	{
+		fence.WriteBinary(out);
+	}
+
+	for (auto& fence : m_boundary_fences.write())
+	{
+		fence.WriteBinary(out);
+	}
+
+	for (auto& approach : m_approaches.write())
+	{
+		approach.WriteBinary(out);
+	}
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -4134,6 +5242,21 @@ auto flightsimlib::io::CBglAirport::Validate() -> bool
 	{
 		count += jetway.CalculateSize();
 	}
+
+	for (const auto& fence : m_blast_fences.read())
+	{
+		count += fence.CalculateSize();
+	}
+
+	for (const auto& fence : m_boundary_fences.read())
+	{
+		count += fence.CalculateSize();
+	}
+
+	for (const auto& approach : m_approaches.read())
+	{
+		count += approach.CalculateSize();
+	}
 	
 	m_data.write().Size = count;
 	
@@ -4183,11 +5306,6 @@ auto flightsimlib::io::CBglAirport::SetDeleteAirport(bool value) -> void
 auto flightsimlib::io::CBglAirport::GetHelipadCount() const -> int
 {
 	return m_data->HelipadCount;
-}
-
-auto flightsimlib::io::CBglAirport::GetJetwayCount() const -> int
-{
-	return static_cast<int>(m_jetways->size());
 }
 
 auto flightsimlib::io::CBglAirport::GetTowerLongitude() const -> double
@@ -4455,6 +5573,11 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayNames(IBglTaxiwayNames* value) -> 
 	m_taxiway_names = { *static_cast<CBglTaxiwayNames*>(value) };
 }
 
+auto flightsimlib::io::CBglAirport::GetJetwayCount() const -> int
+{
+	return static_cast<int>(m_jetways->size());
+}
+
 auto flightsimlib::io::CBglAirport::GetJetwayAt(int index) -> IBglJetway*
 {
 	return &(m_jetways.write()[index]);
@@ -4470,6 +5593,67 @@ auto flightsimlib::io::CBglAirport::RemoveJetway(const IBglJetway* jetway) -> vo
 	const auto iter = m_jetways.read().begin() +
 		std::distance(m_jetways.read().data(), static_cast<const CBglJetway*>(jetway));
 	m_jetways.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetApproachAt(int index) -> IBglApproach*
+{
+	return &(m_approaches.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddApproach(const IBglApproach* approach) -> void
+{
+	m_approaches.write().emplace_back(*static_cast<const CBglApproach*>(approach));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveApproach(const IBglApproach* approach) -> void
+{
+	const auto iter = m_approaches.read().begin() +
+		std::distance(m_approaches.read().data(), static_cast<const CBglApproach*>(approach));
+	m_approaches.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetBlastFenceCount() const -> int
+{
+	return static_cast<int>(m_blast_fences->size());
+}
+
+auto flightsimlib::io::CBglAirport::GetBlastFenceAt(int index) -> IBglFence*
+{
+	return &(m_blast_fences.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddBlastFence(const IBglFence* fence) -> void
+{
+	m_blast_fences.write().emplace_back(*static_cast<const CBglFence*>(fence));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveBlastFence(const IBglFence* fence) -> void
+{
+	const auto iter = m_blast_fences.read().begin() +
+		std::distance(m_blast_fences.read().data(), static_cast<const CBglFence*>(fence));
+	m_blast_fences.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglAirport::GetBoundaryFenceCount() const -> int
+{
+	return static_cast<int>(m_boundary_fences->size());
+}
+
+auto flightsimlib::io::CBglAirport::GetBoundaryFenceAt(int index) -> IBglFence*
+{
+	return &(m_boundary_fences.write()[index]);
+}
+
+auto flightsimlib::io::CBglAirport::AddBoundaryFence(const IBglFence* fence) -> void
+{
+	m_boundary_fences.write().emplace_back(*static_cast<const CBglFence*>(fence));
+}
+
+auto flightsimlib::io::CBglAirport::RemoveBoundaryFence(const IBglFence* fence) -> void
+{
+	const auto iter = m_boundary_fences.read().begin() +
+		std::distance(m_boundary_fences.read().data(), static_cast<const CBglFence*>(fence));
+	m_boundary_fences.write().erase(iter);
 }
 
 

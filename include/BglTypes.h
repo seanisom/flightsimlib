@@ -946,9 +946,261 @@ public:
 	virtual auto GetName() const -> IBglTaxiwayParking::EName = 0;
 	virtual auto SetName(IBglTaxiwayParking::EName value) -> void = 0;
 	virtual auto GetSceneryObject() -> IBglSceneryObject* = 0;
+	virtual auto GetSceneryObject() const -> const IBglSceneryObject* = 0;
 	virtual auto SetSceneryObject(IBglSceneryObject* value) -> void = 0;
 };
+
+
+class IBglLeg
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		AF = 0x1,
+		CA = 0x2,
+		CD = 0x3,
+		CF = 0x4,
+		CI = 0x5,
+		CR = 0x6,
+		DF = 0x7,
+		FA = 0x8,
+		FC = 0x9,
+		FD = 0xA,
+		FM = 0xB,
+		HA = 0xC,
+		HF = 0xD,
+		HM = 0xE,
+		IF = 0xF,
+		PI = 0x10,
+		RF = 0x11,
+		TF = 0x12,
+		VA = 0x13,
+		VD = 0x14,
+		VI = 0x15,
+		VM = 0x16,
+		VR = 0x17
+	};
 	
+	enum class EAltitudeDescriptor : uint8_t
+	{
+		None = 0x0,
+		A = 0x1,
+		Plus = 0x2,
+		Minus = 0x3,
+		B = 0x4,
+		C = 0x5,
+		G = 0x6,
+		H = 0x7,
+		I = 0x8,
+		J = 0x9,
+		V = 0xA,
+		Space = 0xB
+	};
+
+	enum class ETurnDirection : uint8_t
+	{
+		None = 0x0,
+		Left = 0x1,
+		Right = 0x2,
+		Either = 0x3
+	};
+
+	enum class EFixType : uint8_t
+	{
+		// Missing 0x1, 0x7, and 0xQ
+		None = 0x0,
+		Vor = 0x2,
+		Ndb = 0x3,
+		TerminalNdb = 0x4,
+		Waypoint = 0x5,
+		TerminalWaypoint = 0x6,
+		Localizer = 8,
+		Runway = 0x9,
+		ManualTermination = 0xB,
+		CourseToAlt = 0xC,
+		CourseToDist = 0xD,
+		HeadingToAlt = 0xE
+	};
+	
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetAltitudeDescriptor() const ->EAltitudeDescriptor = 0;
+	virtual auto SetAltitudeDescriptor(EAltitudeDescriptor value) -> void = 0;
+	virtual auto GetTurnDirection() const -> ETurnDirection = 0;
+	virtual auto SetTurnDirection(ETurnDirection value) -> void = 0;
+	virtual auto IsTrueCourse() const -> bool = 0;
+	virtual auto SetTrueCourse(bool value) -> void = 0;
+	virtual auto IsTime() const -> bool = 0;
+	virtual auto SetIsTime(bool value) -> void = 0;
+	virtual auto IsFlyover() const -> bool = 0;
+	virtual auto SetFlyover(bool value) -> void = 0;
+	virtual auto GetFixType() const -> EFixType = 0;
+	virtual auto SetFixType(EFixType value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetRecommendedFixType() const -> EFixType = 0;
+	virtual auto SetRecommendedFixType(EFixType value) -> void = 0;
+	virtual auto GetRecommendedIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetRecommendedIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRecommendedRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRecommendedRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetTheta() const -> float = 0;
+	virtual auto SetTheta(float value) -> void = 0;
+	virtual auto GetRho() const -> float = 0;
+	virtual auto SetRho(float value) -> void = 0;
+	virtual auto GetTrueCourse() const -> float = 0;
+	virtual auto SetTrueCourse(float value) -> void = 0;
+	virtual auto GetMagneticCourse() const -> float = 0;
+	virtual auto SetMagneticCourse(float value) -> void = 0;
+	virtual auto GetDistance() const -> float = 0;
+	virtual auto SetDistance(float value) -> void = 0;
+	virtual auto GetTime() const -> float = 0;
+	virtual auto SetTime(float value) -> void = 0;
+	virtual auto GetAltitude1() const -> float = 0;
+	virtual auto SetAltitude1(float value) -> void = 0;
+	virtual auto GetAltitude2() const -> float = 0;
+	virtual auto SetAltitude2(float value) -> void = 0;
+};
+
+
+class IBglLegs
+{
+public:
+	virtual auto GetLegCount() const -> int = 0;
+	virtual auto GetLegAt(int index) -> IBglLeg* = 0;
+	virtual auto AddLeg(const IBglLeg* leg) -> void = 0;
+	virtual auto RemoveLeg(const IBglLeg* leg) -> void = 0;
+};
+
+
+class IBglDmeArc
+{
+public:
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetRadial() const -> int = 0;
+	virtual auto SetRadial(int value) -> void = 0;
+	virtual auto GetDistance() const -> float = 0;
+	virtual auto SetDistance(float value) -> void = 0;
+};
+
+	
+class IBglTransition
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		Full = 0x1,
+		Dme = 0x2
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetLegCount() const -> int = 0;
+	virtual auto GetFixType() const ->IBglLeg::EFixType = 0;
+	virtual auto SetFixType(IBglLeg::EFixType value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetAltitude() const -> float = 0;
+	virtual auto SetAltitude(float value) -> void = 0;
+	virtual auto GetDmeArc() -> IBglDmeArc* = 0;
+	virtual auto SetDmeArc(IBglDmeArc* value) -> void = 0;
+	virtual auto GetTransitionLegs() -> IBglLegs* = 0;
+	virtual auto SetTransitionLegs(IBglLegs* value) -> void = 0;
+};
+	
+	
+class IBglApproach
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		Gps = 0x1,
+		Vor = 0x2,
+		Ndb = 0x3,
+		Ils = 0x4,
+		Localizer = 0x5,
+		Sdf = 0x6,
+		Lda = 0x7,
+		VorDme = 0x8,
+		NdbDme = 0x9,
+		Rnav = 0xA,
+		LocalizerBackcourse = 0xB
+	};
+	
+	virtual auto GetSuffix() const -> char = 0;
+	virtual auto SetSuffix(char value) -> void = 0;
+	virtual auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto HasGpsOverlay() const -> bool = 0;
+	virtual auto SetGpsOverlay(bool value) -> void = 0;
+	virtual auto GetFixType() const -> IBglLeg::EFixType = 0;
+	virtual auto SetFixType(IBglLeg::EFixType value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetAltitude() const -> float = 0;
+	virtual auto SetAltitude(float value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+	virtual auto GetMissedAltitude() const -> float = 0;
+	virtual auto SetMissedAltitude(float value) -> void = 0;
+	virtual auto GetTransitionCount() const -> int = 0;
+	virtual auto GetApproachLegCount() const -> int = 0;
+	virtual auto GetMissedApproachLegCount() const -> int = 0;
+	virtual auto GetApproachLegs() -> IBglLegs* = 0;
+	virtual auto SetApproachLegs(IBglLegs* value) -> void = 0;
+	virtual auto GetMissedApproachLegs() -> IBglLegs* = 0;
+	virtual auto SetMissedApproachLegs(IBglLegs* value) -> void = 0;
+	virtual auto GetTransitionAt(int index) -> IBglTransition* = 0;
+	virtual auto AddTransition(const IBglTransition* transition) -> void = 0;
+	virtual auto RemoveTransition(const IBglTransition* transition) -> void = 0;
+};
+	
+	
+class IBglFence
+{
+public:
+	enum class EType : uint16_t
+	{
+		BlastFence = 0x38,
+		BoundaryFence = 0x39,
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetVertexCount() const -> int = 0;
+	virtual auto GetInstanceId() const -> _GUID = 0;
+	virtual auto SetInstanceId(_GUID value) -> void = 0;
+	virtual auto GetProfile() const -> _GUID = 0;
+	virtual auto SetProfile(_GUID value) -> void = 0;
+	virtual auto GetVertexAt(int index) -> SBglVertexLL* = 0;
+	virtual auto AddVertex(const SBglVertexLL* vertex) -> void = 0;
+	virtual auto RemoveVertex(const SBglVertexLL* vertex) -> void = 0;
+};
+
 	
 // TODO ! Handle P3D5 (and FS9 and P20)
 class IBglAirport : virtual public IBglFuelAvailability, virtual public IBglLLA, virtual public IBglName
@@ -962,7 +1214,6 @@ public:
 	virtual auto IsDeleteAirport() const -> bool = 0;
 	virtual auto SetDeleteAirport(bool value) -> void = 0;
 	virtual auto GetHelipadCount() const -> int = 0;
-	virtual auto GetJetwayCount() const -> int = 0;
 	virtual auto GetTowerLongitude() const -> double = 0;
 	virtual auto SetTowerLongitude(double value) -> void = 0;
 	virtual auto GetTowerLatitude() const -> double = 0;
@@ -1008,9 +1259,21 @@ public:
 	virtual auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void = 0;
 	virtual auto GetTaxiwayNames() -> const IBglTaxiwayNames* = 0;
 	virtual auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void = 0;
+	virtual auto GetJetwayCount() const -> int = 0;
 	virtual auto GetJetwayAt(int index) -> IBglJetway* = 0;
 	virtual auto AddJetway(const IBglJetway* jetway) -> void = 0;
 	virtual auto RemoveJetway(const IBglJetway* jetway) -> void = 0;
+	virtual auto GetApproachAt(int index)->IBglApproach* = 0;
+	virtual auto AddApproach(const IBglApproach* approach) -> void = 0;
+	virtual auto RemoveApproach(const IBglApproach* approach) -> void = 0;
+	virtual auto GetBlastFenceCount() const -> int = 0;
+	virtual auto GetBlastFenceAt(int index) -> IBglFence* = 0;
+	virtual auto AddBlastFence(const IBglFence* fence) -> void = 0;
+	virtual auto RemoveBlastFence(const IBglFence* fence) -> void = 0;
+	virtual auto GetBoundaryFenceCount() const -> int = 0;
+	virtual auto GetBoundaryFenceAt(int index) -> IBglFence* = 0;
+	virtual auto AddBoundaryFence(const IBglFence* fence) -> void = 0;
+	virtual auto RemoveBoundaryFence(const IBglFence* fence) -> void = 0;
 };
 	
 

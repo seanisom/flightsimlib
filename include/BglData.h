@@ -1548,7 +1548,6 @@ struct SBglJetwayData
 #pragma pack(pop)
 	
 
-// Needs to be padded!
 class CBglJetway final : public IBglSerializable, public IBglJetway
 {
 public:
@@ -1570,6 +1569,7 @@ public:
 	auto GetName() const -> IBglTaxiwayParking::EName override;
 	auto SetName(IBglTaxiwayParking::EName value) -> void override;
 	auto GetSceneryObject() -> IBglSceneryObject* override;
+	auto GetSceneryObject() const -> const IBglSceneryObject*  override;
 	auto SetSceneryObject(IBglSceneryObject* value) -> void override;
 
 	auto CalculatePadSize() const -> int;
@@ -1577,6 +1577,366 @@ public:
 private:
 	stlab::copy_on_write<SBglJetwayData> m_data;
 	std::unique_ptr<CBglSceneryObject> m_scenery_object;
+};
+
+
+//******************************************************************************
+// CBglLeg
+//****************************************************************************** 
+
+	
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglLegData
+{
+	uint8_t  LegType;
+	uint8_t  AltitudeDescriptor;
+	uint8_t  TurnDirection;
+	uint8_t  Flags;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	uint32_t RecommendedIcaoIdent;
+	uint32_t RecommendedRegionIdent;
+	float    Theta;
+	float    Rho;
+	float    Course;
+	float    DistanceTime;
+	float    Altitude1;
+	float    Altitude2;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglLeg final : public IBglSerializable, public IBglLeg
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetAltitudeDescriptor() const->EAltitudeDescriptor override;
+	auto SetAltitudeDescriptor(EAltitudeDescriptor value) -> void override;
+	auto GetTurnDirection() const -> ETurnDirection override;
+	auto SetTurnDirection(ETurnDirection value) -> void override;
+	auto IsTrueCourse() const -> bool override;
+	auto SetTrueCourse(bool value) -> void override;
+	auto IsTime() const -> bool override;
+	auto SetIsTime(bool value) -> void override;
+	auto IsFlyover() const -> bool override;
+	auto SetFlyover(bool value) -> void override;
+	auto GetFixType() const -> EFixType override;
+	auto SetFixType(EFixType value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetRecommendedFixType() const -> EFixType override;
+	auto SetRecommendedFixType(EFixType value) -> void override;
+	auto GetRecommendedIcaoIdent() const -> uint32_t override;
+	auto SetRecommendedIcaoIdent(uint32_t value) -> void override;
+	auto GetRecommendedRegionIdent() const -> uint32_t override;
+	auto SetRecommendedRegionIdent(uint32_t value) -> void override;
+	auto GetTheta() const -> float override;
+	auto SetTheta(float value) -> void override;
+	auto GetRho() const -> float override;
+	auto SetRho(float value) -> void override;
+	auto GetTrueCourse() const -> float override;
+	auto SetTrueCourse(float value) -> void override;
+	auto GetMagneticCourse() const -> float override;
+	auto SetMagneticCourse(float value) -> void override;
+	auto GetDistance() const -> float override;
+	auto SetDistance(float value) -> void override;
+	auto GetTime() const -> float override;
+	auto SetTime(float value) -> void override;
+	auto GetAltitude1() const -> float override;
+	auto SetAltitude1(float value) -> void override;
+	auto GetAltitude2() const -> float override;
+	auto SetAltitude2(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglLegData> m_data;
+};
+
+
+//******************************************************************************
+// CBglLegs
+//******************************************************************************  
+
+
+//TODO - should we just have a generic Count / list struct
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglLegsData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t LegCount;
+};
+
+#pragma pack(pop)
+	
+
+class CBglLegs final : public IBglSerializable, public IBglLegs
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetLegCount() const -> int override;
+	auto GetLegAt(int index)->IBglLeg* override;
+	auto AddLeg(const IBglLeg* leg) -> void override;
+	auto RemoveLeg(const IBglLeg* leg) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglLegsData> m_data;
+	stlab::copy_on_write<std::vector<CBglLeg>> m_legs;
+};
+
+
+//******************************************************************************
+// CBglDmeArc
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglDmeArcData
+{
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	uint32_t Radial;
+	float    Distance;
+};
+
+#pragma pack(pop)
+
+	
+class CBglDmeArc final : public IBglSerializable, public IBglDmeArc
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetRadial() const -> int override;
+	auto SetRadial(int value) -> void override;
+	auto GetDistance() const -> float override;
+	auto SetDistance(float value) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglDmeArcData> m_data;
+};
+
+
+//******************************************************************************
+// CBglTransition
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTransitionData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  TransitionType;
+	uint8_t  LegCount;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	float    Altitude;
+};
+
+#pragma pack(pop)
+
+	
+class CBglTransition final : public IBglSerializable, public IBglTransition
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetLegCount() const -> int override;
+	auto GetFixType() const ->IBglLeg::EFixType override;
+	auto SetFixType(IBglLeg::EFixType value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetAltitude() const -> float override;
+	auto SetAltitude(float value) -> void override;
+	auto GetDmeArc() -> IBglDmeArc* override;
+	auto SetDmeArc(IBglDmeArc* value) -> void override;
+	auto GetTransitionLegs() -> IBglLegs* override;
+	auto SetTransitionLegs(IBglLegs* value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTransitionData> m_data;
+	stlab::copy_on_write<CBglDmeArc> m_dme_arc;
+	stlab::copy_on_write<CBglLegs> m_legs;
+	static constexpr int s_transition_legs_type = 0x2Fu;
+};
+
+	
+	
+//******************************************************************************
+// CBglApproach
+//******************************************************************************  
+
+	
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglApproachData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  Suffix;
+	uint8_t  Number;
+	uint8_t  TypeDesignator;
+	uint8_t  TransitionCount;
+	uint8_t  ApproachLegCount;
+	uint8_t  MissedApproachLegCount;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	float    Altitude;
+	float    Heading;
+	float    MissedAltitude;
+};
+
+#pragma pack(pop)
+
+	
+class CBglApproach final : public IBglSerializable, public IBglApproach
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetSuffix() const -> char override;
+	auto SetSuffix(char value) -> void override;
+	auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator override;
+	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto HasGpsOverlay() const -> bool override;
+	auto SetGpsOverlay(bool value) -> void override;
+	auto GetFixType() const -> IBglLeg::EFixType override;
+	auto SetFixType(IBglLeg::EFixType value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetAltitude() const -> float override;
+	auto SetAltitude(float value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetMissedAltitude() const -> float override;
+	auto SetMissedAltitude(float value) -> void override;
+	auto GetTransitionCount() const -> int override;
+	auto GetApproachLegCount() const -> int override;
+	auto GetMissedApproachLegCount() const -> int override;
+	auto GetApproachLegs() -> IBglLegs* override;
+	auto SetApproachLegs(IBglLegs* value) -> void override;
+	auto GetMissedApproachLegs() -> IBglLegs* override;
+	auto SetMissedApproachLegs(IBglLegs* value) -> void override;
+	auto GetTransitionAt(int index) -> IBglTransition* override;
+	auto AddTransition(const IBglTransition* transition) -> void override;
+	auto RemoveTransition(const IBglTransition* transition) -> void override;
+
+private:
+	enum class EChildType : uint16_t
+	{
+		None = 0x0,
+		Transition = 0x2C,
+		ApproachLegs = 0x2D,
+		MissedApproachLegs = 0x2E,
+		TransitionLegs = 0x2F
+	};
+	
+	stlab::copy_on_write<SBglApproachData> m_data;
+	stlab::copy_on_write<CBglLegs> m_approach_legs;
+	stlab::copy_on_write<CBglLegs> m_missed_approach_legs;
+	stlab::copy_on_write<std::vector<CBglTransition>> m_transitions;
+};
+	
+
+//******************************************************************************
+// CBglFence
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglFenceData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t VertexCount;
+	_GUID InstanceId;
+	_GUID Profile;
+};
+
+#pragma pack(pop)
+	
+
+class CBglFence final : public IBglSerializable, public IBglFence
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetVertexCount() const -> int override;
+	auto GetInstanceId() const -> _GUID override;
+	auto SetInstanceId(_GUID value) -> void override;
+	auto GetProfile() const -> _GUID override;
+	auto SetProfile(_GUID value) -> void override;
+	auto GetVertexAt(int index) -> SBglVertexLL* override;
+	auto AddVertex(const SBglVertexLL* vertex) -> void override;
+	auto RemoveVertex(const SBglVertexLL* vertex) -> void override;
+
+private:
+	stlab::copy_on_write<SBglFenceData> m_data;
+	stlab::copy_on_write<std::vector<SBglVertexLL>> m_vertices;
 };
 	
 	
@@ -1635,7 +1995,6 @@ public:
 	auto IsDeleteAirport() const -> bool override;
 	auto SetDeleteAirport(bool value) -> void override;
 	auto GetHelipadCount() const -> int override;
-	auto GetJetwayCount() const -> int override;
 	auto GetTowerLongitude() const -> double override;
 	auto SetTowerLongitude(double value) -> void override;
 	auto GetTowerLatitude() const -> double override;
@@ -1681,9 +2040,21 @@ public:
 	auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void override;
 	auto GetTaxiwayNames() -> const IBglTaxiwayNames* override;
 	auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void override;
+	auto GetJetwayCount() const -> int override;
 	auto GetJetwayAt(int index) -> IBglJetway* override;
 	auto AddJetway(const IBglJetway* jetway) -> void override;
 	auto RemoveJetway(const IBglJetway* jetway) -> void override;
+	auto GetApproachAt(int index)->IBglApproach* override;
+	auto AddApproach(const IBglApproach* approach) -> void override;
+	auto RemoveApproach(const IBglApproach* approach) -> void override;
+	auto GetBlastFenceCount() const -> int override;
+	auto GetBlastFenceAt(int index) -> IBglFence* override;
+	auto AddBlastFence(const IBglFence* fence) -> void override;
+	auto RemoveBlastFence(const IBglFence* fence) -> void override;
+	auto GetBoundaryFenceCount() const -> int override;
+	auto GetBoundaryFenceAt(int index) -> IBglFence* override;
+	auto AddBoundaryFence(const IBglFence* fence) -> void override;
+	auto RemoveBoundaryFence(const IBglFence* fence) -> void override;
 	
 private:
 	stlab::copy_on_write<std::vector<CBglRunway>> m_runways;
@@ -1699,6 +2070,9 @@ private:
 	stlab::copy_on_write<CBglTaxiwayPaths> m_taxiway_paths;
 	stlab::copy_on_write<CBglTaxiwayNames> m_taxiway_names;
 	stlab::copy_on_write<std::vector<CBglJetway>> m_jetways;
+	stlab::copy_on_write<std::vector<CBglApproach>> m_approaches;
+	stlab::copy_on_write<std::vector<CBglFence>> m_blast_fences;
+	stlab::copy_on_write<std::vector<CBglFence>> m_boundary_fences;
 	stlab::copy_on_write<SBglAirportData> m_data;
 };
 
