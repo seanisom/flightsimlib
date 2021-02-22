@@ -1241,9 +1241,9 @@ public:
 	virtual auto GetHelipadAt(int index) -> IBglHelipad* = 0;
 	virtual auto AddHelipad(const IBglHelipad* helipad) -> void = 0;
 	virtual auto RemoveHelipad(const IBglHelipad* helipad) -> void = 0;
-	virtual auto GetDelete() -> const IBglAirportDelete* = 0;
+	virtual auto GetDelete() -> IBglAirportDelete* = 0;
 	virtual auto SetDelete(IBglAirportDelete* value) -> void = 0;
-	virtual auto GetApronEdgeLights() -> const IBglApronEdgeLights* = 0;
+	virtual auto GetApronEdgeLights() -> IBglApronEdgeLights* = 0;
 	virtual auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void = 0;
 	virtual auto GetApronAt(int index) -> IBglApron* = 0; // TODO - should these be collapsed
 	virtual auto AddApron(const IBglApron* apron) -> void = 0; // into a single apron interface? 
@@ -1251,13 +1251,13 @@ public:
 	virtual auto GetApronPolygonsAt(int index) -> IBglApronPolygons* = 0;
 	virtual auto AddApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
 	virtual auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void = 0;
-	virtual auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* = 0;
+	virtual auto GetTaxiwayPoints() -> IBglTaxiwayPoints* = 0;
 	virtual auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void = 0;
-	virtual auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* = 0;
+	virtual auto GetTaxiwayParkings() -> IBglTaxiwayParkings* = 0;
 	virtual auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void = 0;
-	virtual auto GetTaxiwayPaths() -> const IBglTaxiwayPaths* = 0;
+	virtual auto GetTaxiwayPaths() -> IBglTaxiwayPaths* = 0;
 	virtual auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void = 0;
-	virtual auto GetTaxiwayNames() -> const IBglTaxiwayNames* = 0;
+	virtual auto GetTaxiwayNames() -> IBglTaxiwayNames* = 0;
 	virtual auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void = 0;
 	virtual auto GetJetwayCount() const -> int = 0;
 	virtual auto GetJetwayAt(int index) -> IBglJetway* = 0;
@@ -1321,6 +1321,88 @@ public:
 };
 	
 
+class IBglRoute
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		Victor = 0x1,
+		Jet = 0x2,
+		Both = 0x3
+	};
+
+	enum class EConnectionType : uint8_t
+	{
+		Unnamed = 0x0,
+		Vor = 0x2,
+		Ndb = 0x3,
+		Named = 0x5
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetName() const -> const char* = 0;
+	virtual auto SetName(const char* value) -> void = 0;
+	virtual auto GetPreviousType() const -> EConnectionType = 0;
+	virtual auto SetPreviousType(EConnectionType value) -> void = 0;
+	virtual auto GetPreviousIcaoIdent() const -> uint32_t = 0; // TODO, we need to parse and wrap this
+	virtual auto SetPreviousIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetPreviousRegionIdent() const -> uint32_t = 0;
+	virtual auto SetPreviousRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetPreviousIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetPreviousIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetPreviousAltitudeMinimum() const -> float = 0;
+	virtual auto SetPreviousAltitudeMinimum(float value) -> void = 0;
+	virtual auto GetNextType() const -> EConnectionType = 0;
+	virtual auto SetNextType(EConnectionType value) -> void = 0;
+	virtual auto GetNextIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetNextIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetNextRegionIdent() const -> uint32_t = 0;
+	virtual auto SetNextRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetNextIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetNextIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetNextAltitudeMinimum() const -> float = 0;
+	virtual auto SetNextAltitudeMinimum(float value) -> void = 0;
+};
+
+	
+class IBglWaypoint
+{
+public:
+	enum class EType : uint8_t
+	{
+		Unknown = 0x0,
+		Named = 0x1,
+		Unnamed = 0x2,
+		Vor = 0x3,
+		Ndb = 0x4,
+		OffRoute = 0x5,
+		Iaf = 0x6,
+		Faf = 0x7
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetRouteCount() const -> int = 0;
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetRouteAt(int index) -> IBglRoute* = 0;
+	virtual auto AddRoute(const IBglRoute* route) -> void = 0;
+	virtual auto RemoveRoute(const IBglRoute* route) -> void = 0;
+};
+	
+	
 class IBglExclusion
 {
 public:

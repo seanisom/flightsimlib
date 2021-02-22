@@ -3588,6 +3588,7 @@ auto flightsimlib::io::CBglTaxiwayNames::WriteBinary(BinaryFileStream& out) -> v
 
 	for (const auto& name : m_names.read())
 	{
+		//TODO Pad Util
 		const auto size = static_cast<int>(name.size());
 		out.Write(name.c_str(), size);
 
@@ -5171,6 +5172,7 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 	{
 		approach.WriteBinary(out);
 	}
+	
 }
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
@@ -5449,13 +5451,13 @@ auto flightsimlib::io::CBglAirport::RemoveHelipad(const IBglHelipad* helipad) ->
 	m_helipads.write().erase(iter);
 }
 
-auto flightsimlib::io::CBglAirport::GetDelete() -> const IBglAirportDelete*
+auto flightsimlib::io::CBglAirport::GetDelete() -> IBglAirportDelete*
 {
 	if (m_delete->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_delete.operator->();
+	return &m_delete.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetDelete(IBglAirportDelete* value) -> void
@@ -5464,13 +5466,13 @@ auto flightsimlib::io::CBglAirport::SetDelete(IBglAirportDelete* value) -> void
 	m_delete = { *static_cast<CBglAirportDelete*>(value) };
 }
 
-auto flightsimlib::io::CBglAirport::GetApronEdgeLights() -> const IBglApronEdgeLights*
+auto flightsimlib::io::CBglAirport::GetApronEdgeLights() -> IBglApronEdgeLights*
 {
 	if (m_apron_edge_lights->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_apron_edge_lights.operator->();
+	return &m_apron_edge_lights.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetApronEdgeLights(IBglApronEdgeLights* value) -> void
@@ -5513,13 +5515,13 @@ auto flightsimlib::io::CBglAirport::RemoveApronPolygons(const IBglApronPolygons*
 	m_apron_polygons.write().erase(iter);
 }
 
-auto flightsimlib::io::CBglAirport::GetTaxiwayPoints() -> const IBglTaxiwayPoints*
+auto flightsimlib::io::CBglAirport::GetTaxiwayPoints() -> IBglTaxiwayPoints*
 {
 	if (m_taxiway_points->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_taxiway_points.operator->();
+	return &m_taxiway_points.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void
@@ -5528,13 +5530,13 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayPoints(IBglTaxiwayPoints* value) -
 	m_taxiway_points = { *static_cast<CBglTaxiwayPoints*>(value) };
 }
 
-auto flightsimlib::io::CBglAirport::GetTaxiwayParkings() -> const IBglTaxiwayParkings*
+auto flightsimlib::io::CBglAirport::GetTaxiwayParkings() -> IBglTaxiwayParkings*
 {
 	if (m_taxiway_parkings->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_taxiway_parkings.operator->();
+	return &m_taxiway_parkings.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void
@@ -5543,13 +5545,13 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayParkings(IBglTaxiwayParkings* valu
 	m_taxiway_parkings = { *static_cast<CBglTaxiwayParkings*>(value) };
 }
 
-auto flightsimlib::io::CBglAirport::GetTaxiwayPaths() -> const IBglTaxiwayPaths*
+auto flightsimlib::io::CBglAirport::GetTaxiwayPaths() -> IBglTaxiwayPaths*
 {
 	if (m_taxiway_paths->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_taxiway_paths.operator->();
+	return &m_taxiway_paths.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void
@@ -5558,13 +5560,13 @@ auto flightsimlib::io::CBglAirport::SetTaxiwayPaths(IBglTaxiwayPaths* value) -> 
 	m_taxiway_paths = { *static_cast<CBglTaxiwayPaths*>(value) };
 }
 
-auto flightsimlib::io::CBglAirport::GetTaxiwayNames() -> const IBglTaxiwayNames*
+auto flightsimlib::io::CBglAirport::GetTaxiwayNames() -> IBglTaxiwayNames*
 {
 	if (m_taxiway_names->IsEmpty())
 	{
 		return nullptr;
 	}
-	return m_taxiway_names.operator->();
+	return &m_taxiway_names.write();
 }
 
 auto flightsimlib::io::CBglAirport::SetTaxiwayNames(IBglTaxiwayNames* value) -> void
@@ -5907,6 +5909,368 @@ auto flightsimlib::io::CBglAirportSummary::GetLongestRunwayHeading() const -> fl
 auto flightsimlib::io::CBglAirportSummary::SetLongestRunwayHeading(float value) -> void
 {
 	m_data.write().LongestRunwayHeading = value;
+}
+
+
+//******************************************************************************
+// CBglRoute
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglRoute::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.RouteType;
+
+	data.Name.assign(in.ReadString(static_cast<int>(sizeof(uint64_t))));
+	data.Name.erase(std::find(
+		data.Name.begin(), data.Name.end(), '\0'), data.Name.end());
+	
+	in >> data.Previous.IcaoIdent
+		>> data.Previous.RegionIdent
+		>> data.Previous.AltitudeMinimum
+		>> data.Next.IcaoIdent
+		>> data.Next.RegionIdent
+		>> data.Next.AltitudeMinimum;
+}
+
+auto flightsimlib::io::CBglRoute::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->RouteType;
+
+	//TODO Pad Util
+	const auto size = static_cast<int>(m_data->Name.size());
+	out.Write(m_data->Name.c_str(), size);
+
+	auto pad_size = 8 - size % 8;
+	if (pad_size == 8 && size != 0)
+	{
+		pad_size = 0;
+	}
+
+	for (auto i = 0; i < pad_size; ++i)
+	{
+		auto pad = uint8_t{ 0 };
+		out << pad;
+	}
+	
+	out << m_data->Previous.IcaoIdent
+		<< m_data->Previous.RegionIdent
+		<< m_data->Previous.AltitudeMinimum
+		<< m_data->Next.IcaoIdent
+		<< m_data->Next.RegionIdent
+		<< m_data->Next.AltitudeMinimum;
+}
+
+auto flightsimlib::io::CBglRoute::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglRoute::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(m_data->RouteType) + sizeof(uint64_t) +
+		2 * sizeof(SBglConnectionData));
+}
+
+auto flightsimlib::io::CBglRoute::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->RouteType);
+}
+
+auto flightsimlib::io::CBglRoute::SetType(EType value) -> void
+{
+	m_data.write().RouteType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglRoute::GetName() const -> const char*
+{
+	return m_data->Name.c_str();
+}
+
+auto flightsimlib::io::CBglRoute::SetName(const char* value) -> void
+{
+	m_data.write().Name = value;
+}
+
+auto flightsimlib::io::CBglRoute::GetPreviousType() const -> EConnectionType
+{
+	return static_cast<EConnectionType>(get_packed_bits(m_data->Previous.IcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglRoute::SetPreviousType(EConnectionType value) -> void
+{
+	set_packed_bits(m_data.write().Previous.IcaoIdent, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglRoute::GetPreviousIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Previous.IcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglRoute::SetPreviousIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Previous.IcaoIdent, value, 27, 5);
+}
+
+auto flightsimlib::io::CBglRoute::GetPreviousRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Previous.RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglRoute::SetPreviousRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Previous.RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglRoute::GetPreviousIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Previous.RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglRoute::SetPreviousIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Previous.RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglRoute::GetPreviousAltitudeMinimum() const -> float
+{
+	return m_data->Previous.AltitudeMinimum;
+}
+
+auto flightsimlib::io::CBglRoute::SetPreviousAltitudeMinimum(float value) -> void
+{
+	m_data.write().Previous.AltitudeMinimum = value;
+}
+
+auto flightsimlib::io::CBglRoute::GetNextType() const -> EConnectionType
+{
+	return static_cast<EConnectionType>(get_packed_bits(m_data->Next.IcaoIdent, 5, 0));
+}
+
+auto flightsimlib::io::CBglRoute::SetNextType(EConnectionType value) -> void
+{
+	set_packed_bits(m_data.write().Next.IcaoIdent, to_integral(value), 5, 0);
+}
+
+auto flightsimlib::io::CBglRoute::GetNextIcaoIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Next.IcaoIdent, 27, 5));
+}
+
+auto flightsimlib::io::CBglRoute::SetNextIcaoIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Next.IcaoIdent, value, 27, 5);
+}
+
+auto flightsimlib::io::CBglRoute::GetNextRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Next.RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglRoute::SetNextRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Next.RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglRoute::GetNextIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->Next.RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglRoute::SetNextIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().Next.RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglRoute::GetNextAltitudeMinimum() const -> float
+{
+	return m_data->Next.AltitudeMinimum;
+}
+
+auto flightsimlib::io::CBglRoute::SetNextAltitudeMinimum(float value) -> void
+{
+	m_data.write().Next.AltitudeMinimum = value;
+}
+
+
+//******************************************************************************
+// CBglWaypoint
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglWaypoint::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+
+	in >> data.Type
+		>> data.Size
+		>> data.WaypointType
+		>> data.RouteCount
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Magvar
+		>> data.IcaoIdent
+		>> data.RegionIdent;
+	
+	m_routes.write().resize(m_data->RouteCount);
+
+	for (auto& route : m_routes.write())
+	{
+		route.ReadBinary(in);
+	}
+
+	const auto pad_size = CalculatePadSize();
+	auto pad = uint8_t{ 0 };
+
+	for (auto i = 0; i < pad_size; ++i)
+	{
+		in >> pad;
+	}
+}
+
+auto flightsimlib::io::CBglWaypoint::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->WaypointType
+		<< m_data->RouteCount
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Magvar
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent;
+	
+	for (auto& route : m_routes.write())
+	{
+		route.WriteBinary(out);
+	}
+
+	const auto pad_size = CalculatePadSize();
+	for (auto i = 0; i < pad_size; ++i)
+	{
+		auto pad = uint8_t{ 0 };
+		out << pad;
+	}
+}
+
+auto flightsimlib::io::CBglWaypoint::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglWaypoint::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglWaypointData));
+	for (const auto& route : m_routes.read())
+	{
+		count += route.CalculateSize();
+	}
+	return count + CalculatePadSize();
+}
+
+auto flightsimlib::io::CBglWaypoint::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->WaypointType);
+}
+
+auto flightsimlib::io::CBglWaypoint::SetType(EType value) -> void
+{
+	m_data.write().WaypointType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetRouteCount() const -> int
+{
+	return static_cast<int>(m_data->RouteCount);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetLongitude() const -> double
+{
+	return Longitude::Value(m_data->Longitude);
+}
+
+auto flightsimlib::io::CBglWaypoint::SetLongitude(double value) -> void
+{
+	m_data.write().Longitude = Longitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetLatitude() const -> double
+{
+	return Latitude::Value(m_data->Latitude);
+}
+
+auto flightsimlib::io::CBglWaypoint::SetLatitude(double value) -> void
+{
+	m_data.write().Latitude = Latitude::ToPacked(value);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetMagVar() const -> float
+{
+	return m_data->Magvar;
+}
+
+auto flightsimlib::io::CBglWaypoint::SetMagVar(float value) -> void
+{
+	m_data.write().Magvar = value;
+}
+
+auto flightsimlib::io::CBglWaypoint::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->IcaoIdent;
+}
+
+auto flightsimlib::io::CBglWaypoint::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IcaoIdent = value;
+}
+
+auto flightsimlib::io::CBglWaypoint::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglWaypoint::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglWaypoint::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglWaypoint::GetRouteAt(int index) -> IBglRoute*
+{
+	return &(m_routes.write()[index]);
+}
+
+auto flightsimlib::io::CBglWaypoint::AddRoute(const IBglRoute* route) -> void
+{
+	m_routes.write().emplace_back(*static_cast<const CBglRoute*>(route));
+}
+
+auto flightsimlib::io::CBglWaypoint::RemoveRoute(const IBglRoute* route) -> void
+{
+	const auto iter = m_routes.read().begin() +
+		std::distance(m_routes.read().data(), static_cast<const CBglRoute*>(route));
+	m_routes.write().erase(iter);
+}
+
+auto flightsimlib::io::CBglWaypoint::CalculatePadSize() const -> int
+{
+	// TODO - Pad utility
+	const auto size = static_cast<int>(sizeof(SBglWaypointData) + 33 * m_data->RouteCount);
+	const auto pad_size = 4 - size % 4;
+	if (pad_size == 4)
+	{
+		return 0;
+	}
+	return pad_size;
 }
 
 

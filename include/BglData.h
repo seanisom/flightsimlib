@@ -2022,9 +2022,9 @@ public:
 	auto GetHelipadAt(int index) -> IBglHelipad* override;
 	auto AddHelipad(const IBglHelipad* helipad) -> void override;
 	auto RemoveHelipad(const IBglHelipad* helipad) -> void override;
-	auto GetDelete() -> const IBglAirportDelete* override;
+	auto GetDelete() -> IBglAirportDelete* override;
 	auto SetDelete(IBglAirportDelete* value) -> void override;
-	auto GetApronEdgeLights() -> const IBglApronEdgeLights* override;
+	auto GetApronEdgeLights() -> IBglApronEdgeLights* override;
 	auto SetApronEdgeLights(IBglApronEdgeLights* value) -> void override;
 	auto GetApronAt(int index) -> IBglApron* override;
 	auto AddApron(const IBglApron* apron) -> void override;
@@ -2032,13 +2032,13 @@ public:
 	auto GetApronPolygonsAt(int index) -> IBglApronPolygons* override;
 	auto AddApronPolygons(const IBglApronPolygons* polygons) -> void override;
 	auto RemoveApronPolygons(const IBglApronPolygons* polygons) -> void override;
-	auto GetTaxiwayPoints() -> const IBglTaxiwayPoints* override;
+	auto GetTaxiwayPoints() -> IBglTaxiwayPoints* override;
 	auto SetTaxiwayPoints(IBglTaxiwayPoints* value) -> void override;
-	auto GetTaxiwayParkings() -> const IBglTaxiwayParkings* override;
+	auto GetTaxiwayParkings() -> IBglTaxiwayParkings* override;
 	auto SetTaxiwayParkings(IBglTaxiwayParkings* value) -> void override;
-	auto GetTaxiwayPaths() -> const IBglTaxiwayPaths* override;
+	auto GetTaxiwayPaths() -> IBglTaxiwayPaths* override;
 	auto SetTaxiwayPaths(IBglTaxiwayPaths* value) -> void override;
-	auto GetTaxiwayNames() -> const IBglTaxiwayNames* override;
+	auto GetTaxiwayNames() -> IBglTaxiwayNames* override;
 	auto SetTaxiwayNames(IBglTaxiwayNames* value) -> void override;
 	auto GetJetwayCount() const -> int override;
 	auto GetJetwayAt(int index) -> IBglJetway* override;
@@ -2156,7 +2156,6 @@ public:
 	auto SetLongestRunwayHeading(float value) -> void override;
 	
 private:
-
 	enum class EFlags : uint16_t
 	{
 		Com = 0,
@@ -2179,8 +2178,131 @@ private:
 	
 	stlab::copy_on_write<SBglAirportSummaryData> m_data;
 };
+
+
+//******************************************************************************
+// CBglRoute
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglConnectionData
+{
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+	float    AltitudeMinimum;
+};
+
+struct SBglRouteData
+{
+	uint8_t RouteType;
+	SBglConnectionData Previous;
+	SBglConnectionData Next;
+	std::string Name;
+};
+
+#pragma pack(pop)
 	
 
+class CBglRoute final : public IBglSerializable, public IBglRoute
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetName() const -> const char* override;
+	auto SetName(const char* value) -> void override;
+	auto GetPreviousType() const -> EConnectionType override;
+	auto SetPreviousType(EConnectionType value) -> void override;
+	auto GetPreviousIcaoIdent() const->uint32_t override;
+	auto SetPreviousIcaoIdent(uint32_t value) -> void override;
+	auto GetPreviousRegionIdent() const -> uint32_t override;
+	auto SetPreviousRegionIdent(uint32_t value) -> void override;
+	auto GetPreviousIcaoAirport() const -> uint32_t override;
+	auto SetPreviousIcaoAirport(uint32_t value) -> void override;
+	auto GetPreviousAltitudeMinimum() const -> float override;
+	auto SetPreviousAltitudeMinimum(float value) -> void override;
+	auto GetNextType() const -> EConnectionType override;
+	auto SetNextType(EConnectionType value) -> void override;
+	auto GetNextIcaoIdent() const -> uint32_t override;
+	auto SetNextIcaoIdent(uint32_t value) -> void override;
+	auto GetNextRegionIdent() const -> uint32_t override;
+	auto SetNextRegionIdent(uint32_t value) -> void override;
+	auto GetNextIcaoAirport() const -> uint32_t override;
+	auto SetNextIcaoAirport(uint32_t value) -> void override;
+	auto GetNextAltitudeMinimum() const -> float override;
+	auto SetNextAltitudeMinimum(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglRouteData> m_data;
+};
+
+
+//******************************************************************************
+// CBglWaypoint
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglWaypointData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  WaypointType;
+	uint8_t  RouteCount;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	float    Magvar;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+};
+
+#pragma pack(pop)
+	
+
+class CBglWaypoint final : public IBglSerializable, public IBglWaypoint
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetRouteCount() const -> int override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetRouteAt(int index) -> IBglRoute* override;
+	auto AddRoute(const IBglRoute* route) -> void override;
+	auto RemoveRoute(const IBglRoute* route) -> void override;
+
+private:
+	auto CalculatePadSize() const -> int;
+	
+	stlab::copy_on_write<SBglWaypointData> m_data;
+	stlab::copy_on_write<std::vector<CBglRoute>> m_routes;
+};
+	
+	
 //******************************************************************************
 // CBglExclusion
 //******************************************************************************  

@@ -181,6 +181,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::ModelData:
 			record = std::make_unique<CBglModelData>();
 			break;
+		case EBglLayerType::Waypoint:
+			record = std::make_unique<CBglWaypoint>();
+			break;
 		default:
 			continue; // TODO - do we need to set position????
 		}
