@@ -457,6 +457,15 @@ auto flightsimlib::io::CBglName::SetName(const char* value) -> void
 	m_data.write().Name = value;
 }
 
+auto flightsimlib::io::CBglName::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0 || m_data->Name.empty())
+	{
+		return true;
+	}
+	return false;
+}
+
 auto flightsimlib::io::CBglName::CalculateRemainingSize() const -> int
 {
 	return static_cast<int>(sizeof(m_data->Type) + sizeof(m_data->Size));
@@ -5177,9 +5186,13 @@ auto flightsimlib::io::CBglAirport::WriteBinary(BinaryFileStream& out) -> void
 
 auto flightsimlib::io::CBglAirport::Validate() -> bool
 {
-	auto count = static_cast<int>(sizeof(SBglAirportData)) +
-		CBglName::CalculateSize();
+	auto count = static_cast<int>(sizeof(SBglAirportData));
 
+	if (!CBglName::IsEmpty())
+	{
+		count += CBglName::CalculateSize();
+	}
+	
 	for (const auto& runway : m_runways.read())
 	{
 		count += runway.CalculateSize();
@@ -6271,6 +6284,527 @@ auto flightsimlib::io::CBglWaypoint::CalculatePadSize() const -> int
 		return 0;
 	}
 	return pad_size;
+}
+
+
+//******************************************************************************
+// CBglLocalizer
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglLocalizer::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.RunwayNumber
+		>> data.RunwayDesignator
+		>> data.Heading
+		>> data.Width;
+}
+
+auto flightsimlib::io::CBglLocalizer::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->RunwayNumber
+		<< m_data->RunwayDesignator
+		<< m_data->Heading
+		<< m_data->Width;
+}
+
+auto flightsimlib::io::CBglLocalizer::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglLocalizer::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglLocalizerData));
+}
+
+auto flightsimlib::io::CBglLocalizer::GetRunwayNumber() const -> IBglRunway::ERunwayNumber
+{
+	return static_cast<IBglRunway::ERunwayNumber>(m_data->RunwayNumber);
+}
+
+auto flightsimlib::io::CBglLocalizer::SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void
+{
+	m_data.write().RunwayNumber = to_integral(value);
+}
+
+auto flightsimlib::io::CBglLocalizer::GetRunwayDesignator() const -> IBglRunway::ERunwayDesignator
+{
+	return static_cast<IBglRunway::ERunwayDesignator>(m_data->RunwayDesignator);
+}
+
+auto flightsimlib::io::CBglLocalizer::SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void
+{
+	m_data.write().RunwayDesignator = to_integral(value);
+}
+
+auto flightsimlib::io::CBglLocalizer::GetHeading() const -> float
+{
+	return m_data->Heading;
+}
+
+auto flightsimlib::io::CBglLocalizer::SetHeading(float value) -> void
+{
+	m_data.write().Heading = value;
+}
+
+auto flightsimlib::io::CBglLocalizer::GetWidth() const -> float
+{
+	return m_data->Width;
+}
+
+auto flightsimlib::io::CBglLocalizer::SetWidth(float value) -> void
+{
+	m_data.write().Width = value;
+}
+
+auto flightsimlib::io::CBglLocalizer::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
+// CBglGlideSlope
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglGlideSlope::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Pad
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Range
+		>> data.Pitch;
+}
+
+auto flightsimlib::io::CBglGlideSlope::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Pad
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Range
+		<< m_data->Pitch;
+}
+
+auto flightsimlib::io::CBglGlideSlope::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglGlideSlope::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglGlideSlopeData));
+}
+
+auto flightsimlib::io::CBglGlideSlope::GetPitch() const -> float
+{
+	return m_data->Pitch;
+}
+
+auto flightsimlib::io::CBglGlideSlope::SetPitch(float value) -> void
+{
+	m_data.write().Pitch = value;
+}
+
+auto flightsimlib::io::CBglGlideSlope::GetRange() const -> float
+{
+	return m_data->Range;
+}
+
+auto flightsimlib::io::CBglGlideSlope::SetRange(float value) -> void
+{
+	m_data.write().Range = value;
+}
+
+auto flightsimlib::io::CBglGlideSlope::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
+// CBglDme
+//******************************************************************************  
+
+
+auto flightsimlib::io::CBglDme::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+	in >> data.Type
+		>> data.Size
+		>> data.Pad
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Range;
+}
+
+auto flightsimlib::io::CBglDme::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->Pad
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Range;
+}
+
+auto flightsimlib::io::CBglDme::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglDme::CalculateSize() const -> int
+{
+	return static_cast<int>(sizeof(SBglDmeData));
+}
+
+auto flightsimlib::io::CBglDme::GetRange() const -> float
+{
+	return m_data->Range;
+}
+
+auto flightsimlib::io::CBglDme::SetRange(float value) -> void
+{
+	m_data.write().Range = value;
+}
+
+auto flightsimlib::io::CBglDme::IsEmpty() const -> bool
+{
+	if (m_data->Type == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+//******************************************************************************
+// CBglNav
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglNav::ReadBinary(BinaryFileStream& in) -> void
+{
+	auto& data = m_data.write();
+
+	const auto initial_pos = in.GetPosition();
+	
+	in >> data.Type
+		>> data.Size
+		>> data.NavType
+		>> data.Flags
+		>> data.Longitude
+		>> data.Latitude
+		>> data.Altitude
+		>> data.Frequency
+		>> data.Range
+		>> data.MagVar
+		>> data.IcaoIdent
+		>> data.RegionIdent;
+
+	const auto final_position = initial_pos + static_cast<int>(m_data->Size);
+	while (in.GetPosition() < final_position)
+	{
+		const auto child_pos = in.GetPosition();
+		uint16_t type = 0;
+		uint32_t size = 0;
+		in >> type >> size;
+		in.SetPosition(child_pos);
+		const auto type_enum = static_cast<EBglLayerType>(type);
+
+		switch (type_enum)  // NOLINT(clang-diagnostic-switch-enum)
+		{
+		case EBglLayerType::Localizer:
+			m_localizer.write().ReadBinary(in);
+			//TODO - error handling
+			if (!m_localizer.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EBglLayerType::GlideSlope:
+			m_glide_slope.write().ReadBinary(in);
+			if (!m_glide_slope.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EBglLayerType::Dme:
+			m_dme.write().ReadBinary(in);
+			if (!m_dme.write().Validate())
+			{
+				return;
+			}
+			break;
+		case EBglLayerType::Name:
+			CBglName::ReadBinary(in);
+			break;
+		default:
+			return;
+		}
+	}
+}
+
+auto flightsimlib::io::CBglNav::WriteBinary(BinaryFileStream& out) -> void
+{
+	out << m_data->Type
+		<< m_data->Size
+		<< m_data->NavType
+		<< m_data->Flags
+		<< m_data->Longitude
+		<< m_data->Latitude
+		<< m_data->Altitude
+		<< m_data->Frequency
+		<< m_data->Range
+		<< m_data->MagVar
+		<< m_data->IcaoIdent
+		<< m_data->RegionIdent;
+
+	if (!m_localizer->IsEmpty())
+	{
+		m_localizer.write().WriteBinary(out);
+	}
+
+	if (!m_glide_slope->IsEmpty())
+	{
+		m_glide_slope.write().WriteBinary(out);
+	}
+
+	if (!m_dme->IsEmpty())
+	{
+		m_dme.write().WriteBinary(out);
+	}
+
+	if (!CBglName::IsEmpty())
+	{
+		CBglName::WriteBinary(out);
+	}
+}
+
+auto flightsimlib::io::CBglNav::Validate() -> bool
+{
+	m_data.write().Size = CalculateSize();
+	return true;
+}
+
+auto flightsimlib::io::CBglNav::CalculateSize() const -> int
+{
+	auto count = static_cast<int>(sizeof(SBglNavData));
+
+	if (!CBglName::IsEmpty())
+	{
+		count += CBglName::CalculateSize();
+	}
+
+	if (!m_localizer->IsEmpty())
+	{
+		count += m_localizer->CalculateSize();
+	}
+
+	if (!m_glide_slope->IsEmpty())
+	{
+		count += m_glide_slope->CalculateSize();
+	}
+
+	if (!m_dme->IsEmpty())
+	{
+		count += m_dme->CalculateSize();
+	}
+	
+	return count;
+}
+
+auto flightsimlib::io::CBglNav::GetType() const -> EType
+{
+	return static_cast<EType>(m_data->NavType);
+}
+
+auto flightsimlib::io::CBglNav::SetType(EType value) -> void
+{
+	m_data.write().NavType = to_integral(value);
+}
+
+auto flightsimlib::io::CBglNav::IsDmeOnly() const -> bool
+{
+	return static_cast<bool>(
+		! get_packed_bits(m_data->Type, 1, to_integral(EFlags::NotDmeOnly)));
+}
+
+auto flightsimlib::io::CBglNav::SetDmeOnly(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, !value, 1, to_integral(EFlags::NotDmeOnly));
+}
+
+auto flightsimlib::io::CBglNav::HasBackCourse() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EFlags::BackCourse)));
+}
+
+auto flightsimlib::io::CBglNav::SetBackCourse(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EFlags::BackCourse));
+}
+
+auto flightsimlib::io::CBglNav::HasGlideSlope() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EFlags::GlideSlope)));
+}
+
+auto flightsimlib::io::CBglNav::SetGlideSlope(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EFlags::GlideSlope));
+}
+
+auto flightsimlib::io::CBglNav::HasDme() const -> bool
+{
+	return static_cast<bool>(
+		get_packed_bits(m_data->Type, 1, to_integral(EFlags::Dme)));
+}
+
+auto flightsimlib::io::CBglNav::SetDme(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, value, 1, to_integral(EFlags::Dme));
+}
+
+auto flightsimlib::io::CBglNav::HasNav() const -> bool
+{
+	return static_cast<bool>(
+		! get_packed_bits(m_data->Type, 1, to_integral(EFlags::NavMissing)));
+}
+
+auto flightsimlib::io::CBglNav::SetNav(bool value) -> void
+{
+	set_packed_bits(m_data.write().Type, !value, 1, to_integral(EFlags::NavMissing));
+}
+
+auto flightsimlib::io::CBglNav::GetFrequency() const -> uint32_t
+{
+	return m_data->Frequency;
+}
+
+auto flightsimlib::io::CBglNav::SetFrequency(uint32_t value) -> void
+{
+	m_data.write().Frequency = value;
+}
+
+auto flightsimlib::io::CBglNav::GetRange() const -> float
+{
+	return m_data->Range;
+}
+
+auto flightsimlib::io::CBglNav::SetRange(float value) -> void
+{
+	m_data.write().Range = value;
+}
+
+auto flightsimlib::io::CBglNav::GetMagVar() const -> float
+{
+	return m_data->MagVar;
+}
+
+auto flightsimlib::io::CBglNav::SetMagVar(float value) -> void
+{
+	m_data.write().MagVar = value;
+}
+
+auto flightsimlib::io::CBglNav::GetIcaoIdent() const -> uint32_t
+{
+	return m_data->IcaoIdent;
+}
+
+auto flightsimlib::io::CBglNav::SetIcaoIdent(uint32_t value) -> void
+{
+	m_data.write().IcaoIdent = value;
+}
+
+auto flightsimlib::io::CBglNav::GetRegionIdent() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 11, 0));
+}
+
+auto flightsimlib::io::CBglNav::SetRegionIdent(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 11, 0);
+}
+
+auto flightsimlib::io::CBglNav::GetIcaoAirport() const -> uint32_t
+{
+	return static_cast<uint32_t>(get_packed_bits(m_data->RegionIdent, 21, 11));
+}
+
+auto flightsimlib::io::CBglNav::SetIcaoAirport(uint32_t value) -> void
+{
+	set_packed_bits(m_data.write().RegionIdent, value, 21, 11);
+}
+
+auto flightsimlib::io::CBglNav::GetLocalizer() -> IBglLocalizer*
+{
+	if (m_localizer->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_localizer.write();
+}
+
+auto flightsimlib::io::CBglNav::SetLocalizer(IBglLocalizer* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_localizer = { *static_cast<CBglLocalizer*>(value) };
+}
+
+auto flightsimlib::io::CBglNav::GetGlideSlope() -> IBglGlideSlope*
+{
+	if (m_glide_slope->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_glide_slope.write();
+}
+
+auto flightsimlib::io::CBglNav::SetGlideSlope(IBglGlideSlope* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_glide_slope = { *static_cast<CBglGlideSlope*>(value) };
+}
+
+auto flightsimlib::io::CBglNav::GetDmeRecord() -> IBglDme*
+{
+	if (m_dme->IsEmpty())
+	{
+		return nullptr;
+	}
+	return &m_dme.write();
+}
+
+auto flightsimlib::io::CBglNav::SetDmeRecord(IBglDme* value) -> void
+{
+	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+	m_dme = { *static_cast<CBglDme*>(value) };
 }
 
 
@@ -8912,3 +9446,6 @@ template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglHelipadData>>;
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;
 template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglAirportSummaryData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglGlideSlopeData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglDmeData>>;
+template class flightsimlib::io::CBglLLA<stlab::copy_on_write<flightsimlib::io::SBglNavData>>;

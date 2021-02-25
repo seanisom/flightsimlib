@@ -285,6 +285,8 @@ public:
 	auto GetName() const -> const char* override;
 	auto SetName(const char* value) -> void override;
 
+	auto IsEmpty() const -> bool;
+
 private:
 	auto CalculateRemainingSize() const -> int;
 	
@@ -2301,7 +2303,223 @@ private:
 	stlab::copy_on_write<SBglWaypointData> m_data;
 	stlab::copy_on_write<std::vector<CBglRoute>> m_routes;
 };
+
+//******************************************************************************
+// CBglLocalizer
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglLocalizerData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  RunwayNumber;
+	uint8_t  RunwayDesignator;
+	float    Heading;
+	float    Width;
+};
+
+#pragma pack(pop)
 	
+
+class CBglLocalizer final : public IBglSerializable, public IBglLocalizer
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber override;
+	auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void override;
+	auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator override;
+	auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void override;
+	auto GetHeading() const -> float override;
+	auto SetHeading(float value) -> void override;
+	auto GetWidth() const -> float override;
+	auto SetWidth(float value) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglLocalizerData> m_data;
+};
+
+
+//******************************************************************************
+// CBglGlideSlope
+//****************************************************************************** 
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglGlideSlopeData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t Pad;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	float    Range;
+	float    Pitch;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglGlideSlope final : public CBglLLA<stlab::copy_on_write<SBglGlideSlopeData>>, public IBglSerializable, public IBglGlideSlope
+{
+public:
+	CBglGlideSlope() : CBglLLA<stlab::copy_on_write<SBglGlideSlopeData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetPitch() const -> float override;
+	auto SetPitch(float value) -> void override;
+	auto GetRange() const -> float override;
+	auto SetRange(float value) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglGlideSlopeData> m_data;
+};
+
+
+//******************************************************************************
+// CBglDme
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglDmeData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t Pad;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	float    Range;
+};
+
+#pragma pack(pop)
+	
+
+class CBglDme final : public CBglLLA<stlab::copy_on_write<SBglDmeData>>, public IBglSerializable, public IBglDme
+{
+public:
+	CBglDme() : CBglLLA<stlab::copy_on_write<SBglDmeData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetRange() const -> float override;
+	auto SetRange(float value) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglDmeData> m_data;
+};
+
+
+//******************************************************************************
+// CBglNav
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglNavData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  NavType;
+	uint8_t  Flags;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	uint32_t Frequency;
+	float    Range;
+	float    MagVar;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+};
+
+#pragma pack(pop)
+	
+
+class CBglNav final : public CBglLLA<stlab::copy_on_write<SBglNavData>>, public CBglName, public IBglNav
+{
+public:
+	CBglNav() : CBglLLA<stlab::copy_on_write<SBglNavData>>(m_data) { }
+	
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto IsDmeOnly() const -> bool override;
+	auto SetDmeOnly(bool value) -> void override;
+	auto HasBackCourse() const -> bool override;
+	auto SetBackCourse(bool value) -> void override;
+	auto HasGlideSlope() const -> bool override;
+	auto SetGlideSlope(bool value) -> void override;
+	auto HasDme() const -> bool override;
+	auto SetDme(bool value) -> void override;
+	auto HasNav() const -> bool override;
+	auto SetNav(bool value) -> void override;
+	auto GetFrequency() const -> uint32_t override;
+	auto SetFrequency(uint32_t value) -> void override;
+	auto GetRange() const -> float override;
+	auto SetRange(float value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetLocalizer() -> IBglLocalizer* override;
+	auto SetLocalizer(IBglLocalizer* value) -> void override;
+	auto GetGlideSlope() -> IBglGlideSlope* override;
+	auto SetGlideSlope(IBglGlideSlope* value) -> void override;
+	auto GetDmeRecord() -> IBglDme* override;
+	auto SetDmeRecord(IBglDme* value) -> void override;
+
+private:
+	enum class EFlags : uint8_t
+	{
+		NotDmeOnly = 0,
+		BackCourse = 2,
+		GlideSlope = 3,
+		Dme = 4,
+		NavMissing = 5
+	};
+	
+	stlab::copy_on_write<SBglNavData> m_data;
+	stlab::copy_on_write<CBglLocalizer> m_localizer;
+	stlab::copy_on_write<CBglGlideSlope> m_glide_slope;
+	stlab::copy_on_write<CBglDme> m_dme;
+};
+
 	
 //******************************************************************************
 // CBglExclusion

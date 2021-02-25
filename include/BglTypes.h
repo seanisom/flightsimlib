@@ -331,6 +331,7 @@ public:
 
 	enum class ERunwayNumber : uint8_t
 	{
+		None = 0,
 		Runway1 = 1,
 		Runway2 = 2,
 		Runway3 = 3,
@@ -1400,6 +1401,84 @@ public:
 	virtual auto GetRouteAt(int index) -> IBglRoute* = 0;
 	virtual auto AddRoute(const IBglRoute* route) -> void = 0;
 	virtual auto RemoveRoute(const IBglRoute* route) -> void = 0;
+};
+
+	
+class IBglLocalizer
+{
+public:
+	virtual auto GetRunwayNumber() const -> IBglRunway::ERunwayNumber = 0;
+	virtual auto SetRunwayNumber(IBglRunway::ERunwayNumber value) -> void = 0;
+	virtual auto GetRunwayDesignator() const->IBglRunway::ERunwayDesignator = 0;
+	virtual auto SetRunwayDesignator(IBglRunway::ERunwayDesignator value) -> void = 0;
+	virtual auto GetHeading() const -> float = 0;
+	virtual auto SetHeading(float value) -> void = 0;
+	virtual auto GetWidth() const -> float = 0;
+	virtual auto SetWidth(float value) -> void = 0;
+};
+
+	
+class IBglGlideSlope : virtual public IBglLLA
+{
+public:
+	virtual auto GetPitch() const -> float = 0;
+	virtual auto SetPitch(float value) -> void = 0;
+	virtual auto GetRange() const -> float = 0;
+	virtual auto SetRange(float value) -> void = 0;
+};
+
+
+class IBglDme : virtual public IBglLLA
+{
+public:
+	virtual auto GetRange() const -> float = 0;
+	virtual auto SetRange(float value) -> void = 0;
+};
+	
+	
+class IBglNav : virtual public IBglLLA, virtual public IBglName
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		VorTerminal = 0x1,
+		VorLow = 0x2,
+		VorHigh = 0x3,
+		Ils = 0x4,
+		VorVot = 0x5
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto IsDmeOnly() const -> bool = 0;
+	virtual auto SetDmeOnly(bool value) -> void = 0;
+	virtual auto HasBackCourse() const -> bool = 0;
+	virtual auto SetBackCourse(bool value) -> void = 0;
+	virtual auto HasGlideSlope() const -> bool = 0;
+	virtual auto SetGlideSlope(bool value) -> void = 0;
+	virtual auto HasDme() const -> bool = 0;
+	virtual auto SetDme(bool value) -> void = 0;
+	virtual auto HasNav() const -> bool = 0;
+	virtual auto SetNav(bool value) -> void = 0;
+	virtual auto GetFrequency() const -> uint32_t = 0;
+	virtual auto SetFrequency(uint32_t value) -> void = 0;
+	virtual auto GetRange() const -> float = 0;
+	virtual auto SetRange(float value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetLocalizer() -> IBglLocalizer* = 0;
+	virtual auto SetLocalizer(IBglLocalizer* value) -> void = 0;
+	virtual auto GetGlideSlope() -> IBglGlideSlope* = 0;
+	virtual auto SetGlideSlope(IBglGlideSlope* value) -> void = 0;
+	virtual auto GetDmeRecord() -> IBglDme* = 0;
+	virtual auto SetDmeRecord(IBglDme* value) -> void = 0;
 };
 	
 	

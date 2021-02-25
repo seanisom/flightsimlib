@@ -135,6 +135,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::Marker:
 			record = std::make_unique<CBglMarker>();
 			break;
+		case EBglLayerType::Nav:
+			record = std::make_unique<CBglNav>();
+			break;
 		case EBglLayerType::Ndb:
 			record = std::make_unique<CBglNdb>();
 			break;
