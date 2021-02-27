@@ -184,6 +184,12 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		case EBglLayerType::ModelData:
 			record = std::make_unique<CBglModelData>();
 			break;
+		case EBglLayerType::Tacan:
+			record = std::make_unique<CBglTacan>();
+			break;
+		case EBglLayerType::Boundary:
+			record = std::make_unique<CBglBoundary>();
+			break;
 		case EBglLayerType::Waypoint:
 			record = std::make_unique<CBglWaypoint>();
 			break;
@@ -394,7 +400,21 @@ int CBglLayer::CalculateTilePointersSize() const
 void CBglLayer::UpdateLayerPointer(int offset_to_tile)
 {
 	const auto tile_pointers_size = CalculateTilePointersSize();
-	m_data.write().Type = m_type;
+
+	auto type = m_type;
+	switch (m_type)  // NOLINT(clang-diagnostic-switch-enum)
+	{
+	case EBglLayerType::Tacan:
+		type = EBglLayerType::TerrainPhoto32Jan;
+		break;
+	case EBglLayerType::TacanIndex:
+		type = EBglLayerType::TerrainPhoto32Feb;
+		break;
+	default:
+		break;
+	}
+	m_data.write().Type = type;
+	
 	m_data.write().TileCount = static_cast<uint32_t>(m_tiles.size());
 	m_data.write().HasQmidLow = 1;
 	if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)

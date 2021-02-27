@@ -786,6 +786,8 @@ public:
 	auto GetName() const -> const char* override;
 	auto SetName(const char* value) -> void override;
 
+	auto IsEmpty() const -> bool;
+
 private:
 	auto CalculateRemainingSize() const -> int;
 	
@@ -2518,6 +2520,209 @@ private:
 	stlab::copy_on_write<CBglLocalizer> m_localizer;
 	stlab::copy_on_write<CBglGlideSlope> m_glide_slope;
 	stlab::copy_on_write<CBglDme> m_dme;
+};
+
+
+//******************************************************************************
+// CBglTacan
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTacanData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint32_t Longitude;
+	uint32_t Latitude;
+	uint32_t Altitude;
+	uint32_t Channel;
+	uint8_t  Flags;
+	float    Range;
+	float    MagVar;
+	uint32_t IcaoIdent;
+	uint32_t RegionIdent;
+};
+
+#pragma pack(pop)
+	
+
+class CBglTacan final : public CBglLLA<stlab::copy_on_write<SBglTacanData>>, public CBglName, public IBglTacan
+{
+public:
+	CBglTacan() : CBglLLA<stlab::copy_on_write<SBglTacanData>>(m_data) { }
+
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto IsTypeY() const -> bool override;
+	auto SetTypeY(bool value) -> void override;
+	auto IsDmeOnly() const -> bool override;
+	auto SetDmeOnly(bool value) -> void override;
+	auto GetChannel() const -> uint32_t override;
+	auto SetChannel(uint32_t value) -> void override;
+	auto GetRange() const -> float override;
+	auto SetRange(float value) -> void override;
+	auto GetMagVar() const -> float override;
+	auto SetMagVar(float value) -> void override;
+	auto GetIcaoIdent() const -> uint32_t override;
+	auto SetIcaoIdent(uint32_t value) -> void override;
+	auto GetRegionIdent() const -> uint32_t override;
+	auto SetRegionIdent(uint32_t value) -> void override;
+	auto GetIcaoAirport() const -> uint32_t override;
+	auto SetIcaoAirport(uint32_t value) -> void override;
+	auto GetDmeRecord() -> IBglDme* override;
+	auto SetDmeRecord(IBglDme* value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTacanData> m_data;
+	stlab::copy_on_write<CBglDme> m_dme;
+};
+
+
+//******************************************************************************
+// CBglBoundaryEdge
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglBoundaryEdgeData
+{
+	uint16_t Type;
+	uint32_t Longitude;
+	uint32_t Latitude;
+};
+
+#pragma pack(pop)
+	
+	
+class CBglBoundaryEdge final : public IBglSerializable, public IBglBoundaryEdge
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetLongitude() const -> double override;
+	auto SetLongitude(double value) -> void override;
+	auto GetLatitude() const -> double override;
+	auto SetLatitude(double value) -> void override;
+	auto GetRadius() const -> float override;
+	auto SetRadius(float value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglBoundaryEdgeData> m_data;
+};
+
+
+//******************************************************************************
+// CBglBoundaryEdges
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglBoundaryEdgesData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint16_t EdgeCount;
+};
+
+#pragma pack(pop)
+	
+
+class CBglBoundaryEdges final : public IBglSerializable, public IBglBoundaryEdges
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetEdgeCount() const -> int override;
+	auto GetEdgeAt(int index) -> IBglBoundaryEdge* override;
+	auto AddEdge(const IBglBoundaryEdge* edge) -> void override;
+	auto RemoveEdge(const IBglBoundaryEdge* edge) -> void override;
+
+	auto IsEmpty() const -> bool;
+
+private:
+	stlab::copy_on_write<SBglBoundaryEdgesData> m_data;
+	stlab::copy_on_write<std::vector<CBglBoundaryEdge>> m_edges;
+};
+
+	
+//******************************************************************************
+// CBglBoundary
+//******************************************************************************  
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglBoundaryData
+{
+	uint16_t Type;
+	uint32_t Size;
+	uint8_t  BoundaryType;
+	uint8_t  AltitudeType;
+	uint32_t MinLongitude;
+	uint32_t MinLatitude;
+	uint32_t MinAltitude;
+	uint32_t MaxLongitude;
+	uint32_t MaxLatitude;
+	uint32_t MaxAltitude;
+};
+
+#pragma pack(pop)
+	
+
+class CBglBoundary final : public CBglName, public IBglBoundary
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetType() const -> EType override;
+	auto SetType(EType value) -> void override;
+	auto GetMaxAltitudeType() const -> EAltitudeType override;
+	auto SetMaxAltitudeType(EAltitudeType value) -> void override;
+	auto GetMinAltitudeType() const -> EAltitudeType override;
+	auto SetMinAltitudeType(EAltitudeType value) -> void override;
+	auto GetMinLongitude() const -> double override;
+	auto SetMinLongitude(double value) -> void override;
+	auto GetMinLatitude() const -> double override;
+	auto SetMinLatitude(double value) -> void override;
+	auto GetMinAltitude() const -> double override;
+	auto SetMinAltitude(double value) -> void override;
+	auto GetMaxLongitude() const -> double override;
+	auto SetMaxLongitude(double value) -> void override;
+	auto GetMaxLatitude() const -> double override;
+	auto SetMaxLatitude(double value) -> void override;
+	auto GetMaxAltitude() const -> double override;
+	auto SetMaxAltitude(double value) -> void override;
+	auto GetCom() -> IBglCom* override;
+	auto SetCom(IBglCom* value) -> void override;
+	auto GetEdges() -> IBglBoundaryEdges* override;
+	auto SetEdges(IBglBoundaryEdges* value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglBoundaryData> m_data;
+	stlab::copy_on_write<CBglBoundaryEdges> m_edges;
+	stlab::copy_on_write<CBglCom> m_com;
 };
 
 	

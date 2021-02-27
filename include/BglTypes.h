@@ -1480,6 +1480,129 @@ public:
 	virtual auto GetDmeRecord() -> IBglDme* = 0;
 	virtual auto SetDmeRecord(IBglDme* value) -> void = 0;
 };
+
+
+class IBglTacan : virtual public IBglLLA, virtual public IBglName
+{
+public:
+	virtual auto IsTypeY() const -> bool = 0;
+	virtual auto SetTypeY(bool value) -> void = 0;
+	virtual auto IsDmeOnly() const -> bool = 0;
+	virtual auto SetDmeOnly(bool value) -> void = 0;
+	virtual auto GetChannel() const -> uint32_t = 0;
+	virtual auto SetChannel(uint32_t value) -> void = 0;
+	virtual auto GetRange() const -> float = 0;
+	virtual auto SetRange(float value) -> void = 0;
+	virtual auto GetMagVar() const -> float = 0;
+	virtual auto SetMagVar(float value) -> void = 0;
+	virtual auto GetIcaoIdent() const -> uint32_t = 0;
+	virtual auto SetIcaoIdent(uint32_t value) -> void = 0;
+	virtual auto GetRegionIdent() const -> uint32_t = 0;
+	virtual auto SetRegionIdent(uint32_t value) -> void = 0;
+	virtual auto GetIcaoAirport() const -> uint32_t = 0;
+	virtual auto SetIcaoAirport(uint32_t value) -> void = 0;
+	virtual auto GetDmeRecord() -> IBglDme* = 0;
+	virtual auto SetDmeRecord(IBglDme* value) -> void = 0;
+};
+
+
+class IBglBoundaryEdge
+{
+public:
+	enum class EType : uint16_t
+	{
+		None = 0x0,
+		Start = 0x1,
+		Line = 0x2,
+		Origin = 0x3,
+		ArcClockwise = 0x4,
+		ArcCounterClockwise = 0x5,
+		Circle = 0x6
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetLongitude() const -> double = 0;
+	virtual auto SetLongitude(double value) -> void = 0;
+	virtual auto GetLatitude() const -> double = 0;
+	virtual auto SetLatitude(double value) -> void = 0;
+	virtual auto GetRadius() const -> float = 0;
+	virtual auto SetRadius(float value) -> void = 0;
+};
+	
+
+class IBglBoundaryEdges
+{
+public:
+	virtual auto GetEdgeCount() const -> int = 0;
+	virtual auto GetEdgeAt(int index) -> IBglBoundaryEdge* = 0;
+	virtual auto AddEdge(const IBglBoundaryEdge* edge) -> void = 0;
+	virtual auto RemoveEdge(const IBglBoundaryEdge* edge) -> void = 0;
+};
+
+	
+class IBglBoundary : virtual public IBglName
+{
+public:
+	enum class EType : uint8_t
+	{
+		None = 0x0,
+		Center = 0x1,
+		ClassA = 0x2,
+		ClassB = 0x3,
+		ClassC = 0x4,
+		ClassD = 0x5,
+		ClassE = 0x6,
+		ClassF = 0x7,
+		ClassG = 0x8,
+		Tower = 0x9,
+		Clearance = 0xA,
+		Ground = 0xB,
+		Departure = 0xC,
+		Approach = 0xD,
+		Moa = 0xE,
+		Restricted = 0xF,
+		Prohibited = 0x10,
+		Warning = 0x11,
+		Alert = 0x12,
+		Danger = 0x13,
+		NationalPark = 0x14,
+		Modec = 0x15,
+		Radar = 0x16,
+		Training = 0x17
+	};
+
+	enum class EAltitudeType : uint8_t
+	{
+		None = 0x0,
+		MeanSeaLevel = 0x1, // Unknown maps to this
+		AboveGroundLevel = 0x2,
+		Unlimited = 0x3
+	};
+
+	virtual auto GetType() const -> EType = 0;
+	virtual auto SetType(EType value) -> void = 0;
+	virtual auto GetMaxAltitudeType() const -> EAltitudeType = 0;
+	virtual auto SetMaxAltitudeType(EAltitudeType value) -> void = 0;
+	virtual auto GetMinAltitudeType() const -> EAltitudeType = 0;
+	virtual auto SetMinAltitudeType(EAltitudeType value) -> void = 0;
+	virtual auto GetMinLongitude() const -> double = 0;
+	virtual auto SetMinLongitude(double value) -> void = 0;
+	virtual auto GetMinLatitude() const -> double = 0;
+	virtual auto SetMinLatitude(double value) -> void = 0;
+	virtual auto GetMinAltitude() const -> double = 0;
+	virtual auto SetMinAltitude(double value) -> void = 0;
+	virtual auto GetMaxLongitude() const -> double = 0;
+	virtual auto SetMaxLongitude(double value) -> void = 0;
+	virtual auto GetMaxLatitude() const -> double = 0;
+	virtual auto SetMaxLatitude(double value) -> void = 0;
+	virtual auto GetMaxAltitude() const -> double = 0;
+	virtual auto SetMaxAltitude(double value) -> void = 0;
+	virtual auto GetCom() -> IBglCom* = 0;
+	virtual auto SetCom(IBglCom* value) -> void = 0;
+	virtual auto GetEdges() -> IBglBoundaryEdges* = 0;
+	virtual auto SetEdges(IBglBoundaryEdges* value) -> void = 0;
+};
 	
 	
 class IBglExclusion
