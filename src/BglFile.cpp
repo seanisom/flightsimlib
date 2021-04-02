@@ -45,7 +45,7 @@
 
 
 #include "BglFile.h"
-#include "BglData.h"
+// #include "BglData.h"
 
 
 namespace flightsimlib
@@ -56,10 +56,444 @@ namespace io
 
 
 //******************************************************************************
-// CBglTile
+// CBglData
 //******************************************************************************  
 
+template <typename... Args>
+std::unique_ptr<CBglData> FactoryImpl(EBglLayerType type, 
+	IBglSceneryObject::ESceneryObjectType child_type, Args&&... args)
+{
+	std::unique_ptr<IBglSerializable> data = nullptr;
 
+	constexpr auto no_copy = sizeof...(Args) != 0;
+	
+	switch (type)  // NOLINT(clang-diagnostic-switch-enum)
+	{
+	case EBglLayerType::Airport:
+		data = no_copy ? std::make_unique<CBglAirport>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglAirport>(*dynamic_cast<const CBglAirport*>(args)...);
+		break;
+	case EBglLayerType::Nav:
+		data = no_copy ? std::make_unique<CBglNav>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglNav>(*dynamic_cast<const CBglNav*>(args)...);
+		break;
+	case EBglLayerType::Ndb:
+		data = no_copy ? std::make_unique<CBglNdb>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglNdb>(*dynamic_cast<const CBglNdb*>(args)...);
+		break;
+	case EBglLayerType::Marker:
+		data = no_copy ? std::make_unique<CBglMarker>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglMarker>(*dynamic_cast<const CBglMarker*>(args)...);
+		break;
+	case EBglLayerType::Boundary:
+		data = no_copy ? std::make_unique<CBglBoundary>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglBoundary>(*dynamic_cast<const CBglBoundary*>(args)...);
+		break;
+	case EBglLayerType::Waypoint:
+		data = no_copy ? std::make_unique<CBglWaypoint>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglWaypoint>(*dynamic_cast<const CBglWaypoint*>(args)...);
+		break;
+	case EBglLayerType::Geopol:
+		data = no_copy ? std::make_unique<CBglGeopol>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglGeopol>(*dynamic_cast<const CBglGeopol*>(args)...);
+		break;
+	case EBglLayerType::SceneryObject:
+		{
+			switch (child_type)
+			{
+			case IBglSceneryObject::ESceneryObjectType::GenericBuilding:
+				data = no_copy ? std::make_unique<CBglGenericBuilding>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglGenericBuilding>(*dynamic_cast<const CBglGenericBuilding*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::LibraryObject:
+				data = no_copy ? std::make_unique<CBglLibraryObject>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglLibraryObject>(*dynamic_cast<const CBglLibraryObject*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::Windsock:
+				data = no_copy ? std::make_unique<CBglWindsock>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglWindsock>(*dynamic_cast<const CBglWindsock*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::Effect:
+				data = no_copy ? std::make_unique<CBglEffect>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglEffect>(*dynamic_cast<const CBglEffect*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::TaxiwaySigns:
+				data = no_copy ? std::make_unique<CBglTaxiwaySigns>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglTaxiwaySigns>(*dynamic_cast<const CBglTaxiwaySigns*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::Trigger:
+				data = no_copy ? std::make_unique<CBglTrigger>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglTrigger>(*dynamic_cast<const CBglTrigger*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::Beacon:
+				data = no_copy ? std::make_unique<CBglBeacon>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglBeacon>(*dynamic_cast<const CBglBeacon*>(args)...);
+				break;
+			case IBglSceneryObject::ESceneryObjectType::ExtrusionBridge:
+				data = no_copy ? std::make_unique<CBglExtrusionBridge>() :  // NOLINT(bugprone-branch-clone)
+					std::make_unique<CBglExtrusionBridge>(*dynamic_cast<const CBglExtrusionBridge*>(args)...);
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+		
+	case EBglLayerType::ModelData:
+		data = no_copy ? std::make_unique<CBglModelData>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglModelData>(*dynamic_cast<const CBglModelData*>(args)...);
+		break;
+	case EBglLayerType::AirportSummary:
+		data = no_copy ? std::make_unique<CBglAirportSummary>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglAirportSummary>(*dynamic_cast<const CBglAirportSummary*>(args)...);
+		break;
+	case EBglLayerType::TerrainVectorDb:
+		break;
+	case EBglLayerType::TerrainElevation:
+		break;
+	case EBglLayerType::TerrainLandClass:
+		break;
+	case EBglLayerType::TerrainWaterClass:
+		break;
+	case EBglLayerType::TerrainRegion:
+		break;
+	case EBglLayerType::PopulationDensity:
+		break;
+	case EBglLayerType::AutogenAnnotation:
+		break;
+	case EBglLayerType::TerrainIndex:
+		break;
+	case EBglLayerType::TerrainTextureLookup:
+		break;
+	case EBglLayerType::Tacan:
+		data = no_copy ? std::make_unique<CBglTacan>() :  // NOLINT(bugprone-branch-clone)
+			std::make_unique<CBglTacan>(*dynamic_cast<const CBglTacan*>(args)...);
+		break;
+	default:
+		return nullptr;
+		/*
+		auto AsTerrainSeason()->IBglTerrainSeason* override;
+		auto AsTerrainPhoto()->IBglTerrainPhoto* override;
+		auto AsTerrainPhoto32()->IBglTerrainPhoto32* override;
+		*/
+	}
+
+	return std::make_unique<CBglData>(type, std::move(data));
+}
+
+	
+CBglData::CBglData(EBglLayerType type, std::unique_ptr<IBglSerializable> data) :
+	m_type(type), m_data(std::move(data))
+{
+}
+
+std::unique_ptr<CBglData> CBglData::Factory(EBglLayerType type, IBglSceneryObject::ESceneryObjectType child_type)
+{
+	return FactoryImpl(type, child_type);
+}
+
+std::unique_ptr<CBglData> CBglData::Clone() const
+{
+	auto child_type = IBglSceneryObject::ESceneryObjectType::Unknown;
+	if (GetType() == EBglLayerType::SceneryObject)
+	{
+		const auto* scenery = dynamic_cast<const IBglSceneryObject*>(this);
+		child_type = scenery->GetSceneryObjectType();
+	}
+	return FactoryImpl(GetType(), child_type, m_data.get());
+}
+
+auto CBglData::GetType() const -> EBglLayerType
+{
+	return m_type;
+}
+
+auto CBglData::SetType(EBglLayerType value) -> void
+{
+	m_type = value;
+}
+
+auto CBglData::AsAirport() -> IBglAirport*
+{
+	if (m_type == EBglLayerType::Airport)
+	{
+		return dynamic_cast<IBglAirport*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsNav() -> IBglNav*
+{
+	if (m_type == EBglLayerType::Nav)
+	{
+		return dynamic_cast<IBglNav*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsNdb() -> IBglNdb*
+{
+	if (m_type == EBglLayerType::Ndb)
+	{
+		return dynamic_cast<IBglNdb*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsMarker() -> IBglMarker*
+{
+	if (m_type == EBglLayerType::Marker)
+	{
+		return dynamic_cast<IBglMarker*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsBoundary() -> IBglBoundary*
+{
+	if (m_type == EBglLayerType::Boundary)
+	{
+		return dynamic_cast<IBglBoundary*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsWaypoint() -> IBglWaypoint*
+{
+	if (m_type == EBglLayerType::Waypoint)
+	{
+		return dynamic_cast<IBglWaypoint*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsGeopol() -> IBglGeopol*
+{
+	if (m_type == EBglLayerType::Geopol)
+	{
+		return dynamic_cast<IBglGeopol*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsSceneryObject() -> IBglSceneryObject*
+{
+	if (m_type == EBglLayerType::SceneryObject)
+	{
+		return dynamic_cast<IBglSceneryObject*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsModelData() -> IBglModelData*
+{
+	if (m_type == EBglLayerType::ModelData)
+	{
+		return dynamic_cast<IBglModelData*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsAirportSummary() -> IBglAirportSummary*
+{
+	if (m_type == EBglLayerType::AirportSummary)
+	{
+		return dynamic_cast<IBglAirportSummary*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainVectorDb() -> IBglTerrainVectorDb*
+{
+	if (m_type == EBglLayerType::TerrainVectorDb)
+	{
+		return dynamic_cast<IBglTerrainVectorDb*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainElevation() -> IBglTerrainElevation*
+{
+	if (m_type == EBglLayerType::TerrainLandClass)
+	{
+		return dynamic_cast<IBglTerrainElevation*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainLandClass() -> IBglTerrainLandClass*
+{
+	if (m_type == EBglLayerType::TerrainLandClass)
+	{
+		return dynamic_cast<IBglTerrainLandClass*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainWaterClass() -> IBglTerrainWaterClass*
+{
+	if (m_type == EBglLayerType::TerrainWaterClass)
+	{
+		return dynamic_cast<IBglTerrainWaterClass*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainRegion() -> IBglTerrainRegion*
+{
+	if (m_type == EBglLayerType::TerrainRegion)
+	{
+		return dynamic_cast<IBglTerrainRegion*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsPopulationDensity() -> IBglPopulationDensity*
+{
+	if (m_type == EBglLayerType::PopulationDensity)
+	{
+		return dynamic_cast<IBglPopulationDensity*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsAutogenAnnotation() -> IBglAutogenAnnotation*
+{
+	if (m_type == EBglLayerType::AutogenAnnotation)
+	{
+		return dynamic_cast<IBglAutogenAnnotation*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainIndex() -> IBglTerrainIndex*
+{
+	if (m_type == EBglLayerType::TerrainIndex)
+	{
+		return dynamic_cast<IBglTerrainIndex*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainTextureLookup() -> IBglTerrainTextureLookup*
+{
+	if (m_type == EBglLayerType::TerrainTextureLookup)
+	{
+		return dynamic_cast<IBglTerrainTextureLookup*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainSeason() -> IBglTerrainSeason*
+{
+	typedef std::underlying_type<EBglLayerType>::type layer_t;
+
+	constexpr auto lower_bound = static_cast<layer_t>(EBglLayerType::TerrainSeasonJan);
+	constexpr auto upper_bound = static_cast<layer_t>(EBglLayerType::TerrainSeasonDec);
+	const auto layer_type = static_cast<layer_t>(m_type);
+	
+	if (layer_type >= lower_bound && layer_type <= upper_bound)
+	{
+		return dynamic_cast<IBglTerrainSeason*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainPhoto() -> IBglTerrainPhoto*
+{
+	typedef std::underlying_type<EBglLayerType>::type layer_t;
+
+	constexpr auto lower_bound = static_cast<layer_t>(EBglLayerType::TerrainPhotoJan);
+	constexpr auto upper_bound = static_cast<layer_t>(EBglLayerType::TerrainPhotoNight);
+	const auto layer_type = static_cast<layer_t>(m_type);
+
+	if (layer_type >= lower_bound && layer_type <= upper_bound)
+	{
+		return dynamic_cast<IBglTerrainPhoto*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTerrainPhoto32() -> IBglTerrainPhoto32*
+{
+	typedef std::underlying_type<EBglLayerType>::type layer_t;
+
+	constexpr auto lower_bound = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Jan);
+	constexpr auto upper_bound = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Night);
+	const auto layer_type = static_cast<layer_t>(m_type);
+
+	if (layer_type >= lower_bound && layer_type <= upper_bound)
+	{
+		return dynamic_cast<IBglTerrainPhoto32*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::AsTacan() -> IBglTacan*
+{
+	if (m_type == EBglLayerType::Tacan)
+	{
+		return dynamic_cast<IBglTacan*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglData::CalculateSize() const -> int
+{
+	if (m_data == nullptr)
+	{
+		return 0;
+	}
+	return m_data->CalculateSize();
+}
+
+auto CBglData::Validate() const -> bool
+{
+	if (m_data == nullptr)
+	{
+		return false;
+	}
+	return m_data->Validate();
+}
+
+auto CBglData::ReadBinary(BinaryFileStream& in) -> bool
+{
+	if (m_data == nullptr)
+	{
+		return false;
+	}
+	
+	m_data->ReadBinary(in);
+	
+	if(!in)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglData::WriteBinary(BinaryFileStream& out) -> bool
+{
+	if (m_data == nullptr)
+	{
+		return false;
+	}
+
+	m_data->WriteBinary(out);
+
+	if (!out)
+	{
+		return false;
+	}
+	return true;
+}
+
+
+//******************************************************************************
+// CBglTile
+//****************************************************************************** 
+
+	
 CBglTile::CBglTile(EBglLayerType type, const SBglTilePointer& pointer):
 	m_tile_pointer(pointer), m_type(type)
 {
@@ -110,12 +544,9 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 
 	m_data.reserve(count);
 
+	
 	for (auto i = 0; i < count; ++i)
 	{
-		if (!in)
-		{
-			return false;
-		}
 		const auto pos = in.GetPosition();
 		std::unique_ptr<IBglSerializable> record;
 		switch (m_type)
@@ -196,6 +627,7 @@ bool CBglTile::ReadBinary(BinaryFileStream& in)
 		default:
 			continue; // TODO - do we need to set position????
 		}
+		
 		record->ReadBinary(in);
 		const auto size = record->CalculateSize();
 		if (!record->Validate())
@@ -255,14 +687,47 @@ T* CBglTile::GetTileDataAt(int index) const
 //******************************************************************************  
 
 
-CBglLayer::CBglLayer(EBglLayerType type, const SBglLayerPointer& data): m_type(type), m_data(data)
+CBglLayer::CBglLayer(EBglLayerType type, EBglLayerClass layer_class, const SBglLayerPointer& data):
+	m_data(data), m_type(type), m_class(layer_class)
 {
 }
 
+std::unique_ptr<CBglLayer> CBglLayer::Factory(const SBglLayerPointer& data)
+{
+
+	std::unique_ptr<CBglLayer> layer = nullptr;
+	const auto type = static_cast<EBglLayerClass>(data.DataClass);
+
+	switch (type)
+	{
+	case EBglLayerClass::DirectQmid:
+		layer = std::make_unique<CBglDirectQmidLayer>(data, data.Type);
+		break;
+	case EBglLayerClass::IndirectQmid: 
+		break;
+	case EBglLayerClass::AirportNameIndex: 
+		break;
+	case EBglLayerClass::IcaoIndex: 
+		break;
+	case EBglLayerClass::GuidIndex: 
+		break;
+	case EBglLayerClass::Exclusion: 
+		break;
+	case EBglLayerClass::TimeZone:
+		layer = std::make_unique<CBglTimeZoneLayer>(data);
+		break;
+	case EBglLayerClass::Unknown:
+		break;
+	}
+	return layer;
+}
+
+/*
 CBglLayer::CBglLayer(CPackedQmid qmid, std::shared_ptr<CBglTile> tile): m_type(tile->Type())
 {
 	AddTile(qmid, std::move(tile));
 }
+
 
 CBglLayer::CBglLayer(const CBglLayer& other): m_type(other.m_type)
 {
@@ -272,9 +737,10 @@ CBglLayer::CBglLayer(const CBglLayer& other): m_type(other.m_type)
 	}
 }
 
+
 bool CBglLayer::AddTile(CPackedQmid qmid, std::shared_ptr<CBglTile> tile)
 {
-	if (tile->Type() != Type())
+	if (tile->Type() != GetType())
 	{
 		return false;
 	}
@@ -287,197 +753,105 @@ CBglTile& CBglLayer::operator[](const CPackedQmid index)
 	return *m_tiles[index];
 }
 
-// Factory function
 std::unique_ptr<CBglLayer> CBglLayer::ReadBinary(
 	BinaryFileStream& in,							 
 	const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers)
 {
-	const auto layer_pointer = SBglLayerPointer::ReadBinary(in);
-	if (!in)
-	{
-		return nullptr;
-	}
-	const auto next_position = in.GetPosition();
-	in.SetPosition(layer_pointer.StreamOffset);
-	if (!in)
-	{
-		return nullptr;
-	}
-
-	// TODO - This needs to become a factory method
-	// ReSharper disable once CppInitializedValueIsAlwaysRewritten
-	auto layer_type = EBglLayerType::None;
-	switch (layer_pointer.Type)
-	{
-	case EBglLayerType::TerrainPhoto32Jan:
-		layer_type = EBglLayerType::Tacan;
-		break;
-	case EBglLayerType::TerrainPhoto32Feb:
-		layer_type = EBglLayerType::TacanIndex;
-		break;
-	default:
-		layer_type = layer_pointer.Type;
-		break;
-	}
-	auto layer = std::make_unique<CBglLayer>(layer_type, layer_pointer);
-	const auto count = static_cast<int>(layer_pointer.TileCount);
-
-	auto existing = false;
-	for (const auto& other_layer : layers)
-	{
-		if (other_layer.second->Offset() == static_cast<int>(layer_pointer.StreamOffset))
-		{
-			existing = true;
-			for (const auto& tile : other_layer.second->Tiles())
-			{
-				const auto tile_pointer(tile.second);
-				layer->AddTile(tile.first, tile_pointer);
-			}
-			break;
-		}
-	}
-
-	if (existing == false)
-	{
-		std::vector<SBglTilePointer> tile_pointers(count);
-		for (auto i = 0; i < count; ++i)
-		{
-			tile_pointers[i] = SBglTilePointer::ReadBinary(in, layer_pointer);
-			if (!in)
-			{
-				return nullptr;
-			}
-		}
-		if (in.GetPosition() != static_cast<int>(layer_pointer.StreamOffset + layer_pointer.SizeBytes))
-		{
-			return nullptr;
-		}
-		for (const auto& tile_pointer : tile_pointers)
-		{
-			auto tile = std::make_shared<CBglTile>(layer_type, tile_pointer);
-			if (!tile->ReadBinary(in))
-			{
-				return nullptr;
-			}
-			layer->AddTile(
-				CPackedQmid(tile_pointer.QmidLow, tile_pointer.QmidHigh),
-				tile);
-		}
-	}
-
-	in.SetPosition(next_position);
-	if (!in)
-	{
-		return nullptr;
-	}
-	return layer;
-}
-
-int CBglLayer::CalculateLayerSize() const
-{
-	auto data_size = 0;
-	for (const auto& tile : m_tiles)
-	{
-		data_size += tile.second->CalculateDataSize();
-	}
-	return data_size;
-}
-
-int CBglLayer::CalculateTilePointersSize() const
-{
-	auto tile_pointer_size = 16;
-	for (const auto& tile : m_tiles)
-	{
-		if (tile.second->Pointer().QmidHigh > 0)
-		{
-			tile_pointer_size = 20;
-			break;
-		}
-	}
-	return static_cast<int>(m_data->TileCount) * tile_pointer_size;
-}
-
-void CBglLayer::UpdateLayerPointer(int offset_to_tile)
-{
-	const auto tile_pointers_size = CalculateTilePointersSize();
-
-	auto type = m_type;
-	switch (m_type)  // NOLINT(clang-diagnostic-switch-enum)
-	{
-	case EBglLayerType::Tacan:
-		type = EBglLayerType::TerrainPhoto32Jan;
-		break;
-	case EBglLayerType::TacanIndex:
-		type = EBglLayerType::TerrainPhoto32Feb;
-		break;
-	default:
-		break;
-	}
-	m_data.write().Type = type;
 	
-	m_data.write().TileCount = static_cast<uint32_t>(m_tiles.size());
-	m_data.write().HasQmidLow = 1;
-	if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
-	{
-		m_data.write().HasQmidHigh = 1;
-	}
-	else
-	{
-		m_data.write().HasQmidHigh = 0;
-	}
-	m_data.write().SizeBytes = tile_pointers_size;
-	m_data.write().StreamOffset = offset_to_tile;
-}
-
-bool CBglLayer::WriteBinaryLayerPointer(BinaryFileStream& out, int offset_to_tile)
-{
-	UpdateLayerPointer(offset_to_tile);
-	SBglLayerPointer::WriteBinary(out, m_data);
-	return true;
-}
-
-bool CBglLayer::WriteBinaryLayerTiles(BinaryFileStream& out)
-{
-	for (const auto& tile : m_tiles)
-	{
-		if (!tile.second->UpdateTilePointer(out, tile.first))
-		{
-			return false;
-		}
-		if (!tile.second->WriteBinary(out))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-bool CBglLayer::WriteBinaryTilePointers(BinaryFileStream& out)
-{
-	for (const auto& tile : m_tiles)
-	{
-		SBglTilePointer::WriteBinary(out, tile.second->Pointer(), m_data.read());
-		if (!out)
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-int CBglLayer::Offset() const
-{
-	return static_cast<int>(m_data->StreamOffset);
-}
-
-EBglLayerType CBglLayer::Type() const
-{
-	return m_type;
 }
 
 const std::map<CPackedQmid, std::shared_ptr<CBglTile>>& CBglLayer::Tiles() const
 {
 	return m_tiles;
+}
+*/
+
+auto CBglLayer::GetType() const -> EBglLayerType
+{
+	return m_type;
+}
+
+auto CBglLayer::SetType(EBglLayerType value) -> void
+{
+	m_type = value;
+}
+
+auto CBglLayer::GetClass() const -> EBglLayerClass
+{
+	return m_class;
+}
+
+auto CBglLayer::SetClass(EBglLayerClass value) -> void
+{
+	m_class = value;
+}
+
+auto CBglLayer::GetLayerPointer() const -> const SBglLayerPointer*
+{
+	return &m_data.read();
+}
+
+auto CBglLayer::AsIndirectQmidLayer() -> IBglIndirectQmidLayer*
+{
+	if (GetClass() == EBglLayerClass::IndirectQmid)
+	{
+		return dynamic_cast<IBglIndirectQmidLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsDirectQmidLayer() -> IBglDirectQmidLayer*
+{
+	if (GetClass() == EBglLayerClass::DirectQmid)
+	{
+		return dynamic_cast<IBglDirectQmidLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsNameListLayer() -> IBglNameListLayer*
+{
+	if (GetClass() == EBglLayerClass::AirportNameIndex)
+	{
+		return dynamic_cast<IBglNameListLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsIcaoLayer() -> IBglIcaoLayer*
+{
+	if (GetClass() == EBglLayerClass::IcaoIndex)
+	{
+		return dynamic_cast<IBglIcaoLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsGuidLayer() -> IBglGuidLayer*
+{
+	if (GetClass() == EBglLayerClass::GuidIndex)
+	{
+		return dynamic_cast<IBglGuidLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsExclusionLayer() -> IBglExclusionLayer*
+{
+	if (GetClass() == EBglLayerClass::Exclusion)
+	{
+		return dynamic_cast<IBglExclusionLayer*>(this);
+	}
+	return nullptr;
+}
+
+auto CBglLayer::AsTimeZoneLayer() -> IBglTimeZoneLayer*
+{
+	if (GetClass() == EBglLayerClass::TimeZone)
+	{
+		return dynamic_cast<IBglTimeZoneLayer*>(this);
+	}
+	return nullptr;
 }
 
 bool CBglLayer::IsTrq1BglLayer(EBglLayerType layer_type)
@@ -505,12 +879,475 @@ bool CBglLayer::IsRcs1BglLayer(EBglLayerType layer_type)
 	return false;
 }
 
+CBglDirectQmidLayer::CBglDirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type) :
+	CBglLayer(type, EBglLayerClass::DirectQmid, pointer)
+{
+}
+
+auto CBglDirectQmidLayer::GetQmidCount() const -> int
+{
+	assert(m_pointers.size() == m_tiles.size());
+	return static_cast<int>(m_pointers.size());
+}
+
+auto CBglDirectQmidLayer::HasQmid(CPackedQmid qmid) const -> bool
+{
+	auto it = m_tiles.find(qmid);
+	if (it == m_tiles.end())
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglDirectQmidLayer::GetDataPointerAtIndex(int index) const -> const SBglTilePointer*
+{
+	return m_pointers[index].get();
+}
+
+auto CBglDirectQmidLayer::GetDataCountAtQmid(CPackedQmid qmid) -> int
+{
+	auto it = m_tiles.find(qmid);
+	if (it == m_tiles.end())
+	{
+		return 0;
+	}
+	return it->second.size();
+}
+
+auto CBglDirectQmidLayer::GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData*
+{
+	auto it = m_tiles.find(qmid);
+	if (it == m_tiles.end())
+	{
+		return nullptr;
+	}
+	return it->second[index].get();
+}
+
+auto CBglDirectQmidLayer::AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void
+{
+	auto& record = m_tiles[qmid];
+	// TODO - verify that copy constructor here then delete of old ptr does not dangle members
+	//record.emplace_back(std::make_unique<CBglData>(*static_cast<const CBglData*>(data)));
+	record.emplace_back(static_cast<const CBglData*>(data)->Clone());
+}
+	
+auto CBglDirectQmidLayer::RemoveQmid(CPackedQmid qmid) -> void
+{
+	const auto it = m_tiles.find(qmid);
+	if (it != m_tiles.end())
+	{
+		m_tiles.erase(it);
+	}
+}
+
+auto CBglDirectQmidLayer::RemoveDataAtQmid(CPackedQmid qmid, int index) -> void
+{
+	const auto it = m_tiles.find(qmid);
+	if (it != m_tiles.end())
+	{
+		it->second.erase(it->second.begin() + index);
+		if (it->second.empty())
+		{
+			m_tiles.erase(it);
+		}
+	}
+}
+
+
+auto GetSceneryObjectType(BinaryFileStream& in) -> IBglSceneryObject::ESceneryObjectType
+{
+	const auto pos = in.GetPosition();
+	auto child_type = uint16_t{};
+	auto child_size = uint16_t{};
+	in >> child_type;
+	in >> child_size;
+	in.SetPosition(pos);
+
+	return static_cast<IBglSceneryObject::ESceneryObjectType>(child_type);
+}
+	
+auto CBglDirectQmidLayer::ReadBinary(BinaryFileStream& in) -> bool
+{
+	const auto* layer_pointer = CBglLayer::GetLayerPointer();
+	if (!in)
+	{
+		return false;
+	}
+	const auto next_position = in.GetPosition();
+	in.SetPosition(layer_pointer->StreamOffset);
+	if (!in)
+	{
+		return false;
+	}
+
+	// TODO - This needs to become a factory method
+	// ReSharper disable once CppInitializedValueIsAlwaysRewritten
+	auto layer_type = EBglLayerType::None;
+	switch (layer_pointer->Type)
+	{
+	case EBglLayerType::TerrainPhoto32Jan:
+		layer_type = EBglLayerType::Tacan;
+		break;
+	case EBglLayerType::TerrainPhoto32Feb:
+		layer_type = EBglLayerType::TacanIndex;
+		break;
+	default:
+		layer_type = layer_pointer->Type;
+		break;
+	}
+	const auto qmid_count = static_cast<int>(layer_pointer->TileCount);
+
+	auto existing = false;
+	//TODO - merge layers when pointer match - maybe handle outside of layer code?
+	/*
+	for (const auto& other_layer : layers)
+	{
+		if (other_layer.second->m_data->StreamOffset == layer_pointer->StreamOffset)
+		{
+			existing = true;
+			for (const auto& tile : other_layer.second->Tiles())
+			{
+				const auto tile_pointer(tile.second);
+				layer->AddTile(tile.first, tile_pointer);
+			}
+			break;
+		}
+	}
+	*/
+	if (existing == false)
+	{
+		m_pointers.resize(qmid_count);
+		for (auto i = 0; i < qmid_count; ++i)
+		{
+			m_pointers[i] = std::make_unique<SBglTilePointer>();
+			m_pointers[i]->ReadBinary(in, layer_pointer->HasQmidHigh != 0);
+			if (!in)
+			{
+				return false;
+			}
+		}
+		if (in.GetPosition() != static_cast<int>(layer_pointer->StreamOffset + layer_pointer->SizeBytes))
+		{
+			return false;
+		}
+		for (const auto& tile_pointer : m_pointers)
+		{
+			/*
+			auto tile = std::make_shared<CBglTile>(layer_type, *tile_pointer);
+			if (!tile->ReadBinary(in))
+			{
+				return false;
+			}
+
+			m_tiles[CPackedQmid{tile_pointer->QmidLow, tile_pointer->QmidHigh}] = std::move(tile);
+			*/
+			
+			const auto data_count = static_cast<int>(tile_pointer->RecordCount);
+			if (data_count <= 0)
+			{
+				return false;
+			}
+	
+			in.SetPosition(tile_pointer->StreamOffset);
+			if (!in)
+			{
+				return false;
+			}
+
+			auto tile = m_tiles.emplace(std::make_pair(
+				CPackedQmid{ tile_pointer->QmidLow, tile_pointer->QmidHigh },
+				std::vector<std::unique_ptr<CBglData>>{}));
+			auto& data_list = tile.first->second;
+			
+			data_list.reserve(data_count);
+
+			for (auto i = 0; i < data_count; ++i)
+			{
+				const auto pos = in.GetPosition();
+				const auto type = GetType();
+				auto child_type = IBglSceneryObject::ESceneryObjectType::Unknown;
+				if (type == EBglLayerType::SceneryObject)
+				{
+					child_type = GetSceneryObjectType(in);
+				}
+				auto data = CBglData::Factory(CBglLayer::GetType(), child_type);
+				if (data == nullptr)
+				{
+					in.SetPosition(pos + static_cast<int>(tile_pointer->SizeBytes));
+					continue;
+				}
+				if (!data->ReadBinary(in))
+				{
+					return false;
+				}
+				const auto size = data->CalculateSize();
+				if (!data->Validate())
+				{
+					return false;
+				}
+				data_list.emplace_back(std::move(data));
+				in.SetPosition(pos + static_cast<int>(size));
+				if (!in)
+				{
+					return false;
+				}
+				
+			}
+		}
+	}
+
+	in.SetPosition(next_position);
+	if (!in)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglDirectQmidLayer::CalculateSize() const -> int
+{
+	auto data_size = 0;
+	for (const auto& tile : m_tiles)
+	{
+		for (const auto& data : tile.second)
+		{
+			data_size += data->CalculateSize();
+		}
+	}
+	return data_size;
+}
+
+auto CBglDirectQmidLayer::CalculateDataPointersSize() const -> int
+{
+	auto tile_pointer_size = 16;
+	for (const auto& pointer : m_pointers)
+	{
+		if (pointer->QmidHigh > 0)
+		{
+			tile_pointer_size = 20;
+			break;
+		}
+	}
+	return static_cast<int>(m_data->TileCount) * tile_pointer_size;
+}
+
+auto CBglDirectQmidLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
+{
+	const auto tile_pointers_size = CalculateDataPointersSize();
+
+	auto type = CBglLayer::GetType();
+	switch (type)  // NOLINT(clang-diagnostic-switch-enum)
+	{
+	case EBglLayerType::Tacan:
+		type = EBglLayerType::TerrainPhoto32Jan;
+		break;
+	case EBglLayerType::TacanIndex:
+		type = EBglLayerType::TerrainPhoto32Feb;
+		break;
+	default:
+		break;
+	}
+
+	auto& data = m_data.write();
+	data.Type = type;
+
+	data.TileCount = static_cast<uint32_t>(m_tiles.size());
+	data.DataClass = 1;
+	if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
+	{
+		data.HasQmidHigh = 1;
+	}
+	else
+	{
+		data.HasQmidHigh = 0;
+	}
+	data.SizeBytes = tile_pointers_size;
+	data.StreamOffset = offset_to_tile;
+
+	m_data->WriteBinary(out);
+	return true;
+}
+
+auto CBglDirectQmidLayer::WriteBinaryData(BinaryFileStream& out) -> bool
+{
+	for (const auto& pointer : m_pointers)
+	{
+		const auto& tile =
+			m_tiles[CPackedQmid{ pointer->QmidLow, pointer->QmidHigh }];
+		
+		pointer->StreamOffset = out.GetPosition();
+		pointer->SizeBytes = CalculateSize();
+		
+		for (const auto& data : tile)
+		{
+			if (!data->WriteBinary(out))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
+{
+	for (const auto& pointer : m_pointers)
+	{
+		pointer->WriteBinary(out, m_data->HasQmidHigh);
+		if (!out)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 //******************************************************************************
-// CBglFile
+// CBglTimezoneLayer
 //******************************************************************************  
 
 
+CBglTimeZoneLayer::CBglTimeZoneLayer(const SBglLayerPointer& pointer) :
+	CBglLayer(EBglLayerType::TimeZone, EBglLayerClass::TimeZone, pointer)
+{
+}
+
+auto CBglTimeZoneLayer::GetTimeZoneCount() const -> int
+{
+	return static_cast<int>(m_timezones->size());
+}
+
+auto CBglTimeZoneLayer::GetDataPointer() const -> const SBglTilePointer*
+{
+	return m_pointer.get();
+}
+
+auto CBglTimeZoneLayer::GetTimeZoneAt(int index) -> IBglTimeZone*
+{
+	return &m_timezones.write()[index];
+}
+
+auto CBglTimeZoneLayer::AddTimeZone(const IBglTimeZone* timezone) -> void
+{
+	m_timezones.write().emplace_back(*static_cast<const CBglTimeZone*>(timezone));
+}
+
+auto CBglTimeZoneLayer::RemoveTimeZone(const IBglTimeZone* timezone) -> void
+{
+	// This uses a unique_ptr - need to find a way to pass these safely via interface
+	const auto iter = m_timezones.read().begin() +
+		std::distance(m_timezones.read().data(), static_cast<const CBglTimeZone*>(timezone));
+	m_timezones.write().erase(iter);
+}
+
+auto CBglTimeZoneLayer::ReadBinary(BinaryFileStream& in) -> bool
+{
+	assert(m_timezones->empty());
+	
+	if (CBglLayer::GetType() != EBglLayerType::TimeZone || 
+		m_pointer != nullptr)
+	{
+		return false;
+	}
+
+	m_pointer = std::make_unique<SBglTilePointer>();
+	m_pointer->ReadBinary(in, CBglLayer::GetLayerPointer()->HasQmidHigh != 0);
+	if (!in)
+	{
+		return false;
+	}
+
+	const auto count = static_cast<int>(m_pointer->StreamOffset);
+	m_timezones.write().resize(count);
+	
+	for (auto i = 0; i < count; ++i)
+	{
+		m_timezones.write()[i].ReadBinary(in);
+	}
+
+	if (!in)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+auto CBglTimeZoneLayer::CalculateSize() const -> int
+{
+	auto data_size = 0;
+	for (const auto& tile : m_timezones.read())
+	{
+		data_size += tile.CalculateSize();
+	}
+	return data_size;
+}
+
+auto CBglTimeZoneLayer::CalculateDataPointersSize() const -> int
+{
+	return 16; // TODO Constant
+}
+
+auto CBglTimeZoneLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
+{
+	auto& data = m_data.write();
+	
+	data.Type = EBglLayerType::TimeZone;
+	data.TileCount = static_cast<uint32_t>(m_timezones->size());
+	data.DataClass = 1;
+	data.HasQmidHigh = 0;
+	data.SizeBytes = CalculateDataPointersSize();
+	data.StreamOffset = offset_to_tile;
+	data.WriteBinary(out);
+	return true;
+}
+
+auto CBglTimeZoneLayer::WriteBinaryData(BinaryFileStream& out) -> bool
+{
+	if (m_pointer == nullptr)
+	{
+		return false;
+	}
+	
+	m_pointer->StreamOffset = out.GetPosition();
+	m_pointer->SizeBytes = CalculateSize();
+	
+	for (auto& tile : m_timezones.write())
+	{
+		tile.WriteBinary(out);
+	}
+	
+	if (!out)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglTimeZoneLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
+{
+	if (!m_pointer)
+	{
+		return false;
+	}
+	
+	m_pointer->WriteBinary(out, m_data->HasQmidHigh);
+	
+	if (!out)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+//******************************************************************************
+// CBglFile
+//****************************************************************************** 
+	
 CBglFile::CBglFile(): CBglFile(L"")
 {
 }
@@ -521,6 +1358,96 @@ CBglFile::CBglFile(std::wstring file_name):
 	m_header(),
 	m_dirty(false)
 {
+}
+
+auto CBglFile::GetLayerCount() const -> int
+{
+	return static_cast<int>(m_layers.size());
+}
+
+auto CBglFile::HasLayer(EBglLayerType type) const -> bool
+{
+	const auto it = m_layer_offsets.find(type);
+	if (it != m_layer_offsets.end())
+	{
+		return true;
+	}
+	return false;
+}
+
+auto CBglFile::GetLayerAt(int index) -> IBglLayer*
+{
+	return m_layers[index].get();
+}
+
+auto CBglFile::GetIndirectQmidLayer(EBglLayerType type) -> IBglIndirectQmidLayer*
+{
+	const auto it = m_layer_offsets.find(type);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsIndirectQmidLayer();
+}
+
+auto CBglFile::GetDirectQmidLayer(EBglLayerType type) -> IBglDirectQmidLayer*
+{
+	const auto it = m_layer_offsets.find(type);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsDirectQmidLayer();
+}
+
+auto CBglFile::GetNameListLayer() -> IBglNameListLayer*
+{
+	const auto it = m_layer_offsets.find(EBglLayerType::NameList);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsNameListLayer();
+}
+
+auto CBglFile::GetIcaoLayer(EBglLayerType type) -> IBglIcaoLayer*
+{
+	const auto it = m_layer_offsets.find(type);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsIcaoLayer();
+}
+
+auto CBglFile::GetGuidLayer(EBglLayerType type) -> IBglGuidLayer*
+{
+	const auto it = m_layer_offsets.find(type);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsGuidLayer();
+}
+
+auto CBglFile::GetExclusionLayer() -> IBglExclusionLayer*
+{
+	const auto it = m_layer_offsets.find(EBglLayerType::Exclusion);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsExclusionLayer();
+}
+
+auto CBglFile::GetTimeZoneLayer() -> IBglTimeZoneLayer*
+{
+	const auto it = m_layer_offsets.find(EBglLayerType::TimeZone);
+	if (it == m_layer_offsets.end())
+	{
+		return nullptr;
+	}
+	return m_layers[it->second]->AsTimeZoneLayer();
 }
 
 bool CBglFile::Open()
@@ -587,43 +1514,43 @@ bool CBglFile::Read()
 	return ReadAllLayers();
 }
 
-const std::wstring& CBglFile::GetFileName() const
+auto CBglFile::GetFileName() const -> const wchar_t*
 {
-	return m_file_name;
+	return m_file_name.c_str();
 }
 
-void CBglFile::Rename(std::wstring file_name)
+void CBglFile::Rename(const wchar_t* file_name)
 {
-	m_file_name = std::move(file_name);
+	m_file_name = file_name;
 	m_dirty = true;
 }
 
-// TODO - This currently fails if the layer exists
-// This needs to be expanded to a data-wise merge,
-// and only fail if the actual data conflicts
-bool CBglFile::TryMergeLayer(std::unique_ptr<CBglLayer>&& layer)
+bool CBglFile::TryMergeLayer(IBglLayer* layer)
 {
-	const auto it = m_layers.find(layer->Type());
-	if (it == m_layers.end())
+	const auto it = m_layer_offsets.find(layer->GetType());
+	if (it == m_layer_offsets.end())
 	{
-		m_layers[layer->Type()] = std::move(layer);
+		//TODO - This currently fails if the layer exists
+		// m_layers[it->second] = ;
+		// m_layers.emplace_back(dynamic_cast<CBglLayer*>(layer));
+		m_layers.emplace_back(dynamic_cast<const CBglLayer*>(layer)->Clone());
+		m_layer_offsets.emplace(layer->GetType(), m_layers.size());
 		m_dirty = true;
 		return true;
 	}
 	return false;
 }
 
-std::unique_ptr<CBglLayer> CBglFile::RemoveLayer(EBglLayerType type)
+void CBglFile::RemoveLayer(EBglLayerType type)
 {
-	const auto it = m_layers.find(type);
-	if (it == m_layers.end())
+	const auto it = m_layer_offsets.find(type);
+	if (it != m_layer_offsets.end())
 	{
-		return nullptr;
+		// TODO - this keeps a nullptr in the vector, otherwise we would have to shift all offsets
+		m_layers[it->second].reset();
+		m_dirty = true;
 	}
-	auto result = std::move(it->second);
-	m_layers.erase(it);
-	m_dirty = true;
-	return result;
+	m_layer_offsets.erase(it);
 }
 
 bool CBglFile::IsDirty() const
@@ -636,6 +1563,7 @@ int CBglFile::GetFileSize() const
 	return m_file_size;
 }
 
+/*
 CBglLayer* CBglFile::GetLayer(EBglLayerType type) const
 {
 	const auto it = m_layers.find(type);
@@ -645,12 +1573,7 @@ CBglLayer* CBglFile::GetLayer(EBglLayerType type) const
 	}
 	return it->second.get();
 }
-
-// Test method!
-std::vector<const IBglExclusion*> CBglFile::GetExclusions()
-{
-	return { nullptr };
-}
+*/
 
 bool CBglFile::ReadAllLayers()
 {
@@ -663,15 +1586,28 @@ bool CBglFile::ReadAllLayers()
 		}
 	}
 	const auto count = static_cast<int>(m_header.LayerCount);
+	// remove static size to prevent nullptr layers
+	// m_layers.resize(count);
+	m_layers.reserve(count);
+	
 	for (auto i = 0; i < count; ++i)
-	//for (auto i = 0; i < 1; ++i)
 	{
-		auto layer = CBglLayer::ReadBinary(m_stream, m_layers);
+		auto layer_pointer = SBglLayerPointer{};
+		layer_pointer.ReadBinary(m_stream);
+		// auto layer = CBglLayer::ReadBinary(m_stream, m_layers);
+		auto layer = CBglLayer::Factory(layer_pointer);
 		if (layer == nullptr)
+		{
+			continue; // TODO - Add an unknown layer type? So we keep the pointer
+		}
+		layer->ReadBinary(m_stream);
+		if (!m_stream)
 		{
 			return false;
 		}
-		m_layers[layer->Type()] = std::move(layer);
+
+		m_layer_offsets[layer->GetType()] = static_cast<int>(m_layers.size());
+		m_layers.emplace_back(std::move(layer));
 	}
 	return true;
 }
@@ -688,28 +1624,30 @@ bool CBglFile::WriteAllLayers()
 	}
 	auto data_size = HeaderSize();
 	data_size += CBglLayer::CalculateLayerPointerSize() * m_header.LayerCount;
+
+	// TODO - this is not order preserving (would iterate offsets first). Does it matter?
 	for (const auto& layer : m_layers)
 	{
-		data_size += layer.second->CalculateLayerSize();
+		data_size += layer->CalculateSize();
 	}
 	for (const auto& layer : m_layers)
 	{
-		if (!layer.second->WriteBinaryLayerPointer(m_stream, data_size) && !m_stream)
+		if (!layer->WriteBinaryPointer(m_stream, data_size) || !m_stream)
 		{
 			return false;
 		}
-		data_size += layer.second->CalculateTilePointersSize();
+		data_size += layer->CalculateDataPointersSize();
 	}
 	for (const auto& layer : m_layers)
 	{
-		if (!layer.second->WriteBinaryLayerTiles(m_stream) || !m_stream)
+		if (!layer->WriteBinaryData(m_stream) || !m_stream)
 		{
 			return false;
 		}
 	}
 	for (const auto& layer : m_layers)
 	{
-		if (!layer.second->WriteBinaryTilePointers(m_stream) && !m_stream)
+		if (!layer->WriteBinaryDataPointers(m_stream) && !m_stream)
 		{
 			return false;
 		}

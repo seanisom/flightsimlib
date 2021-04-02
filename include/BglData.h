@@ -3816,6 +3816,30 @@ private:
 	stlab::copy_on_write<CRasterBlock> m_data;
 };
 
+
+//******************************************************************************
+// CBglTimeZone
+//****************************************************************************** 
+
+	
+class CBglTimeZone final : public IBglSerializable, public IBglTimeZone
+{
+public:
+	auto ReadBinary(BinaryFileStream& in) -> void override;
+	auto WriteBinary(BinaryFileStream& out) -> void override;
+	auto Validate() -> bool override;
+	auto CalculateSize() const -> int override;
+	
+	auto GetMinLongitude() const -> double override;
+	auto SetMinLongitude(double value) -> void override;
+	auto GetMaxLatitude() const -> double override;
+	auto SetMaxLatitude(double value) -> void override;
+	auto GetMaxLongitude() const -> double override;
+	auto SetMaxLongitude(double value) -> void override;
+	auto GetMinLatitude() const -> double override;
+	auto SetMinLatitude(double value) -> void override;
+};
+	
 } // namespace io
 	
 } // namespace flightsimlib

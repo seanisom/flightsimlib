@@ -126,6 +126,80 @@ struct SBglIndex
 
 #pragma pack(pop)
 
+
+class IBglTerrainVectorDb
+{
+public:
+	
+};
+	
+class IBglTerrainElevation
+{
+public:
+
+};
+
+class IBglTerrainLandClass
+{
+public:
+
+};
+
+class IBglTerrainWaterClass
+{
+public:
+
+};
+
+class IBglTerrainRegion
+{
+public:
+
+};
+
+class IBglPopulationDensity
+{
+public:
+
+};
+
+class IBglAutogenAnnotation
+{
+public:
+
+};
+
+class IBglTerrainIndex
+{
+public:
+
+};
+
+class IBglTerrainTextureLookup
+{
+public:
+
+};
+
+class IBglTerrainSeason
+{
+public:
+
+};
+
+class IBglTerrainPhoto
+{
+public:
+
+};
+
+class IBglTerrainPhoto32
+{
+public:
+
+};
+
+
 	
 class IBglFuelAvailability
 {
@@ -1717,7 +1791,7 @@ public:
 
 	enum class ESceneryObjectType : uint16_t
 	{
-		None = 0x0,
+		Unknown = 0x0,
 		GenericBuilding = 0xA,
 		LibraryObject = 0xB,
 		Windsock = 0xC,
@@ -2067,6 +2141,21 @@ public:
 };
 
 
+
+class IBglTimeZone
+{
+public:
+	virtual auto GetMinLongitude() const -> double = 0;
+	virtual auto SetMinLongitude(double value) -> void = 0;
+	virtual auto GetMaxLatitude() const -> double = 0;
+	virtual auto SetMaxLatitude(double value) -> void = 0;
+	virtual auto GetMaxLongitude() const -> double = 0;
+	virtual auto SetMaxLongitude(double value) -> void = 0;
+	virtual auto GetMinLatitude() const -> double = 0;
+	virtual auto SetMinLatitude(double value) -> void = 0;
+};
+	
+	
 }
 
 }

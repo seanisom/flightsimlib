@@ -10035,6 +10035,66 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 	return p_uncompressed;
 }
 
+
+//******************************************************************************
+// CBglTimeZone
+//****************************************************************************** 
+
+
+auto flightsimlib::io::CBglTimeZone::ReadBinary(BinaryFileStream& in) -> void
+{
+}
+
+auto flightsimlib::io::CBglTimeZone::WriteBinary(BinaryFileStream& out) -> void
+{
+}
+
+auto flightsimlib::io::CBglTimeZone::Validate() -> bool
+{
+	return true;
+}
+
+auto flightsimlib::io::CBglTimeZone::CalculateSize() const -> int
+{
+	return 0;
+}
+
+auto flightsimlib::io::CBglTimeZone::GetMinLongitude() const -> double
+{
+	return 0.0;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetMinLongitude(double value) -> void
+{
+}
+
+auto flightsimlib::io::CBglTimeZone::GetMaxLatitude() const -> double
+{
+	return 0.0;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetMaxLatitude(double value) -> void
+{
+}
+
+auto flightsimlib::io::CBglTimeZone::GetMaxLongitude() const -> double
+{
+	return 0.0;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetMaxLongitude(double value) -> void
+{
+}
+
+auto flightsimlib::io::CBglTimeZone::GetMinLatitude() const -> double
+{
+	return 0.0;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetMinLatitude(double value) -> void
+{
+}
+
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglTriggerRefuelRepairData>>;
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportSummaryData>>;

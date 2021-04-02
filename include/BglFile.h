@@ -49,6 +49,15 @@
 #include <string>
 #include <vector>
 
+// TODO - this is for the timezone dependency
+// Once we split up the headers, we can clean this up
+#include "BglData.h"
+
+// This is because of the mixins
+#pragma warning( disable : 4250 )
+#pragma warning( disable : 4251 )
+
+
 namespace flightsimlib
 {
 
@@ -173,6 +182,18 @@ enum class EBglLayerType : uint32_t
 	Max = 0x2712
 };
 
+enum class EBglLayerClass : uint32_t
+{
+	Unknown = 0x0,
+	DirectQmid = 0x1,
+	IndirectQmid = 0x2,
+	AirportNameIndex = 0x3,
+	IcaoIndex = 0x4,
+	GuidIndex = 0x5,
+	Exclusion = 0x6,
+	TimeZone = 0x7
+};
+	
 
 class CPackedQmid
 {
@@ -210,41 +231,39 @@ private:
 struct SBglLayerPointer
 {
 	EBglLayerType Type;
-	uint16_t HasQmidLow;
+	uint16_t DataClass;
 	uint16_t HasQmidHigh;
 	uint32_t TileCount;
 	uint32_t StreamOffset;
 	uint32_t SizeBytes;
 
-	static SBglLayerPointer ReadBinary(BinaryFileStream& in)
+	void ReadBinary(BinaryFileStream& in)
 	{
-		auto pointer = SBglLayerPointer{};
 		int32_t type = 0;
 		in >> type
-			>> pointer.HasQmidLow
-		    >> pointer.HasQmidHigh
-			>> pointer.TileCount
-			>> pointer.StreamOffset
-			>> pointer.SizeBytes;
+			>> DataClass
+		    >> HasQmidHigh
+			>> TileCount
+			>> StreamOffset
+			>> SizeBytes;
 		if (type <= static_cast<int>(EBglLayerType::None) || type >= static_cast<int>(EBglLayerType::Max))
 		{
-			pointer.Type = EBglLayerType::None;
+			Type = EBglLayerType::None;
 		}
 		else
 		{
-			pointer.Type = static_cast<EBglLayerType>(type);
+			Type = static_cast<EBglLayerType>(type);
 		}
-		return pointer;
 	}
 
-	static void WriteBinary(BinaryFileStream& out, const SBglLayerPointer& pointer)
+	void WriteBinary(BinaryFileStream& out) const
 	{
-		out << pointer.Type
-			<< pointer.HasQmidLow
-		    << pointer.HasQmidHigh
-			<< pointer.TileCount
-			<< pointer.StreamOffset
-			<< pointer.SizeBytes;
+		out << Type
+			<< DataClass
+		    << HasQmidHigh
+			<< TileCount
+			<< StreamOffset
+			<< SizeBytes;
 	}
 };
 
@@ -257,34 +276,300 @@ struct SBglTilePointer
 	uint32_t StreamOffset;
 	uint32_t SizeBytes;
 	
-	static SBglTilePointer ReadBinary(BinaryFileStream& in, const SBglLayerPointer& layer)
+	void ReadBinary(BinaryFileStream& in, bool is_qmid64)
 	{
-		auto pointer = SBglTilePointer{};
-		in >> pointer.QmidLow;
-		if (layer.HasQmidHigh)
+		in >> QmidLow;
+		if (is_qmid64)
 		{
-			in >> pointer.QmidHigh;
+			in >> QmidHigh;
 		}
-		in >> pointer.RecordCount
-		   >> pointer.StreamOffset
-		   >> pointer.SizeBytes;
-		return pointer;
+		in >> RecordCount
+		   >> StreamOffset
+		   >> SizeBytes;
 	}
 
-	static void WriteBinary(BinaryFileStream& out, const SBglTilePointer& pointer, const SBglLayerPointer& layer)
+	void WriteBinary(BinaryFileStream& out, bool is_qmid64) const
 	{
-		out << pointer.QmidLow;
-		if (layer.HasQmidHigh)
+		out << QmidLow;
+		if (is_qmid64)
 		{
-			out << pointer.QmidHigh;
+			out << QmidHigh;
 		}
-		out << pointer.RecordCount
-		    << pointer.StreamOffset
-		    << pointer.SizeBytes;
+		out << RecordCount
+		    << StreamOffset
+		    << SizeBytes;
 	}
 };
 
 
+class IBglAirport;
+class IBglNav;
+class IBglNdb;
+class IBglMarker;
+class IBglBoundary;
+class IBglWaypoint;
+class IBglGeopol;
+class IBglSceneryObject;
+class IBglModelData;
+class IBglAirportSummary;
+class IBglTerrainVectorDb;
+class IBglTerrainElevation;
+class IBglTerrainLandClass;
+class IBglTerrainWaterClass;
+class IBglTerrainRegion;
+class IBglPopulationDensity;
+class IBglAutogenAnnotation;
+class IBglTerrainIndex;
+class IBglTerrainTextureLookup;
+class IBglTerrainSeason;
+class IBglTerrainPhoto;
+class IBglTerrainPhoto32;
+class IBglTacan;
+	
+class IBglData
+{
+public:
+	virtual auto GetType() const -> EBglLayerType = 0;
+	virtual auto SetType(EBglLayerType value) -> void = 0;
+	virtual auto AsAirport() -> IBglAirport* = 0;
+	virtual auto AsNav() -> IBglNav* = 0;
+	virtual auto AsNdb() -> IBglNdb* = 0;
+	virtual auto AsMarker() -> IBglMarker* = 0;
+	virtual auto AsBoundary() -> IBglBoundary* = 0;
+	virtual auto AsWaypoint() -> IBglWaypoint* = 0;
+	virtual auto AsGeopol() -> IBglGeopol* = 0;
+	virtual auto AsSceneryObject() -> IBglSceneryObject* = 0;
+	virtual auto AsModelData() -> IBglModelData* = 0;
+	virtual auto AsAirportSummary() -> IBglAirportSummary* = 0;
+	virtual auto AsTerrainVectorDb() -> IBglTerrainVectorDb* = 0;
+	virtual auto AsTerrainElevation() -> IBglTerrainElevation* = 0;
+	virtual auto AsTerrainLandClass() -> IBglTerrainLandClass* = 0;
+	virtual auto AsTerrainWaterClass() -> IBglTerrainWaterClass* = 0;
+	virtual auto AsTerrainRegion() -> IBglTerrainRegion* = 0;
+	virtual auto AsPopulationDensity() -> IBglPopulationDensity* = 0;
+	virtual auto AsAutogenAnnotation() -> IBglAutogenAnnotation* = 0;
+	virtual auto AsTerrainIndex() -> IBglTerrainIndex* = 0;
+	virtual auto AsTerrainTextureLookup() -> IBglTerrainTextureLookup* = 0;
+	virtual auto AsTerrainSeason() -> IBglTerrainSeason* = 0;
+	virtual auto AsTerrainPhoto() -> IBglTerrainPhoto* = 0;
+	virtual auto AsTerrainPhoto32() -> IBglTerrainPhoto32* = 0;
+	virtual auto AsTacan() -> IBglTacan* = 0;
+};
+
+class CBglData : public IBglData
+{
+public:
+	explicit CBglData(EBglLayerType type, std::unique_ptr<IBglSerializable> data);
+
+	static std::unique_ptr<CBglData> Factory(EBglLayerType type, IBglSceneryObject::ESceneryObjectType child_type);
+	std::unique_ptr<CBglData> Clone() const;
+	
+	auto GetType() const -> EBglLayerType override;
+	auto SetType(EBglLayerType value) -> void override;
+	auto AsAirport() -> IBglAirport* override;
+	auto AsNav() -> IBglNav* override;
+	auto AsNdb() -> IBglNdb* override;
+	auto AsMarker() -> IBglMarker* override;
+	auto AsBoundary() -> IBglBoundary* override;
+	auto AsWaypoint() -> IBglWaypoint* override;
+	auto AsGeopol() -> IBglGeopol* override;
+	auto AsSceneryObject() -> IBglSceneryObject* override;
+	auto AsModelData() -> IBglModelData* override;
+	auto AsAirportSummary() -> IBglAirportSummary* override;
+	auto AsTerrainVectorDb() -> IBglTerrainVectorDb* override;
+	auto AsTerrainElevation() -> IBglTerrainElevation* override;
+	auto AsTerrainLandClass() -> IBglTerrainLandClass* override;
+	auto AsTerrainWaterClass() -> IBglTerrainWaterClass* override;
+	auto AsTerrainRegion() -> IBglTerrainRegion* override;
+	auto AsPopulationDensity() -> IBglPopulationDensity* override;
+	auto AsAutogenAnnotation() -> IBglAutogenAnnotation* override;
+	auto AsTerrainIndex() -> IBglTerrainIndex* override;
+	auto AsTerrainTextureLookup() -> IBglTerrainTextureLookup* override;
+	auto AsTerrainSeason() -> IBglTerrainSeason* override;
+	auto AsTerrainPhoto() -> IBglTerrainPhoto* override;
+	auto AsTerrainPhoto32() -> IBglTerrainPhoto32* override;
+	auto AsTacan() -> IBglTacan* override;
+
+	auto CalculateSize() const -> int;
+	auto Validate() const -> bool;
+	auto ReadBinary(BinaryFileStream& in) -> bool;
+	auto WriteBinary(BinaryFileStream& out) -> bool;
+
+private:
+	EBglLayerType m_type = EBglLayerType::None;
+	std::unique_ptr<IBglSerializable> m_data;
+};
+	
+
+class IBglIndirectQmidLayer;
+class IBglDirectQmidLayer;
+class IBglNameListLayer;
+class IBglIcaoLayer;
+class IBglGuidLayer;
+class IBglExclusionLayer;
+class IBglTimeZoneLayer;
+
+	
+class IBglLayer
+{
+public:
+	virtual auto GetType() const -> EBglLayerType = 0;
+	virtual auto SetType(EBglLayerType value) -> void = 0;
+	virtual auto GetClass() const -> EBglLayerClass = 0;
+	virtual auto SetClass(EBglLayerClass value) -> void = 0;
+	virtual auto GetLayerPointer() const -> const SBglLayerPointer* = 0;
+	virtual auto AsIndirectQmidLayer() -> IBglIndirectQmidLayer* = 0;
+	virtual auto AsDirectQmidLayer() -> IBglDirectQmidLayer* = 0;
+	virtual auto AsNameListLayer() -> IBglNameListLayer* = 0;
+	virtual auto AsIcaoLayer() -> IBglIcaoLayer* = 0;
+	virtual auto AsGuidLayer() -> IBglGuidLayer* = 0;
+	virtual auto AsExclusionLayer() -> IBglExclusionLayer* = 0;
+	virtual auto AsTimeZoneLayer() -> IBglTimeZoneLayer* = 0;
+};
+
+class IBglDirectQmidLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetQmidCount() const -> int = 0;
+	virtual auto HasQmid(CPackedQmid qmid) const -> bool = 0;
+	virtual auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* = 0;
+	virtual auto GetDataCountAtQmid(CPackedQmid qmid) -> int = 0;
+	virtual auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* = 0;
+	virtual auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void = 0;
+	virtual auto RemoveQmid(CPackedQmid qmid) -> void = 0;
+	virtual auto RemoveDataAtQmid(CPackedQmid qmid, int index) -> void = 0;
+};
+
+
+struct SBglBlockPointer
+{
+	uint32_t StreamOffset;
+	uint32_t SizeBytes;
+};
+
+/// <summary>
+/// Standard flow would be:
+/// if (HasQmid(qmid)) // optional
+/// {
+///		const auto count = GetDataCountAtQmid(qmid);
+///		for (auto i = 0; i < count; ++i)
+///		{
+///			const auto index = GetDataIndexAtQmid(qmid);
+///			auto data = GetDataAtIndex(index);
+///			// ...
+///		}
+/// }
+/// </summary>
+class IBglIndirectQmidLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetQmidCount() const -> int = 0;
+	virtual auto HasQmid(CPackedQmid qmid) const -> bool = 0;
+	virtual auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* = 0;
+	virtual auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* = 0;
+	virtual auto GetDataCountAtQmid(CPackedQmid qmid) const -> int = 0;
+	virtual auto GetBlockPointerCount() const -> int = 0;
+	virtual auto GetBlockPointerAtIndex(int index) const -> const SBglBlockPointer* = 0;
+	virtual auto GetBlockPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglBlockPointer* = 0;
+	virtual auto GetDataIndexAtQmid(CPackedQmid qmid, int index) const -> int = 0;
+	virtual auto GetDataCount() const -> int = 0;
+	virtual auto GetDataAtIndex(int index) -> IBglData* = 0;
+	virtual auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* = 0;
+	virtual auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void = 0;
+	virtual auto AddData(const IBglData* data) -> void = 0;
+	virtual auto RemoveDataAtIndex(const IBglData* data) -> void = 0;
+	virtual auto RemoveDataAtQmid(const IBglData* data) -> void = 0;
+	virtual auto RemoveData(const IBglData* data) -> void = 0;
+};
+
+
+class IBglNameList;
+
+class IBglNameListLayer
+{
+public:
+	virtual auto GetDataPointer() const -> const SBglTilePointer* = 0;
+	virtual auto GetNameList() -> IBglNameList* = 0;
+	virtual auto SetNameList(IBglNameList* value) -> void = 0;
+};
+	
+
+class IBglIcaoIndex;
+
+class IBglIcaoLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetIcaoCount() const -> int = 0;
+	virtual auto GetDataPointer() const -> const SBglTilePointer* = 0;
+	virtual auto GetIcaoAt(int index) -> IBglIcaoIndex* = 0;
+	virtual auto AddIcao(const IBglIcaoIndex* index) -> void = 0;
+	virtual auto RemoveIcao(const IBglIcaoIndex* index) -> void = 0;
+};
+
+	
+class IBglGuidLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetGuidCount() const -> int = 0;
+	virtual auto GetDataPointerAt(int index) const -> const SBglTilePointer* = 0;
+	virtual auto HasGuid(_GUID guid) const -> bool = 0;
+	virtual auto GetData(_GUID guid) const -> const IBglData* = 0;
+	virtual auto AddData(_GUID guid, const IBglData* data) -> void = 0;
+	virtual auto RemoveData(const IBglData* data) -> void = 0;
+	virtual auto RemoveData(_GUID guid) -> void = 0;
+};
+	
+class IBglExclusion;
+	
+class IBglExclusionLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetExclusionCount() const -> int = 0;
+	virtual auto GetDataPointer() const -> const SBglTilePointer* = 0;
+	virtual auto GetExclusionAt(int index) -> IBglExclusion* = 0;
+	virtual auto AddExclusion(const IBglExclusion* exclusion) -> void = 0;
+	virtual auto RemoveExclusion(const IBglExclusion* exclusion) -> void = 0;
+};
+
+class IBglTimeZone;
+
+class IBglTimeZoneLayer : virtual public IBglLayer
+{
+public:
+	virtual auto GetTimeZoneCount() const -> int = 0;
+	virtual auto GetDataPointer() const -> const SBglTilePointer* = 0;
+	virtual auto GetTimeZoneAt(int index) -> IBglTimeZone* = 0;
+	virtual auto AddTimeZone(const IBglTimeZone* timezone) -> void = 0;
+	virtual auto RemoveTimeZone(const IBglTimeZone* timezone) -> void = 0;
+};
+
+
+class IBglFile
+{
+public:
+	virtual auto GetLayerCount() const -> int = 0;
+	virtual auto HasLayer(EBglLayerType type) const -> bool = 0;
+	virtual auto GetLayerAt(int index) -> IBglLayer* = 0;
+	virtual auto GetIndirectQmidLayer(EBglLayerType type) -> IBglIndirectQmidLayer* = 0;
+	virtual auto GetDirectQmidLayer(EBglLayerType type) -> IBglDirectQmidLayer* = 0;
+	virtual auto GetNameListLayer() -> IBglNameListLayer* = 0;
+	virtual auto GetIcaoLayer(EBglLayerType type) -> IBglIcaoLayer* = 0;
+	virtual auto GetGuidLayer(EBglLayerType type) -> IBglGuidLayer* = 0;
+	virtual auto GetExclusionLayer() -> IBglExclusionLayer* = 0;
+	virtual auto GetTimeZoneLayer() -> IBglTimeZoneLayer* = 0;
+	virtual auto Open() -> bool = 0;
+	virtual auto Close() -> bool = 0;
+	virtual auto Write() -> bool = 0;
+	virtual auto Read() -> bool = 0;
+	virtual auto GetFileName() const -> const wchar_t* = 0;
+	virtual auto Rename(const wchar_t* file_name) -> void = 0;
+	virtual auto IsDirty() const -> bool = 0;
+	virtual auto GetFileSize() const -> int = 0;
+	virtual auto TryMergeLayer(IBglLayer* layer) -> bool = 0;
+	virtual auto RemoveLayer(EBglLayerType type) -> void = 0;
+};
+	
+	
 class FLIGHTSIMLIB_EXPORTED CBglTile final
 {
 public:
@@ -314,29 +599,45 @@ private:
 };
 
 
-class FLIGHTSIMLIB_EXPORTED CBglLayer
+class FLIGHTSIMLIB_EXPORTED CBglLayer : virtual public IBglLayer
 {
 public:
-	explicit CBglLayer(EBglLayerType type, const SBglLayerPointer& data);
-	explicit CBglLayer(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
+	explicit CBglLayer(EBglLayerType type, EBglLayerClass layer_class, const SBglLayerPointer& data);
+	// explicit CBglLayer(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
 	virtual ~CBglLayer() = default;
-	CBglLayer(const CBglLayer& other);
+	// CBglLayer(const CBglLayer& other);
 
-	bool AddTile(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
-	CBglTile& operator[](const CPackedQmid index);
-	static std::unique_ptr<CBglLayer> ReadBinary(
-		BinaryFileStream& in,                                      
-		const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers);
-	int CalculateLayerSize() const;
-	int CalculateTilePointersSize() const;
-	void UpdateLayerPointer(int offset_to_tile);
-	bool WriteBinaryLayerPointer(BinaryFileStream& out, int offset_to_tile);;
-	bool WriteBinaryLayerTiles(BinaryFileStream& out);
-	bool WriteBinaryTilePointers(BinaryFileStream& out);
-	int Offset() const;
-	EBglLayerType Type() const;
-	const std::map<CPackedQmid, std::shared_ptr<CBglTile>>& Tiles() const;
+	// bool AddTile(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
+	
+	//static std::unique_ptr<CBglLayer> ReadBinary(
+	//	BinaryFileStream& in,                                      
+	//	const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers);
 
+	static std::unique_ptr<CBglLayer> Factory(const SBglLayerPointer& data);
+	auto Clone() const { return std::unique_ptr<CBglLayer>(CloneImpl()); }
+	
+	// const std::map<CPackedQmid, std::shared_ptr<CBglTile>>& Tiles() const;
+
+	virtual auto ReadBinary(BinaryFileStream& in) -> bool = 0;
+	virtual int CalculateSize() const = 0;
+	virtual int CalculateDataPointersSize() const = 0;
+	virtual bool WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) = 0;
+	virtual bool WriteBinaryData(BinaryFileStream& out) = 0;
+	virtual bool WriteBinaryDataPointers(BinaryFileStream& out) = 0;
+	
+	auto GetType() const -> EBglLayerType override;
+	auto SetType(EBglLayerType value) -> void override;
+	auto GetClass() const -> EBglLayerClass override;
+	auto SetClass(EBglLayerClass value) -> void override;
+	auto GetLayerPointer() const -> const SBglLayerPointer* override;
+	auto AsIndirectQmidLayer() -> IBglIndirectQmidLayer* override;
+	auto AsDirectQmidLayer() -> IBglDirectQmidLayer* override;
+	auto AsNameListLayer() -> IBglNameListLayer* override;
+	auto AsIcaoLayer() -> IBglIcaoLayer* override;
+	auto AsGuidLayer() -> IBglGuidLayer* override;
+	auto AsExclusionLayer() -> IBglExclusionLayer* override;
+	auto AsTimeZoneLayer() -> IBglTimeZoneLayer* override;
+	
 	static bool IsTrq1BglLayer(EBglLayerType layer_type);
 	static bool IsRcs1BglLayer(EBglLayerType layer_type);
 
@@ -345,10 +646,171 @@ public:
 		return 20;
 	}
 
+protected:
+	virtual CBglLayer* CloneImpl() const = 0;
+	
+	stlab::copy_on_write<SBglLayerPointer> m_data;
+	
 private:
 	EBglLayerType m_type;
-	std::map<CPackedQmid, std::shared_ptr<CBglTile>> m_tiles;
-	stlab::copy_on_write<SBglLayerPointer> m_data;
+	EBglLayerClass m_class;
+	// std::map<CPackedQmid, std::shared_ptr<CBglTile>> m_tiles;
+};
+
+
+class CBglDirectQmidLayer final : public IBglDirectQmidLayer, public CBglLayer
+{
+public:
+	CBglDirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
+
+	CBglDirectQmidLayer(const CBglDirectQmidLayer& other) : CBglLayer(
+		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
+		m_tiles(), m_pointers(other.m_pointers.size())
+	{
+		for (const auto& tile : other.m_tiles)
+		{
+			auto& it = m_tiles[tile.first] = 
+				std::vector<std::unique_ptr<CBglData>>(tile.second.size());
+
+			for (const auto& data : tile.second)
+			{
+				it.emplace_back(data->Clone());
+			}
+		}
+
+		for (auto i = 0u; i < other.m_pointers.size(); ++i)
+		{
+			m_pointers[i] = std::make_unique<SBglTilePointer>(*other.m_pointers[i]);
+		}
+	}
+	
+	auto GetQmidCount() const -> int override;
+	auto HasQmid(CPackedQmid qmid) const -> bool override;
+	auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* override;
+	// virtual auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* = 0;
+	auto GetDataCountAtQmid(CPackedQmid qmid) -> int override;
+	auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* override;
+	auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void override;
+	auto RemoveQmid(CPackedQmid qmid) -> void override;
+	auto RemoveDataAtQmid(CPackedQmid qmid, int index) -> void override;	
+
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+
+	auto CloneImpl() const -> CBglLayer* override
+	{
+		return new CBglDirectQmidLayer(*this);
+	}
+
+private:
+	//std::map<CPackedQmid, std::shared_ptr<CBglTile>> m_tiles;
+	std::map<CPackedQmid, std::vector<std::unique_ptr<CBglData>>> m_tiles;
+	std::vector<std::unique_ptr<SBglTilePointer>> m_pointers; // TODO - why pointer?
+};
+
+
+class CBglIndirectQmidLayer final : public IBglIndirectQmidLayer, public CBglLayer
+{
+public:
+	auto GetQmidCount() const -> int override;
+	auto HasQmid(CPackedQmid qmid) const -> bool override;
+	auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* override;
+	auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* override;
+	auto GetDataCountAtQmid(CPackedQmid qmid) const -> int override;
+	auto GetBlockPointerCount() const -> int override;
+	auto GetBlockPointerAtIndex(int index) const -> const SBglBlockPointer* override;
+	auto GetBlockPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglBlockPointer* override;
+	auto GetDataIndexAtQmid(CPackedQmid qmid, int index) const -> int override;
+	auto GetDataCount() const -> int override;
+	auto GetDataAtIndex(int index) -> IBglData* override;
+	auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* override;
+	auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void override;
+	auto AddData(const IBglData* data) -> void override;
+	auto RemoveDataAtIndex(const IBglData* data) -> void override;
+	auto RemoveDataAtQmid(const IBglData* data) -> void override;
+	auto RemoveData(const IBglData* data) -> void override;
+};
+
+
+class CBglNameListLayer final : public IBglNameListLayer, public CBglLayer
+{
+public:
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetNameList() -> IBglNameList* override;
+	auto SetNameList(IBglNameList* value) -> void override;
+};
+
+
+class CBglIcaoLayer final : public IBglIcaoLayer, public CBglLayer
+{
+public:
+	auto GetIcaoCount() const -> int override;
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetIcaoAt(int index) -> IBglIcaoIndex* override;
+	auto AddIcao(const IBglIcaoIndex* index) -> void override;
+	auto RemoveIcao(const IBglIcaoIndex* index) -> void override;
+};
+
+
+class CBglGuidLayer final : public IBglGuidLayer, public CBglLayer
+{
+public:
+	auto GetGuidCount() const -> int override;
+	auto GetDataPointerAt(int index) const -> const SBglTilePointer* override;
+	auto HasGuid(_GUID guid) const -> bool override;
+	auto GetData(_GUID guid) const -> const IBglData* override;
+	auto AddData(_GUID guid, const IBglData* data) -> void override;
+	auto RemoveData(const IBglData* data) -> void override;
+	auto RemoveData(_GUID guid) -> void override;
+};
+
+
+class CBglExclusionLayer final : public IBglExclusionLayer, public CBglLayer
+{
+public:
+	auto GetExclusionCount() const -> int override;
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetExclusionAt(int index) -> IBglExclusion* override;
+	auto AddExclusion(const IBglExclusion* exclusion) -> void override;
+	auto RemoveExclusion(const IBglExclusion* exclusion) -> void override;
+};
+
+class CBglTimeZone;
+	
+class CBglTimeZoneLayer final : public IBglTimeZoneLayer, public CBglLayer
+{
+public:
+	CBglTimeZoneLayer(const SBglLayerPointer& pointer);
+
+	CBglTimeZoneLayer(const CBglTimeZoneLayer& other) : CBglLayer(
+		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
+		m_pointer(std::make_unique<SBglTilePointer>(*other.m_pointer)),
+		m_timezones(other.m_timezones) { } 
+	
+	auto GetTimeZoneCount() const -> int override;
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetTimeZoneAt(int index) -> IBglTimeZone* override;
+	auto AddTimeZone(const IBglTimeZone* timezone) -> void override;
+	auto RemoveTimeZone(const IBglTimeZone* timezone) -> void override;
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+
+private:
+	auto CloneImpl() const -> CBglLayer* override
+	{
+		return new CBglTimeZoneLayer(*this);
+	}
+	
+	std::unique_ptr<SBglTilePointer> m_pointer;
+	stlab::copy_on_write<std::vector<CBglTimeZone>> m_timezones;
 };
 
 
@@ -408,36 +870,39 @@ struct SBglHeader
 	}
 };
 
-class FLIGHTSIMLIB_EXPORTED CBglFile final
+class FLIGHTSIMLIB_EXPORTED CBglFile final : IBglFile
 {
 public:
 	CBglFile();
 	explicit CBglFile(std::wstring file_name);
 	~CBglFile() = default;
-	
 	// TODO - This is now move-only, not copyable
-	// With the bgl document model, a copy should be deep and copy-on-write
-	// to provide value semantics. It remains to be seen what we do with
-	// the backing stream in this case.
 	CBglFile(const CBglFile&) = delete;
 	CBglFile& operator= (const CBglFile&) = delete;
 	CBglFile(CBglFile&&) = default;
 	CBglFile& operator=(CBglFile&&) = default;
 
-	bool Open();
-	bool Close();
-	bool Write();
-	bool Read();
-	const std::wstring& GetFileName() const;
-	void Rename(std::wstring file_name);
-	bool TryMergeLayer(std::unique_ptr<CBglLayer>&& layer);
-	std::unique_ptr<CBglLayer> RemoveLayer(EBglLayerType type);
-	bool IsDirty() const;
-	int GetFileSize() const;
-	CBglLayer* GetLayer(EBglLayerType type) const;
 
-	// Test method!
-	std::vector<const IBglExclusion*> GetExclusions();
+	auto GetLayerCount() const -> int override;
+	auto HasLayer(EBglLayerType type) const -> bool override;
+	auto GetLayerAt(int index)->IBglLayer* override;
+	auto GetIndirectQmidLayer(EBglLayerType type) -> IBglIndirectQmidLayer* override;
+	auto GetDirectQmidLayer(EBglLayerType type) -> IBglDirectQmidLayer* override;
+	auto GetNameListLayer() -> IBglNameListLayer* override;
+	auto GetIcaoLayer(EBglLayerType type) -> IBglIcaoLayer* override;
+	auto GetGuidLayer(EBglLayerType type) -> IBglGuidLayer* override;
+	auto GetExclusionLayer() -> IBglExclusionLayer* override;
+	auto GetTimeZoneLayer() -> IBglTimeZoneLayer* override;
+	auto Open() -> bool override;
+	auto Close() -> bool override;
+	auto Write() -> bool override;
+	auto Read() -> bool override;
+	auto GetFileName() const -> const wchar_t* override;
+	auto Rename(const wchar_t* file_name) -> void override;
+	auto IsDirty() const -> bool override;
+	auto GetFileSize() const -> int override;
+	auto TryMergeLayer(IBglLayer* layer) -> bool override;
+	auto RemoveLayer(EBglLayerType type) -> void override;
 
 private:
 	bool ReadAllLayers();
@@ -472,7 +937,8 @@ private:
 	int m_file_size;
 	SBglHeader m_header;
 	bool m_dirty;
-	std::map<EBglLayerType, std::unique_ptr<CBglLayer>> m_layers;
+	std::vector<std::unique_ptr<CBglLayer>> m_layers;
+	std::map<EBglLayerType, int> m_layer_offsets;
 	BinaryFileStream m_stream;
 };
 
