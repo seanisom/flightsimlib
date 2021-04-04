@@ -3821,7 +3821,32 @@ private:
 // CBglTimeZone
 //****************************************************************************** 
 
-	
+
+// TODO - FSX Only. Later P3D (and MSFS) changed the format, need to handle
+// In MSFS, they are 0x26 bytes, in P3D, variable with nested vertex
+// Note, daylightSavings enum us not used, see serialization info in:
+// https://www.fsdeveloper.com/forum/threads/bgl2xml-feature-request.188576
+// We need to conditionally serialize
+
+
+#pragma pack(push)
+#pragma pack(1)
+
+struct SBglTimezoneData
+{
+	uint32_t MinLongitude;
+	uint32_t MaxLatitude;
+	uint32_t MaxLongitude;
+	uint32_t MinLatitude;
+	int16_t  TimeDeviation;
+	uint8_t  Priority;
+	int8_t   DstTimeShift;
+	uint32_t DstPacked;
+};
+
+#pragma pack(pop)
+
+
 class CBglTimeZone final : public IBglSerializable, public IBglTimeZone
 {
 public:
@@ -3838,6 +3863,23 @@ public:
 	auto SetMaxLongitude(double value) -> void override;
 	auto GetMinLatitude() const -> double override;
 	auto SetMinLatitude(double value) -> void override;
+	auto GetTimeDeviation() const -> int16_t override;
+	auto SetTimeDeviation(int16_t value) -> void override;
+	auto GetPriority() const -> uint8_t override;
+	auto SetPriority(uint8_t value) -> void override;
+	auto GetDaylightSavingsTimeShift() const -> int8_t override;
+	auto SetDaylightSavingsTimeShift(int8_t value) -> void override;
+	auto GetDaylightSavingsStartDayOfYear() const -> uint16_t override;
+	auto SetDaylightSavingsStartDayOfYear(uint16_t value) -> void override;
+	auto GetDaylightSavingsStartDayOfWeek() const -> EStartDayOfWeek override;
+	auto SetDaylightSavingsStartDayOfWeek(EStartDayOfWeek value) -> void override;
+	auto GetDaylightSavingsEndDayOfYear() const -> uint16_t override;
+	auto SetDaylightSavingsEndDayOfYear(uint16_t value) -> void override;
+	auto GetDaylightSavingsEndDayOfWeek() const -> EStartDayOfWeek override;
+	auto SetDaylightSavingsEndDayOfWeek(EStartDayOfWeek value) -> void override;
+
+private:
+	stlab::copy_on_write<SBglTimezoneData> m_data;
 };
 	
 } // namespace io

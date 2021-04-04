@@ -10043,10 +10043,28 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 
 auto flightsimlib::io::CBglTimeZone::ReadBinary(BinaryFileStream& in) -> void
 {
+	auto& data = m_data.write();
+	
+	in >> data.MinLongitude
+		>> data.MaxLatitude
+		>> data.MaxLongitude
+		>> data.MinLatitude
+		>> data.TimeDeviation
+		>> data.Priority
+		>> data.DstTimeShift
+		>> data.DstPacked;
 }
 
 auto flightsimlib::io::CBglTimeZone::WriteBinary(BinaryFileStream& out) -> void
 {
+	out << m_data->MinLongitude
+		<< m_data->MaxLatitude
+		<< m_data->MaxLongitude
+		<< m_data->MinLatitude
+		<< m_data->TimeDeviation
+		<< m_data->Priority
+		<< m_data->DstTimeShift
+		<< m_data->DstPacked;
 }
 
 auto flightsimlib::io::CBglTimeZone::Validate() -> bool
@@ -10056,44 +10074,126 @@ auto flightsimlib::io::CBglTimeZone::Validate() -> bool
 
 auto flightsimlib::io::CBglTimeZone::CalculateSize() const -> int
 {
-	return 0;
+	return static_cast<int>(sizeof(SBglTimezoneData));
 }
 
 auto flightsimlib::io::CBglTimeZone::GetMinLongitude() const -> double
 {
-	return 0.0;
+	return Longitude::Value(m_data->MinLongitude);
 }
 
 auto flightsimlib::io::CBglTimeZone::SetMinLongitude(double value) -> void
 {
+	m_data.write().MinLongitude = Longitude::ToPacked(value);
 }
 
 auto flightsimlib::io::CBglTimeZone::GetMaxLatitude() const -> double
 {
-	return 0.0;
+	return Latitude::Value(m_data->MaxLatitude);
 }
 
 auto flightsimlib::io::CBglTimeZone::SetMaxLatitude(double value) -> void
 {
+	m_data.write().MaxLatitude = Latitude::ToPacked(value);
 }
 
 auto flightsimlib::io::CBglTimeZone::GetMaxLongitude() const -> double
 {
-	return 0.0;
+	return Longitude::Value(m_data->MaxLongitude);
 }
 
 auto flightsimlib::io::CBglTimeZone::SetMaxLongitude(double value) -> void
 {
+	m_data.write().MaxLongitude = Longitude::ToPacked(value);
 }
 
 auto flightsimlib::io::CBglTimeZone::GetMinLatitude() const -> double
 {
-	return 0.0;
+	return Latitude::Value(m_data->MinLatitude);
 }
 
 auto flightsimlib::io::CBglTimeZone::SetMinLatitude(double value) -> void
 {
+	m_data.write().MinLatitude = Latitude::ToPacked(value);
 }
+
+auto flightsimlib::io::CBglTimeZone::GetTimeDeviation() const -> int16_t
+{
+	return m_data->TimeDeviation;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetTimeDeviation(int16_t value) -> void
+{
+	m_data.write().TimeDeviation = value;
+}
+
+auto flightsimlib::io::CBglTimeZone::GetPriority() const -> uint8_t
+{
+	return m_data->Priority;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetPriority(uint8_t value) -> void
+{
+	m_data.write().Priority = value;
+}
+
+auto flightsimlib::io::CBglTimeZone::GetDaylightSavingsTimeShift() const -> int8_t
+{
+	return m_data->DstTimeShift;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetDaylightSavingsTimeShift(int8_t value) -> void
+{
+	m_data.write().DstTimeShift = value;
+}
+
+auto flightsimlib::io::CBglTimeZone::GetDaylightSavingsStartDayOfYear() const -> uint16_t
+{
+	return static_cast<uint16_t>(get_packed_bits(m_data->DstPacked, 9, 0));
+}
+
+auto flightsimlib::io::CBglTimeZone::SetDaylightSavingsStartDayOfYear(uint16_t value) -> void
+{
+	set_packed_bits(m_data.write().DstPacked, value, 9, 0);
+}
+
+auto flightsimlib::io::CBglTimeZone::GetDaylightSavingsStartDayOfWeek() const -> EStartDayOfWeek
+{
+	return static_cast<EStartDayOfWeek>(get_packed_bits(m_data->DstPacked, 3, 9));
+}
+
+auto flightsimlib::io::CBglTimeZone::SetDaylightSavingsStartDayOfWeek(EStartDayOfWeek value) -> void
+{
+	set_packed_bits(m_data.write().DstPacked, to_integral(value), 3, 9);
+}
+
+auto flightsimlib::io::CBglTimeZone::GetDaylightSavingsEndDayOfYear() const -> uint16_t
+{
+	// this is split into 3 sections. What an absolute mess. See FSDeveloper
+	auto unpacked = static_cast<uint16_t>(get_packed_bits(m_data->DstPacked, 4, 12));
+	set_packed_bits(unpacked, get_packed_bits(m_data->DstPacked, 4, 20), 4, 4);
+	set_packed_bits(unpacked, get_packed_bits(m_data->DstPacked, 1, 16), 1, 8);
+	return unpacked;
+}
+
+auto flightsimlib::io::CBglTimeZone::SetDaylightSavingsEndDayOfYear(uint16_t value) -> void
+{
+	auto& packed = m_data.write().DstPacked;
+	set_packed_bits(packed, get_packed_bits(value, 4, 0), 4, 12);
+	set_packed_bits(packed, get_packed_bits(value, 4, 4), 4, 20);
+	set_packed_bits(packed, get_packed_bits(value, 1, 8), 1, 16);
+}
+
+auto flightsimlib::io::CBglTimeZone::GetDaylightSavingsEndDayOfWeek() const -> EStartDayOfWeek
+{
+	return static_cast<EStartDayOfWeek>(get_packed_bits(m_data->DstPacked, 3, 17));
+}
+
+auto flightsimlib::io::CBglTimeZone::SetDaylightSavingsEndDayOfWeek(EStartDayOfWeek value) -> void
+{
+	set_packed_bits(m_data.write().DstPacked, to_integral(value), 3, 9);
+}
+
 
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglTriggerRefuelRepairData>>;
 template class flightsimlib::io::CBglFuelAvailability<stlab::copy_on_write<flightsimlib::io::SBglAirportData>>;

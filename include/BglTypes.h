@@ -2145,6 +2145,18 @@ public:
 class IBglTimeZone
 {
 public:
+	enum class EStartDayOfWeek : uint8_t
+	{
+		Any = 0,
+		Sunday = 1,
+		Monday = 2,
+		Tuesday = 3,
+		Wednesday = 4,
+		Thursday = 5,
+		Friday = 6,
+		Saturday = 7
+	};
+	
 	virtual auto GetMinLongitude() const -> double = 0;
 	virtual auto SetMinLongitude(double value) -> void = 0;
 	virtual auto GetMaxLatitude() const -> double = 0;
@@ -2153,6 +2165,20 @@ public:
 	virtual auto SetMaxLongitude(double value) -> void = 0;
 	virtual auto GetMinLatitude() const -> double = 0;
 	virtual auto SetMinLatitude(double value) -> void = 0;
+	virtual auto GetTimeDeviation() const -> int16_t = 0;
+	virtual auto SetTimeDeviation(int16_t value) -> void = 0;
+	virtual auto GetPriority() const -> uint8_t = 0;
+	virtual auto SetPriority(uint8_t value) -> void = 0;
+	virtual auto GetDaylightSavingsTimeShift() const -> int8_t = 0;
+	virtual auto SetDaylightSavingsTimeShift(int8_t value) -> void = 0;
+	virtual auto GetDaylightSavingsStartDayOfYear() const -> uint16_t = 0;
+	virtual auto SetDaylightSavingsStartDayOfYear(uint16_t value) -> void = 0;
+	virtual auto GetDaylightSavingsStartDayOfWeek() const -> EStartDayOfWeek = 0;
+	virtual auto SetDaylightSavingsStartDayOfWeek(EStartDayOfWeek value) -> void = 0;
+	virtual auto GetDaylightSavingsEndDayOfYear() const -> uint16_t = 0;
+	virtual auto SetDaylightSavingsEndDayOfYear(uint16_t value) -> void = 0;
+	virtual auto GetDaylightSavingsEndDayOfWeek() const -> EStartDayOfWeek = 0;
+	virtual auto SetDaylightSavingsEndDayOfWeek(EStartDayOfWeek value) -> void = 0;
 };
 	
 	

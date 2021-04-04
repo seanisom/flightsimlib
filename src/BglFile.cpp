@@ -35,8 +35,6 @@
 //
 // TODO list:
 // * Factories need to be refactored to standalone
-// * Iteration, copy, and move semantics for Layers and Tiles
-//    - Should allow seamless reversible edits and moves across files
 // * Layers and Tiles should conform to IBglSerializable
 // * Observable model
 // * History Stack
@@ -486,199 +484,6 @@ auto CBglData::WriteBinary(BinaryFileStream& out) -> bool
 		return false;
 	}
 	return true;
-}
-
-
-//******************************************************************************
-// CBglTile
-//****************************************************************************** 
-
-	
-CBglTile::CBglTile(EBglLayerType type, const SBglTilePointer& pointer):
-	m_tile_pointer(pointer), m_type(type)
-{
-}
-
-std::shared_ptr<CBglTile> CBglTile::Clone() const
-{
-	//return std::make_unique<CBglTile>(*this);
-	// TODO copying?
-	return nullptr;
-}
-
-const SBglTilePointer& CBglTile::Pointer() const
-{
-	return m_tile_pointer.read();
-}
-
-// TODO - currently we just support moving offset within a file
-// This needs to be extended to allow  clones, merges, etc
-bool CBglTile::UpdateTilePointer(BinaryFileStream& out, const CPackedQmid& qmid)
-{
-	m_tile_pointer.write().StreamOffset = out.GetPosition();
-	m_tile_pointer.write().SizeBytes = CalculateDataSize();
-	m_tile_pointer.write().RecordCount = GetRecordCount();
-	m_tile_pointer.write().QmidLow = qmid.Low();
-	m_tile_pointer.write().QmidHigh = qmid.High();
-	return out ? true : false;
-}
-
-EBglLayerType CBglTile::Type() const
-{
-	return m_type;
-}
-
-bool CBglTile::ReadBinary(BinaryFileStream& in)
-{
-	const auto count = static_cast<int>(Pointer().RecordCount);
-	if (count <= 0)
-	{
-		return false;
-	}
-
-	in.SetPosition(Pointer().StreamOffset);
-	if (!in)
-	{
-		return false;
-	}
-
-	m_data.reserve(count);
-
-	
-	for (auto i = 0; i < count; ++i)
-	{
-		const auto pos = in.GetPosition();
-		std::unique_ptr<IBglSerializable> record;
-		switch (m_type)
-		{
-		case EBglLayerType::Airport:
-			record = std::make_unique<CBglAirport>();
-			break;
-		case EBglLayerType::AirportSummary:
-			record = std::make_unique<CBglAirportSummary>();
-			break;
-		case EBglLayerType::Geopol:
-			record = std::make_unique<CBglGeopol>();
-			break;
-		case EBglLayerType::Exclusion:
-			record = std::make_unique<CBglExclusion>();
-			break;
-		case EBglLayerType::Marker:
-			record = std::make_unique<CBglMarker>();
-			break;
-		case EBglLayerType::Nav:
-			record = std::make_unique<CBglNav>();
-			break;
-		case EBglLayerType::Ndb:
-			record = std::make_unique<CBglNdb>();
-			break;
-		case EBglLayerType::SceneryObject:
-		{
-			auto child_type = uint16_t{};
-			auto child_size = uint16_t{};
-			in >> child_type;
-			in >> child_size;
-			in.SetPosition(pos);
-
-			switch(static_cast<IBglSceneryObject::ESceneryObjectType>(child_type))
-			{
-			case IBglSceneryObject::ESceneryObjectType::GenericBuilding:
-				record = std::make_unique<CBglGenericBuilding>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::LibraryObject:
-				record = std::make_unique<CBglLibraryObject>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::Windsock:
-				record = std::make_unique<CBglWindsock>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::Effect:
-				record = std::make_unique<CBglEffect>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::TaxiwaySigns:
-				record = std::make_unique<CBglTaxiwaySigns>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::Trigger:
-				record = std::make_unique<CBglTrigger>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::Beacon:
-				record = std::make_unique<CBglBeacon>();
-				break;
-			case IBglSceneryObject::ESceneryObjectType::ExtrusionBridge:
-				record = std::make_unique<CBglExtrusionBridge>();
-				break;
-			default:
-				in.SetPosition(pos + static_cast<int>(child_size));
-				continue; 
-			}
-		}
-			break;
-		case EBglLayerType::ModelData:
-			record = std::make_unique<CBglModelData>();
-			break;
-		case EBglLayerType::Tacan:
-			record = std::make_unique<CBglTacan>();
-			break;
-		case EBglLayerType::Boundary:
-			record = std::make_unique<CBglBoundary>();
-			break;
-		case EBglLayerType::Waypoint:
-			record = std::make_unique<CBglWaypoint>();
-			break;
-		default:
-			continue; // TODO - do we need to set position????
-		}
-		
-		record->ReadBinary(in);
-		const auto size = record->CalculateSize();
-		if (!record->Validate())
-		{
-			return false;
-		}
-		m_data.push_back(std::move(record));
-		in.SetPosition(pos + static_cast<int>(size));
-		if (!in)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-// Invariant - UpdateTilePointer shall have already been called
-bool CBglTile::WriteBinary(BinaryFileStream& out)
-{
-	for (auto& data : m_data)
-	{
-		data->WriteBinary(out);
-		if (!out)
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-int CBglTile::CalculateDataSize() const
-{
-	auto size = 0;
-	for (const auto& data : m_data)
-	{
-		size += data->CalculateSize();
-	}
-	return size;
-}
-
-int CBglTile::GetRecordCount() const
-{
-	return static_cast<int>(m_data.size());
-}
-
-
-template <typename T>
-T* CBglTile::GetTileDataAt(int index) const
-{
-	return dynamic_cast<T*>(m_data[index].get());
 }
 
 	
@@ -1260,7 +1065,8 @@ auto CBglTimeZoneLayer::ReadBinary(BinaryFileStream& in) -> bool
 		return false;
 	}
 
-	const auto count = static_cast<int>(m_pointer->StreamOffset);
+	// TODO - hardcoded FSX
+	const auto count = static_cast<int>(m_pointer->SizeBytes / 24);
 	m_timezones.write().resize(count);
 	
 	for (auto i = 0; i < count; ++i)
@@ -1294,10 +1100,12 @@ auto CBglTimeZoneLayer::CalculateDataPointersSize() const -> int
 auto CBglTimeZoneLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
 {
 	auto& data = m_data.write();
+
+	//TODO need to_integral in common header
 	
 	data.Type = EBglLayerType::TimeZone;
-	data.TileCount = static_cast<uint32_t>(m_timezones->size());
-	data.DataClass = 1;
+	data.TileCount = 1;
+	data.DataClass = static_cast<typename std::underlying_type<EBglLayerType>::type>(EBglLayerClass::TimeZone);
 	data.HasQmidHigh = 0;
 	data.SizeBytes = CalculateDataPointersSize();
 	data.StreamOffset = offset_to_tile;
@@ -1735,9 +1543,3 @@ bool CBglFile::ComputeHeaderQmids()
 
 } // namespace flightsimlib
 
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglAirport* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglExclusion* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglMarker* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglGeopol* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglModelData* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;
-template FLIGHTSIMLIB_EXPORTED flightsimlib::io::IBglSceneryObject* flightsimlib::io::CBglTile::GetTileDataAt(int index) const;

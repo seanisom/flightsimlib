@@ -568,55 +568,16 @@ public:
 	virtual auto TryMergeLayer(IBglLayer* layer) -> bool = 0;
 	virtual auto RemoveLayer(EBglLayerType type) -> void = 0;
 };
-	
-	
-class FLIGHTSIMLIB_EXPORTED CBglTile final
-{
-public:
-	explicit CBglTile(EBglLayerType type, const SBglTilePointer& pointer);
-
-	// TODO - non,copyable, non-moveable
-	CBglTile(const CBglTile& other) = delete;
-	CBglTile& operator= (const CBglTile&) = delete;
-	CBglTile(CBglTile&&) = delete;
-	CBglTile& operator=(CBglTile&&) = delete;
-
-	std::shared_ptr<CBglTile> Clone() const;
-	const SBglTilePointer& Pointer() const;
-	bool UpdateTilePointer(BinaryFileStream& out, const CPackedQmid& qmid);
-	EBglLayerType Type() const;
-	bool ReadBinary(BinaryFileStream& in);
-	bool WriteBinary(BinaryFileStream& out);
-	int CalculateDataSize() const;
-	int GetRecordCount() const;
-	template <typename T>
-	T* GetTileDataAt(int index) const;
-
-private:
-	std::vector<std::unique_ptr<IBglSerializable>> m_data;
-	stlab::copy_on_write<SBglTilePointer> m_tile_pointer;
-	EBglLayerType m_type;
-};
 
 
 class FLIGHTSIMLIB_EXPORTED CBglLayer : virtual public IBglLayer
 {
 public:
 	explicit CBglLayer(EBglLayerType type, EBglLayerClass layer_class, const SBglLayerPointer& data);
-	// explicit CBglLayer(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
 	virtual ~CBglLayer() = default;
-	// CBglLayer(const CBglLayer& other);
-
-	// bool AddTile(CPackedQmid qmid, std::shared_ptr<CBglTile> tile);
-	
-	//static std::unique_ptr<CBglLayer> ReadBinary(
-	//	BinaryFileStream& in,                                      
-	//	const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers);
 
 	static std::unique_ptr<CBglLayer> Factory(const SBglLayerPointer& data);
 	auto Clone() const { return std::unique_ptr<CBglLayer>(CloneImpl()); }
-	
-	// const std::map<CPackedQmid, std::shared_ptr<CBglTile>>& Tiles() const;
 
 	virtual auto ReadBinary(BinaryFileStream& in) -> bool = 0;
 	virtual int CalculateSize() const = 0;
@@ -654,7 +615,6 @@ protected:
 private:
 	EBglLayerType m_type;
 	EBglLayerClass m_class;
-	// std::map<CPackedQmid, std::shared_ptr<CBglTile>> m_tiles;
 };
 
 
@@ -707,7 +667,6 @@ public:
 	}
 
 private:
-	//std::map<CPackedQmid, std::shared_ptr<CBglTile>> m_tiles;
 	std::map<CPackedQmid, std::vector<std::unique_ptr<CBglData>>> m_tiles;
 	std::vector<std::unique_ptr<SBglTilePointer>> m_pointers; // TODO - why pointer?
 };
@@ -790,18 +749,19 @@ public:
 		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
 		m_pointer(std::make_unique<SBglTilePointer>(*other.m_pointer)),
 		m_timezones(other.m_timezones) { } 
-	
-	auto GetTimeZoneCount() const -> int override;
-	auto GetDataPointer() const -> const SBglTilePointer* override;
-	auto GetTimeZoneAt(int index) -> IBglTimeZone* override;
-	auto AddTimeZone(const IBglTimeZone* timezone) -> void override;
-	auto RemoveTimeZone(const IBglTimeZone* timezone) -> void override;
+
 	auto ReadBinary(BinaryFileStream& in) -> bool override;
 	auto CalculateSize() const -> int override;
 	auto CalculateDataPointersSize() const -> int override;
 	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
 	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
 	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+	
+	auto GetTimeZoneCount() const -> int override;
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetTimeZoneAt(int index) -> IBglTimeZone* override;
+	auto AddTimeZone(const IBglTimeZone* timezone) -> void override;
+	auto RemoveTimeZone(const IBglTimeZone* timezone) -> void override;
 
 private:
 	auto CloneImpl() const -> CBglLayer* override
