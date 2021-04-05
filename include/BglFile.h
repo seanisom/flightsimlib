@@ -731,24 +731,38 @@ public:
 class CBglExclusionLayer final : public IBglExclusionLayer, public CBglLayer
 {
 public:
+	explicit CBglExclusionLayer(const SBglLayerPointer& pointer);
+	CBglExclusionLayer(const CBglExclusionLayer& other);
+	
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+	
 	auto GetExclusionCount() const -> int override;
 	auto GetDataPointer() const -> const SBglTilePointer* override;
 	auto GetExclusionAt(int index) -> IBglExclusion* override;
 	auto AddExclusion(const IBglExclusion* exclusion) -> void override;
 	auto RemoveExclusion(const IBglExclusion* exclusion) -> void override;
+
+	private:
+	auto CloneImpl() const -> CBglLayer* override
+	{
+		return new CBglExclusionLayer(*this);
+	}
+	
+	stlab::copy_on_write<SBglTilePointer> m_pointer;
+	stlab::copy_on_write<std::vector<CBglExclusion>> m_exclusions;
 };
 
-class CBglTimeZone;
 	
 class CBglTimeZoneLayer final : public IBglTimeZoneLayer, public CBglLayer
 {
 public:
-	CBglTimeZoneLayer(const SBglLayerPointer& pointer);
-
-	CBglTimeZoneLayer(const CBglTimeZoneLayer& other) : CBglLayer(
-		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
-		m_pointer(std::make_unique<SBglTilePointer>(*other.m_pointer)),
-		m_timezones(other.m_timezones) { } 
+	explicit CBglTimeZoneLayer(const SBglLayerPointer& pointer);
+	CBglTimeZoneLayer(const CBglTimeZoneLayer& other);
 
 	auto ReadBinary(BinaryFileStream& in) -> bool override;
 	auto CalculateSize() const -> int override;
@@ -769,7 +783,7 @@ private:
 		return new CBglTimeZoneLayer(*this);
 	}
 	
-	std::unique_ptr<SBglTilePointer> m_pointer;
+	stlab::copy_on_write<SBglTilePointer> m_pointer;
 	stlab::copy_on_write<std::vector<CBglTimeZone>> m_timezones;
 };
 
@@ -839,8 +853,8 @@ public:
 	// TODO - This is now move-only, not copyable
 	CBglFile(const CBglFile&) = delete;
 	CBglFile& operator= (const CBglFile&) = delete;
-	CBglFile(CBglFile&&) = default;
-	CBglFile& operator=(CBglFile&&) = default;
+	CBglFile(CBglFile&&) noexcept = default;
+	CBglFile& operator=(CBglFile&&) noexcept = default;
 
 
 	auto GetLayerCount() const -> int override;
@@ -872,7 +886,6 @@ private:
 	bool BuildHeader();
 	bool ComputeHeaderQmids();
 
-private:
 	static constexpr uint16_t Version()
 	{
 		return 0x0201; // FSX+

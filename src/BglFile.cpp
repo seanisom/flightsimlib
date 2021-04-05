@@ -499,7 +499,6 @@ CBglLayer::CBglLayer(EBglLayerType type, EBglLayerClass layer_class, const SBglL
 
 std::unique_ptr<CBglLayer> CBglLayer::Factory(const SBglLayerPointer& data)
 {
-
 	std::unique_ptr<CBglLayer> layer = nullptr;
 	const auto type = static_cast<EBglLayerClass>(data.DataClass);
 
@@ -516,7 +515,8 @@ std::unique_ptr<CBglLayer> CBglLayer::Factory(const SBglLayerPointer& data)
 		break;
 	case EBglLayerClass::GuidIndex: 
 		break;
-	case EBglLayerClass::Exclusion: 
+	case EBglLayerClass::Exclusion:
+		layer = std::make_unique<CBglExclusionLayer>(data);
 		break;
 	case EBglLayerClass::TimeZone:
 		layer = std::make_unique<CBglTimeZoneLayer>(data);
@@ -526,50 +526,6 @@ std::unique_ptr<CBglLayer> CBglLayer::Factory(const SBglLayerPointer& data)
 	}
 	return layer;
 }
-
-/*
-CBglLayer::CBglLayer(CPackedQmid qmid, std::shared_ptr<CBglTile> tile): m_type(tile->Type())
-{
-	AddTile(qmid, std::move(tile));
-}
-
-
-CBglLayer::CBglLayer(const CBglLayer& other): m_type(other.m_type)
-{
-	for (const auto& tile : other.m_tiles)
-	{
-		m_tiles[tile.first] = tile.second->Clone();
-	}
-}
-
-
-bool CBglLayer::AddTile(CPackedQmid qmid, std::shared_ptr<CBglTile> tile)
-{
-	if (tile->Type() != GetType())
-	{
-		return false;
-	}
-	m_tiles[qmid] = std::move(tile);
-	return true;
-}
-
-CBglTile& CBglLayer::operator[](const CPackedQmid index)
-{
-	return *m_tiles[index];
-}
-
-std::unique_ptr<CBglLayer> CBglLayer::ReadBinary(
-	BinaryFileStream& in,							 
-	const std::map<EBglLayerType, std::unique_ptr<CBglLayer>>& layers)
-{
-	
-}
-
-const std::map<CPackedQmid, std::shared_ptr<CBglTile>>& CBglLayer::Tiles() const
-{
-	return m_tiles;
-}
-*/
 
 auto CBglLayer::GetType() const -> EBglLayerType
 {
@@ -717,7 +673,7 @@ auto CBglDirectQmidLayer::GetDataCountAtQmid(CPackedQmid qmid) -> int
 	{
 		return 0;
 	}
-	return it->second.size();
+	return static_cast<int>(it->second.size());
 }
 
 auto CBglDirectQmidLayer::GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData*
@@ -838,17 +794,7 @@ auto CBglDirectQmidLayer::ReadBinary(BinaryFileStream& in) -> bool
 			return false;
 		}
 		for (const auto& tile_pointer : m_pointers)
-		{
-			/*
-			auto tile = std::make_shared<CBglTile>(layer_type, *tile_pointer);
-			if (!tile->ReadBinary(in))
-			{
-				return false;
-			}
-
-			m_tiles[CPackedQmid{tile_pointer->QmidLow, tile_pointer->QmidHigh}] = std::move(tile);
-			*/
-			
+		{			
 			const auto data_count = static_cast<int>(tile_pointer->RecordCount);
 			if (data_count <= 0)
 			{
@@ -877,7 +823,7 @@ auto CBglDirectQmidLayer::ReadBinary(BinaryFileStream& in) -> bool
 				{
 					child_type = GetSceneryObjectType(in);
 				}
-				auto data = CBglData::Factory(CBglLayer::GetType(), child_type);
+				auto data = CBglData::Factory(layer_type, child_type);
 				if (data == nullptr)
 				{
 					in.SetPosition(pos + static_cast<int>(tile_pointer->SizeBytes));
@@ -1011,67 +957,193 @@ auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 
 
 //******************************************************************************
-// CBglTimezoneLayer
+// CBglExclusionLayer
 //******************************************************************************  
 
 
-CBglTimeZoneLayer::CBglTimeZoneLayer(const SBglLayerPointer& pointer) :
-	CBglLayer(EBglLayerType::TimeZone, EBglLayerClass::TimeZone, pointer)
-{
-}
+CBglExclusionLayer::CBglExclusionLayer(const SBglLayerPointer& pointer) :
+	CBglLayer(EBglLayerType::Exclusion, EBglLayerClass::Exclusion, pointer) { }
 
-auto CBglTimeZoneLayer::GetTimeZoneCount() const -> int
-{
-	return static_cast<int>(m_timezones->size());
-}
+CBglExclusionLayer::CBglExclusionLayer(const CBglExclusionLayer& other) :
+	CBglLayer( other.GetType(), other.GetClass(), *other.GetLayerPointer()),
+	m_pointer(other.m_pointer),
+	m_exclusions(other.m_exclusions) { } 
 
-auto CBglTimeZoneLayer::GetDataPointer() const -> const SBglTilePointer*
+auto CBglExclusionLayer::ReadBinary(BinaryFileStream& in) -> bool
 {
-	return m_pointer.get();
-}
-
-auto CBglTimeZoneLayer::GetTimeZoneAt(int index) -> IBglTimeZone*
-{
-	return &m_timezones.write()[index];
-}
-
-auto CBglTimeZoneLayer::AddTimeZone(const IBglTimeZone* timezone) -> void
-{
-	m_timezones.write().emplace_back(*static_cast<const CBglTimeZone*>(timezone));
-}
-
-auto CBglTimeZoneLayer::RemoveTimeZone(const IBglTimeZone* timezone) -> void
-{
-	// This uses a unique_ptr - need to find a way to pass these safely via interface
-	const auto iter = m_timezones.read().begin() +
-		std::distance(m_timezones.read().data(), static_cast<const CBglTimeZone*>(timezone));
-	m_timezones.write().erase(iter);
-}
-
-auto CBglTimeZoneLayer::ReadBinary(BinaryFileStream& in) -> bool
-{
-	assert(m_timezones->empty());
+	assert(m_exclusions->empty());
 	
-	if (CBglLayer::GetType() != EBglLayerType::TimeZone || 
-		m_pointer != nullptr)
+	if (CBglLayer::GetType() != EBglLayerType::Exclusion)
 	{
 		return false;
 	}
 
-	m_pointer = std::make_unique<SBglTilePointer>();
-	m_pointer->ReadBinary(in, CBglLayer::GetLayerPointer()->HasQmidHigh != 0);
+	m_pointer.write().ReadBinary(in, CBglLayer::GetLayerPointer()->HasQmidHigh != 0);
+	
 	if (!in)
 	{
 		return false;
 	}
 
-	// TODO - hardcoded FSX
-	const auto count = static_cast<int>(m_pointer->SizeBytes / 24);
-	m_timezones.write().resize(count);
+	const auto count = static_cast<int>(m_pointer->RecordCount);
+	m_exclusions.write().resize(count);
 	
 	for (auto i = 0; i < count; ++i)
 	{
-		m_timezones.write()[i].ReadBinary(in);
+		auto& exclusion = m_exclusions.write()[i];
+		exclusion.ReadBinary(in);
+		if (!exclusion.Validate())
+		{
+			return false;
+		}
+	}
+
+	if (!in)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+auto CBglExclusionLayer::CalculateSize() const -> int
+{
+	auto data_size = 0;
+	for (const auto& tile : m_exclusions.read())
+	{
+		data_size += tile.CalculateSize();
+	}
+	return data_size;
+}
+
+auto CBglExclusionLayer::CalculateDataPointersSize() const -> int
+{
+	return 16; // TODO Constant
+}
+
+auto CBglExclusionLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
+{
+	auto& data = m_data.write();
+
+	//TODO need to_integral in common header
+	
+	data.Type = EBglLayerType::Exclusion;
+	data.TileCount = 1;
+	data.DataClass = static_cast<std::underlying_type<EBglLayerType>::type>(EBglLayerClass::Exclusion);
+	data.HasQmidHigh = 0;
+	data.SizeBytes = CalculateDataPointersSize();
+	data.StreamOffset = offset_to_tile;
+	data.WriteBinary(out);
+	return true;
+}
+
+auto CBglExclusionLayer::WriteBinaryData(BinaryFileStream& out) -> bool
+{
+	auto& pointer = m_pointer.write();
+	
+	pointer.QmidLow = 0x2;
+	pointer.QmidHigh = 0x0;
+	pointer.RecordCount = static_cast<int>(m_exclusions->size());
+	pointer.StreamOffset = out.GetPosition();
+	pointer.SizeBytes = CalculateSize();
+	
+	for (auto& tile : m_exclusions.write())
+	{
+		tile.WriteBinary(out);
+	}
+	
+	if (!out)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglExclusionLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
+{
+	m_pointer->WriteBinary(out, m_data->HasQmidHigh);
+	
+	if (!out)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+auto CBglExclusionLayer::GetExclusionCount() const -> int
+{
+	return static_cast<int>(m_exclusions->size());
+}
+
+auto CBglExclusionLayer::GetDataPointer() const -> const SBglTilePointer*
+{
+	return &m_pointer.read();
+}
+
+auto CBglExclusionLayer::GetExclusionAt(int index) -> IBglExclusion*
+{
+	return &m_exclusions.write()[index];
+}
+
+auto CBglExclusionLayer::AddExclusion(const IBglExclusion* exclusion) -> void
+{
+	m_exclusions.write().emplace_back(*static_cast<const CBglExclusion*>(exclusion));
+}
+
+auto CBglExclusionLayer::RemoveExclusion(const IBglExclusion* exclusion) -> void
+{
+	// This uses a unique_ptr - need to find a way to pass these safely via interface
+	const auto iter = m_exclusions.read().begin() +
+		std::distance(m_exclusions.read().data(), static_cast<const CBglExclusion*>(exclusion));
+	m_exclusions.write().erase(iter);
+}
+
+
+//******************************************************************************
+// CBglTimezoneLayer
+//******************************************************************************  
+
+
+CBglTimeZoneLayer::CBglTimeZoneLayer(const SBglLayerPointer& pointer) :
+	CBglLayer(EBglLayerType::TimeZone, EBglLayerClass::TimeZone, pointer) { }
+
+CBglTimeZoneLayer::CBglTimeZoneLayer(const CBglTimeZoneLayer& other) :
+	CBglLayer(other.GetType(), other.GetClass(), *other.GetLayerPointer()),
+	m_pointer(other.m_pointer),
+	m_timezones(other.m_timezones) { } 
+
+auto CBglTimeZoneLayer::ReadBinary(BinaryFileStream& in) -> bool
+{
+	assert(m_timezones->empty());
+	
+	if (CBglLayer::GetType() != EBglLayerType::TimeZone)
+	{
+		return false;
+	}
+
+	m_pointer.write().ReadBinary(in, CBglLayer::GetLayerPointer()->HasQmidHigh != 0);
+	
+	if (!in)
+	{
+		return false;
+	}
+
+	
+	const auto count = static_cast<int>(m_pointer->RecordCount);
+	m_timezones.write().resize(count);
+
+	// TODO - hardcoded FSX
+	assert(m_pointer->SizeBytes / 24 == count);
+	
+	for (auto i = 0; i < count; ++i)
+	{
+		auto& timezone = m_timezones.write()[i];
+		timezone.ReadBinary(in);
+		if (!timezone.Validate())
+		{
+			return false;
+		}
 	}
 
 	if (!in)
@@ -1105,7 +1177,7 @@ auto CBglTimeZoneLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_
 	
 	data.Type = EBglLayerType::TimeZone;
 	data.TileCount = 1;
-	data.DataClass = static_cast<typename std::underlying_type<EBglLayerType>::type>(EBglLayerClass::TimeZone);
+	data.DataClass = static_cast<std::underlying_type<EBglLayerType>::type>(EBglLayerClass::TimeZone);
 	data.HasQmidHigh = 0;
 	data.SizeBytes = CalculateDataPointersSize();
 	data.StreamOffset = offset_to_tile;
@@ -1115,13 +1187,13 @@ auto CBglTimeZoneLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_
 
 auto CBglTimeZoneLayer::WriteBinaryData(BinaryFileStream& out) -> bool
 {
-	if (m_pointer == nullptr)
-	{
-		return false;
-	}
+	auto& pointer = m_pointer.write();
 	
-	m_pointer->StreamOffset = out.GetPosition();
-	m_pointer->SizeBytes = CalculateSize();
+	pointer.QmidLow = 0x2;
+	pointer.QmidHigh = 0x0;
+	pointer.RecordCount = static_cast<int>(m_timezones->size());
+	pointer.StreamOffset = out.GetPosition();
+	pointer.SizeBytes = CalculateSize();
 	
 	for (auto& tile : m_timezones.write())
 	{
@@ -1137,11 +1209,6 @@ auto CBglTimeZoneLayer::WriteBinaryData(BinaryFileStream& out) -> bool
 
 auto CBglTimeZoneLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 {
-	if (!m_pointer)
-	{
-		return false;
-	}
-	
 	m_pointer->WriteBinary(out, m_data->HasQmidHigh);
 	
 	if (!out)
@@ -1151,6 +1218,36 @@ auto CBglTimeZoneLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 	
 	return true;
 }
+
+
+auto CBglTimeZoneLayer::GetTimeZoneCount() const -> int
+{
+	return static_cast<int>(m_timezones->size());
+}
+
+auto CBglTimeZoneLayer::GetDataPointer() const -> const SBglTilePointer*
+{
+	return &m_pointer.read();
+}
+
+auto CBglTimeZoneLayer::GetTimeZoneAt(int index) -> IBglTimeZone*
+{
+	return &m_timezones.write()[index];
+}
+
+auto CBglTimeZoneLayer::AddTimeZone(const IBglTimeZone* timezone) -> void
+{
+	m_timezones.write().emplace_back(*static_cast<const CBglTimeZone*>(timezone));
+}
+
+auto CBglTimeZoneLayer::RemoveTimeZone(const IBglTimeZone* timezone) -> void
+{
+	// This uses a unique_ptr - need to find a way to pass these safely via interface
+	const auto iter = m_timezones.read().begin() +
+		std::distance(m_timezones.read().data(), static_cast<const CBglTimeZone*>(timezone));
+	m_timezones.write().erase(iter);
+}
+
 
 //******************************************************************************
 // CBglFile
@@ -1342,7 +1439,7 @@ bool CBglFile::TryMergeLayer(IBglLayer* layer)
 		// m_layers[it->second] = ;
 		// m_layers.emplace_back(dynamic_cast<CBglLayer*>(layer));
 		m_layers.emplace_back(dynamic_cast<const CBglLayer*>(layer)->Clone());
-		m_layer_offsets.emplace(layer->GetType(), m_layers.size());
+		m_layer_offsets.emplace(layer->GetType(), static_cast<int>(m_layers.size()));
 		m_dirty = true;
 		return true;
 	}
@@ -1370,18 +1467,6 @@ int CBglFile::GetFileSize() const
 {
 	return m_file_size;
 }
-
-/*
-CBglLayer* CBglFile::GetLayer(EBglLayerType type) const
-{
-	const auto it = m_layers.find(type);
-	if (it == m_layers.end())
-	{
-		return nullptr;
-	}
-	return it->second.get();
-}
-*/
 
 bool CBglFile::ReadAllLayers()
 {

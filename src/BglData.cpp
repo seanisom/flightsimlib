@@ -9014,7 +9014,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::ReadBinary(BinaryFileStream& in) -> voi
 		in >> sign_count;
 		m_signs.write().resize(sign_count);
 
-		for (auto i = 0; i < sign_count; ++i)
+		for (auto i = 0u; i < sign_count; ++i)
 		{
 			if (!in)
 			{
@@ -9033,7 +9033,7 @@ auto flightsimlib::io::CBglTaxiwaySigns::WriteBinary(BinaryFileStream& out) -> v
 		const auto sign_count = static_cast<uint32_t>(m_signs.read().size());
 		out << sign_count;
 
-		for (auto i = 0; i < sign_count; ++i)
+		for (auto i = 0u; i < sign_count; ++i)
 		{
 			if (!out)
 			{
