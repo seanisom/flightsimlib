@@ -9698,43 +9698,37 @@ auto flightsimlib::io::CBglExtrusionBridge::RemovePoint(const SBglVertexLLA* poi
 
 auto flightsimlib::io::CBglModelData::ReadBinary(BinaryFileStream& in) -> void
 {
-	auto& data = m_data.write();
-	in >> data.Name
-		>> data.Offset
-		>> data.Length;
+	const auto pos = in.GetPosition();
+	auto header = uint32_t{};
+	auto size = uint32_t{};
+	
+	in >> header >> size;
 
-	m_model.write().resize(m_data->Length);
-	in.Read(m_model.write().data(), m_data->Length);
+	if(header != 0x46464952) // RIFF
+	{
+		return;
+	}
+	
+	size += static_cast<int>(sizeof(header) + sizeof(size));
+	in.SetPosition(pos);
+	
+	m_model.write().resize(size);
+	in.Read(m_model.write().data(), size);
 }
 
 auto flightsimlib::io::CBglModelData::WriteBinary(BinaryFileStream& out) -> void
 {
-	out << m_data->Name
-		<< m_data->Offset
-		<< m_data->Length;
-
-	// TODO - Writing Output model is not yet supported, as they are in a block!
-	// Needs support in CBglTile::WriteBinary, which is going to take an interface refactor
+	out.Write(m_model->data(), static_cast<int>(m_model->size()));
 }
 
 auto flightsimlib::io::CBglModelData::Validate() -> bool
 {
-	return true;
+	return !m_model->empty();
 }
 
 auto flightsimlib::io::CBglModelData::CalculateSize() const -> int
 {
-	return static_cast<int>(sizeof(SBglModelData) + m_data->Length);
-}
-
-auto flightsimlib::io::CBglModelData::GetName() const -> _GUID
-{
-	return m_data->Name;
-}
-
-auto flightsimlib::io::CBglModelData::SetName(_GUID value) -> void
-{
-	m_data.write().Name = value;
+	return static_cast<int>(m_model->size());
 }
 
 auto flightsimlib::io::CBglModelData::GetData() const -> const uint8_t*
@@ -9746,12 +9740,11 @@ auto flightsimlib::io::CBglModelData::SetData(const uint8_t* value, int length) 
 {
 	m_model.write().clear();
 	m_model.write().insert(m_model->end(), value, value + length);
-	m_data.write().Length = length;
 }
 
 auto flightsimlib::io::CBglModelData::GetLength() const -> int
 {
-	return static_cast<int>(m_data->Length);
+	return static_cast<int>(m_model->size());
 }
 
 

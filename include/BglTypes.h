@@ -2125,8 +2125,6 @@ public:
 class IBglModelData
 {
 public:
-	virtual auto GetName() const -> _GUID = 0;
-	virtual auto SetName(_GUID value) -> void = 0;
 	virtual auto GetData() const ->const uint8_t* = 0;
 	virtual auto SetData(const uint8_t* value, int length) -> void = 0;
 	virtual auto GetLength() const -> int = 0;

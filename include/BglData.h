@@ -3624,14 +3624,11 @@ public:
 	auto Validate() -> bool override;
 	auto CalculateSize() const -> int override;
 
-	auto GetName() const -> _GUID override;
-	auto SetName(_GUID value) -> void  override;
 	auto GetData() const ->const uint8_t* override;
 	auto SetData(const uint8_t* value, int length) -> void override;
 	auto GetLength() const -> int override;
 
 private:
-	stlab::copy_on_write<SBglModelData> m_data;
 	stlab::copy_on_write<std::vector<uint8_t>> m_model;
 	// std::shared_ptr<uint8_t[]> GetCompressedData();
 };

@@ -42,6 +42,7 @@
 //******************************************************************************       
 
 
+// ReSharper disable CppClangTidyCppcoreguidelinesProTypeStaticCastDowncast
 #include "BglFile.h"
 // #include "BglData.h"
 
@@ -493,7 +494,7 @@ auto CBglData::WriteBinary(BinaryFileStream& out) -> bool
 
 
 CBglLayer::CBglLayer(EBglLayerType type, EBglLayerClass layer_class, const SBglLayerPointer& data):
-	m_data(data), m_type(type), m_class(layer_class)
+	m_layer_pointer(data), m_type(type), m_class(layer_class)
 {
 }
 
@@ -513,7 +514,8 @@ std::unique_ptr<CBglLayer> CBglLayer::Factory(const SBglLayerPointer& data)
 		break;
 	case EBglLayerClass::IcaoIndex: 
 		break;
-	case EBglLayerClass::GuidIndex: 
+	case EBglLayerClass::GuidIndex:
+		layer = std::make_unique<CBglGuidLayer>(data, data.Type);
 		break;
 	case EBglLayerClass::Exclusion:
 		layer = std::make_unique<CBglExclusionLayer>(data);
@@ -549,7 +551,7 @@ auto CBglLayer::SetClass(EBglLayerClass value) -> void
 
 auto CBglLayer::GetLayerPointer() const -> const SBglLayerPointer*
 {
-	return &m_data.read();
+	return &m_layer_pointer.read();
 }
 
 auto CBglLayer::AsIndirectQmidLayer() -> IBglIndirectQmidLayer*
@@ -653,7 +655,7 @@ auto CBglDirectQmidLayer::GetQmidCount() const -> int
 
 auto CBglDirectQmidLayer::HasQmid(CPackedQmid qmid) const -> bool
 {
-	auto it = m_tiles.find(qmid);
+	const auto& it = m_tiles.find(qmid);
 	if (it == m_tiles.end())
 	{
 		return false;
@@ -668,7 +670,7 @@ auto CBglDirectQmidLayer::GetDataPointerAtIndex(int index) const -> const SBglTi
 
 auto CBglDirectQmidLayer::GetDataCountAtQmid(CPackedQmid qmid) -> int
 {
-	auto it = m_tiles.find(qmid);
+	const auto& it = m_tiles.find(qmid);
 	if (it == m_tiles.end())
 	{
 		return 0;
@@ -678,7 +680,7 @@ auto CBglDirectQmidLayer::GetDataCountAtQmid(CPackedQmid qmid) -> int
 
 auto CBglDirectQmidLayer::GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData*
 {
-	auto it = m_tiles.find(qmid);
+	const auto& it = m_tiles.find(qmid);
 	if (it == m_tiles.end())
 	{
 		return nullptr;
@@ -689,8 +691,6 @@ auto CBglDirectQmidLayer::GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData
 auto CBglDirectQmidLayer::AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void
 {
 	auto& record = m_tiles[qmid];
-	// TODO - verify that copy constructor here then delete of old ptr does not dangle members
-	//record.emplace_back(std::make_unique<CBglData>(*static_cast<const CBglData*>(data)));
 	record.emplace_back(static_cast<const CBglData*>(data)->Clone());
 }
 	
@@ -881,7 +881,7 @@ auto CBglDirectQmidLayer::CalculateDataPointersSize() const -> int
 			break;
 		}
 	}
-	return static_cast<int>(m_data->TileCount) * tile_pointer_size;
+	return static_cast<int>(m_layer_pointer->TileCount) * tile_pointer_size;
 }
 
 auto CBglDirectQmidLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
@@ -901,12 +901,12 @@ auto CBglDirectQmidLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_t
 		break;
 	}
 
-	auto& data = m_data.write();
+	auto& data = m_layer_pointer.write();
 	data.Type = type;
 
 	data.TileCount = static_cast<uint32_t>(m_tiles.size());
 	data.DataClass = 1;
-	if (m_data->TileCount && tile_pointers_size / static_cast<int>(m_data->TileCount) == 20)
+	if (m_layer_pointer->TileCount && tile_pointers_size / static_cast<int>(m_layer_pointer->TileCount) == 20)
 	{
 		data.HasQmidHigh = 1;
 	}
@@ -917,7 +917,7 @@ auto CBglDirectQmidLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_t
 	data.SizeBytes = tile_pointers_size;
 	data.StreamOffset = offset_to_tile;
 
-	m_data->WriteBinary(out);
+	m_layer_pointer->WriteBinary(out);
 	return true;
 }
 
@@ -946,7 +946,7 @@ auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 {
 	for (const auto& pointer : m_pointers)
 	{
-		pointer->WriteBinary(out, m_data->HasQmidHigh);
+		pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
 		if (!out)
 		{
 			return false;
@@ -954,6 +954,244 @@ auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 	}
 	return true;
 }
+
+
+//******************************************************************************
+// CBglGuidLayer
+//******************************************************************************  
+
+
+
+CBglGuidLayer::CBglGuidLayer(const SBglLayerPointer& pointer, EBglLayerType type) :
+	CBglLayer(type, EBglLayerClass::GuidIndex, pointer) { }
+
+
+
+CBglGuidLayer::CBglGuidLayer(const CBglGuidLayer& other) :
+	CBglLayer( other.GetType(), other.GetClass(), *other.GetLayerPointer()),
+	m_pointer(other.m_pointer),
+	m_offsets(other.m_offsets),
+	m_guids(other.m_guids)
+{
+	
+} 
+
+auto CBglGuidLayer::ReadBinary(BinaryFileStream& in) -> bool
+{
+	assert(m_data.empty());
+	
+	if (GetClass() != EBglLayerClass::GuidIndex)
+	{
+		return false;
+	}
+
+	m_pointer.write().ReadBinary(in, GetLayerPointer()->HasQmidHigh != 0);
+	
+	if (!in)
+	{
+		return false;
+	}
+
+	in.SetPosition(m_pointer->StreamOffset);
+
+	if (!in)
+	{
+		return false;
+	}
+
+	const auto pos = in.GetPosition();
+	
+	const auto count = static_cast<int>(m_pointer->RecordCount);
+	m_guids.write().resize(count);
+	m_data.resize(count);
+	
+	for (auto i = 0; i < count; ++i)
+	{
+		auto& guid_pointer = m_guids.write()[i];
+		guid_pointer.ReadBinary(in);
+
+		m_offsets[guid_pointer.Name] = i;
+	}
+
+	if (!in)
+	{
+		return false;
+	}
+
+	for (auto i = 0; i < count; ++i)
+	{
+		const auto& guid_pointer = m_guids.read()[i];
+		auto& data = m_data[i];
+
+		data = CBglData::Factory(GetType(), IBglSceneryObject::ESceneryObjectType::Unknown);
+		if (data == nullptr)
+		{
+			continue;
+		}
+
+		in.SetPosition(pos + static_cast<int>(guid_pointer.StreamOffset));
+		data->ReadBinary(in);
+		
+		if (!data->Validate())
+		{
+			return false;
+		}
+	}
+
+	if (!in)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+auto CBglGuidLayer::CalculateSize() const -> int
+{
+	auto data_size = 0;
+	for (const auto& data : m_data)
+	{
+		data_size += data->CalculateSize();
+	}
+	data_size += static_cast<int>(sizeof(SBglGuidPointer) * m_guids->size());
+	return data_size;
+}
+
+auto CBglGuidLayer::CalculateDataPointersSize() const -> int
+{
+	return 16; // TODO Constant
+}
+
+auto CBglGuidLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
+{
+	auto& data = m_layer_pointer.write();
+
+	//TODO need to_integral in common header
+	
+	data.Type = GetType();
+	data.TileCount = 1;
+	data.DataClass = static_cast<std::underlying_type<EBglLayerType>::type>(EBglLayerClass::GuidIndex);
+	data.HasQmidHigh = 0;
+	data.SizeBytes = CalculateDataPointersSize();
+	data.StreamOffset = offset_to_tile;
+	data.WriteBinary(out);
+	return true;
+}
+
+auto CBglGuidLayer::WriteBinaryData(BinaryFileStream& out) -> bool
+{
+	auto& tile_pointer = m_pointer.write();
+	const auto count = static_cast<int>(m_offsets.size());
+	const auto base_position = out.GetPosition();
+	
+	tile_pointer.QmidLow = 0x0;
+	tile_pointer.QmidHigh = 0x0;
+	tile_pointer.RecordCount = count;
+	tile_pointer.StreamOffset = base_position;
+	tile_pointer.SizeBytes = CalculateSize();
+
+	//auto guid_offset = base_position + static_cast<int>(sizeof(SBglGuidPointer) * m_guids->size());
+	auto guid_offset = static_cast<int>(sizeof(SBglGuidPointer) * m_guids->size());
+	
+	for (auto i = 0; i < count; ++i)
+	{
+		auto& guid_pointer = m_guids.write()[i];
+		const auto size = m_data[i]->CalculateSize();
+		
+		guid_pointer.StreamOffset = guid_offset;
+		guid_pointer.SizeBytes = size;
+
+		guid_offset += size;
+		
+		guid_pointer.WriteBinary(out);
+	}
+
+	for (auto& data : m_data)
+	{
+		data->WriteBinary(out);
+	}
+	
+	if (!out)
+	{
+		return false;
+	}
+	return true;
+}
+
+auto CBglGuidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
+{
+	m_pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
+	
+	if (!out)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+auto CBglGuidLayer::GetGuidCount() const -> int
+{
+	return static_cast<int>(m_offsets.size());
+}
+
+auto CBglGuidLayer::GetDataPointer() const -> const SBglTilePointer*
+{
+	return &m_pointer.read();
+}
+
+auto CBglGuidLayer::GetGuidPointerAt(int index) const -> const SBglGuidPointer*
+{
+	return &m_guids.read()[index];
+}
+
+auto CBglGuidLayer::HasGuid(_GUID guid) const -> bool
+{
+	const auto it = m_offsets.find(guid);
+	if (it != m_offsets.end())
+	{
+		return true;
+	}
+	return false;
+}
+
+auto CBglGuidLayer::GetData(_GUID guid) const -> const IBglData*
+{
+	// TODO - need a non-const version
+	const auto it = m_offsets.find(guid);
+	if (it != m_offsets.end())
+	{
+		return m_data[it->second].get();
+	}
+	return nullptr;
+}
+
+auto CBglGuidLayer::AddData(_GUID guid, const IBglData* data) -> void
+{
+	const auto it = m_offsets.find(guid);
+	if (it == m_offsets.end())
+	{
+		const auto offset = static_cast<int>(m_offsets.size());
+		m_offsets[guid] = offset;
+		m_guids.write().emplace_back(SBglGuidPointer{ guid, 0, 0});
+		m_data.emplace_back(static_cast<const CBglData*>(data)->Clone());
+		++m_pointer.write().RecordCount;
+	}
+}
+
+auto CBglGuidLayer::RemoveData(_GUID guid) -> void
+{
+	const auto& it = m_offsets.find(guid);
+	if (it != m_offsets.end())
+	{
+		m_guids.write().erase(m_guids->begin() + it->second);
+		m_data.erase(m_data.begin() + it->second);
+		m_offsets.erase(it);
+		--m_pointer.write().RecordCount;
+	}
+}
+
+
 
 
 //******************************************************************************
@@ -1023,7 +1261,7 @@ auto CBglExclusionLayer::CalculateDataPointersSize() const -> int
 
 auto CBglExclusionLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
 {
-	auto& data = m_data.write();
+	auto& data = m_layer_pointer.write();
 
 	//TODO need to_integral in common header
 	
@@ -1061,7 +1299,7 @@ auto CBglExclusionLayer::WriteBinaryData(BinaryFileStream& out) -> bool
 
 auto CBglExclusionLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 {
-	m_pointer->WriteBinary(out, m_data->HasQmidHigh);
+	m_pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
 	
 	if (!out)
 	{
@@ -1171,7 +1409,7 @@ auto CBglTimeZoneLayer::CalculateDataPointersSize() const -> int
 
 auto CBglTimeZoneLayer::WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool
 {
-	auto& data = m_data.write();
+	auto& data = m_layer_pointer.write();
 
 	//TODO need to_integral in common header
 	
@@ -1209,7 +1447,7 @@ auto CBglTimeZoneLayer::WriteBinaryData(BinaryFileStream& out) -> bool
 
 auto CBglTimeZoneLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
 {
-	m_pointer->WriteBinary(out, m_data->HasQmidHigh);
+	m_pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
 	
 	if (!out)
 	{
@@ -1453,9 +1691,9 @@ void CBglFile::RemoveLayer(EBglLayerType type)
 	{
 		// TODO - this keeps a nullptr in the vector, otherwise we would have to shift all offsets
 		m_layers[it->second].reset();
+		m_layer_offsets.erase(it);
 		m_dirty = true;
 	}
-	m_layer_offsets.erase(it);
 }
 
 bool CBglFile::IsDirty() const
@@ -1487,7 +1725,9 @@ bool CBglFile::ReadAllLayers()
 	{
 		auto layer_pointer = SBglLayerPointer{};
 		layer_pointer.ReadBinary(m_stream);
-		// auto layer = CBglLayer::ReadBinary(m_stream, m_layers);
+
+		const auto next_position = m_stream.GetPosition();
+
 		auto layer = CBglLayer::Factory(layer_pointer);
 		if (layer == nullptr)
 		{
@@ -1501,6 +1741,8 @@ bool CBglFile::ReadAllLayers()
 
 		m_layer_offsets[layer->GetType()] = static_cast<int>(m_layers.size());
 		m_layers.emplace_back(std::move(layer));
+
+		m_stream.SetPosition(next_position);
 	}
 	return true;
 }

@@ -51,11 +51,23 @@
 
 // TODO - this is for the timezone dependency
 // Once we split up the headers, we can clean this up
+
+
 #include "BglData.h"
 
 // This is because of the mixins
 #pragma warning( disable : 4250 )
 #pragma warning( disable : 4251 )
+
+// TODO: Library code
+struct GUIDComparer
+{
+	bool operator()(const _GUID & Left, const _GUID & Right) const
+	{
+		// comparison logic goes here
+		return memcmp(&Left , &Right,sizeof(Right)) < 0;
+	}
+};
 
 
 namespace flightsimlib
@@ -242,7 +254,7 @@ struct SBglLayerPointer
 		int32_t type = 0;
 		in >> type
 			>> DataClass
-		    >> HasQmidHigh
+			>> HasQmidHigh
 			>> TileCount
 			>> StreamOffset
 			>> SizeBytes;
@@ -260,7 +272,7 @@ struct SBglLayerPointer
 	{
 		out << Type
 			<< DataClass
-		    << HasQmidHigh
+			<< HasQmidHigh
 			<< TileCount
 			<< StreamOffset
 			<< SizeBytes;
@@ -296,8 +308,30 @@ struct SBglTilePointer
 			out << QmidHigh;
 		}
 		out << RecordCount
-		    << StreamOffset
-		    << SizeBytes;
+			<< StreamOffset
+			<< SizeBytes;
+	}
+};
+
+
+struct SBglGuidPointer
+{
+	_GUID    Name;
+	uint32_t StreamOffset;
+	uint32_t SizeBytes;
+	
+	void ReadBinary(BinaryFileStream& in)
+	{
+		in >> Name
+		   >> StreamOffset
+		   >> SizeBytes;
+	}
+
+	void WriteBinary(BinaryFileStream& out) const
+	{
+		out << Name
+			<< StreamOffset
+			<< SizeBytes;
 	}
 };
 
@@ -511,11 +545,11 @@ class IBglGuidLayer : virtual public IBglLayer
 {
 public:
 	virtual auto GetGuidCount() const -> int = 0;
-	virtual auto GetDataPointerAt(int index) const -> const SBglTilePointer* = 0;
+	virtual auto GetDataPointer() const -> const SBglTilePointer* = 0;
+	virtual auto GetGuidPointerAt(int index) const -> const SBglGuidPointer* = 0;
 	virtual auto HasGuid(_GUID guid) const -> bool = 0;
 	virtual auto GetData(_GUID guid) const -> const IBglData* = 0;
 	virtual auto AddData(_GUID guid, const IBglData* data) -> void = 0;
-	virtual auto RemoveData(const IBglData* data) -> void = 0;
 	virtual auto RemoveData(_GUID guid) -> void = 0;
 };
 	
@@ -610,7 +644,7 @@ public:
 protected:
 	virtual CBglLayer* CloneImpl() const = 0;
 	
-	stlab::copy_on_write<SBglLayerPointer> m_data;
+	stlab::copy_on_write<SBglLayerPointer> m_layer_pointer;
 	
 private:
 	EBglLayerType m_type;
@@ -623,10 +657,12 @@ class CBglDirectQmidLayer final : public IBglDirectQmidLayer, public CBglLayer
 public:
 	CBglDirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
 
+	
 	CBglDirectQmidLayer(const CBglDirectQmidLayer& other) : CBglLayer(
 		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
-		m_tiles(), m_pointers(other.m_pointers.size())
+		m_pointers(other.m_pointers.size())
 	{
+		
 		for (const auto& tile : other.m_tiles)
 		{
 			auto& it = m_tiles[tile.first] = 
@@ -718,13 +754,35 @@ public:
 class CBglGuidLayer final : public IBglGuidLayer, public CBglLayer
 {
 public:
+	explicit CBglGuidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
+	CBglGuidLayer(const CBglGuidLayer& other);
+
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+	
 	auto GetGuidCount() const -> int override;
-	auto GetDataPointerAt(int index) const -> const SBglTilePointer* override;
+	auto GetDataPointer() const -> const SBglTilePointer* override;
+	auto GetGuidPointerAt(int index) const -> const SBglGuidPointer* override;
 	auto HasGuid(_GUID guid) const -> bool override;
 	auto GetData(_GUID guid) const -> const IBglData* override;
 	auto AddData(_GUID guid, const IBglData* data) -> void override;
-	auto RemoveData(const IBglData* data) -> void override;
 	auto RemoveData(_GUID guid) -> void override;
+
+private:
+	auto CloneImpl() const -> CBglLayer* override
+	{
+		return new CBglGuidLayer(*this);
+	}
+	
+	stlab::copy_on_write<SBglTilePointer> m_pointer;
+	std::map<_GUID, int, GUIDComparer> m_offsets;
+	// TODO: would a pair / tuple in a single vector make more sense here?
+	stlab::copy_on_write<std::vector<SBglGuidPointer>> m_guids;
+	std::vector<std::unique_ptr<CBglData>> m_data; // TODO - cow doesn't work here
 };
 
 
@@ -747,7 +805,7 @@ public:
 	auto AddExclusion(const IBglExclusion* exclusion) -> void override;
 	auto RemoveExclusion(const IBglExclusion* exclusion) -> void override;
 
-	private:
+private:
 	auto CloneImpl() const -> CBglLayer* override
 	{
 		return new CBglExclusionLayer(*this);
@@ -828,19 +886,19 @@ struct SBglHeader
 	static void WriteBinary(BinaryFileStream& out, const SBglHeader& header)
 	{
 		out << header.Version
-		    << header.FileMagic
-		    << header.HeaderSize
-		    << header.FileTime
-		    << header.QmidMagic
-		    << header.LayerCount
-		    << header.PackedQMIDParent0
-		    << header.PackedQMIDParent1
-		    << header.PackedQMIDParent2
-		    << header.PackedQMIDParent3
-		    << header.PackedQMIDParent4
-		    << header.PackedQMIDParent5
-		    << header.PackedQMIDParent6
-		    << header.PackedQMIDParent7;
+			<< header.FileMagic
+			<< header.HeaderSize
+			<< header.FileTime
+			<< header.QmidMagic
+			<< header.LayerCount
+			<< header.PackedQMIDParent0
+			<< header.PackedQMIDParent1
+			<< header.PackedQMIDParent2
+			<< header.PackedQMIDParent3
+			<< header.PackedQMIDParent4
+			<< header.PackedQMIDParent5
+			<< header.PackedQMIDParent6
+			<< header.PackedQMIDParent7;
 	}
 };
 
