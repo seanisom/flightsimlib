@@ -220,6 +220,11 @@ public:
 		return this->m_value < rhs.m_value;
 	}
 
+	bool operator>(const CPackedQmid& rhs) const noexcept
+	{
+		return this->m_value > rhs.m_value;
+	}
+
 	uint32_t Low() const
 	{
 		return m_value & 0xFFFFFFFF;
@@ -331,6 +336,25 @@ struct SBglGuidPointer
 	{
 		out << Name
 			<< StreamOffset
+			<< SizeBytes;
+	}
+};
+
+
+struct SBglIndirectPointer
+{
+	uint32_t StreamOffset;
+	uint32_t SizeBytes;
+	
+	void ReadBinary(BinaryFileStream& in)
+	{
+		in >> StreamOffset
+		   >> SizeBytes;
+	}
+
+	void WriteBinary(BinaryFileStream& out) const
+	{
+		out << StreamOffset
 			<< SizeBytes;
 	}
 };
@@ -475,12 +499,6 @@ public:
 };
 
 
-struct SBglBlockPointer
-{
-	uint32_t StreamOffset;
-	uint32_t SizeBytes;
-};
-
 /// <summary>
 /// Standard flow would be:
 /// if (HasQmid(qmid)) // optional
@@ -488,7 +506,7 @@ struct SBglBlockPointer
 ///		const auto count = GetDataCountAtQmid(qmid);
 ///		for (auto i = 0; i < count; ++i)
 ///		{
-///			const auto index = GetDataIndexAtQmid(qmid);
+///			const auto index = GetDataIndexAtQmid(qmid, i);
 ///			auto data = GetDataAtIndex(index);
 ///			// ...
 ///		}
@@ -499,21 +517,16 @@ class IBglIndirectQmidLayer : virtual public IBglLayer
 public:
 	virtual auto GetQmidCount() const -> int = 0;
 	virtual auto HasQmid(CPackedQmid qmid) const -> bool = 0;
-	virtual auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* = 0;
 	virtual auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* = 0;
 	virtual auto GetDataCountAtQmid(CPackedQmid qmid) const -> int = 0;
-	virtual auto GetBlockPointerCount() const -> int = 0;
-	virtual auto GetBlockPointerAtIndex(int index) const -> const SBglBlockPointer* = 0;
-	virtual auto GetBlockPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglBlockPointer* = 0;
+	virtual auto GetIndirectPointerCount() const -> int = 0;
+	virtual auto GetIndirectPointerAtIndex(int index) const -> const SBglIndirectPointer* = 0;
+	virtual auto GetIndirectPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglIndirectPointer* = 0;
 	virtual auto GetDataIndexAtQmid(CPackedQmid qmid, int index) const -> int = 0;
 	virtual auto GetDataCount() const -> int = 0;
 	virtual auto GetDataAtIndex(int index) -> IBglData* = 0;
-	virtual auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* = 0;
-	virtual auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void = 0;
-	virtual auto AddData(const IBglData* data) -> void = 0;
-	virtual auto RemoveDataAtIndex(const IBglData* data) -> void = 0;
-	virtual auto RemoveDataAtQmid(const IBglData* data) -> void = 0;
-	virtual auto RemoveData(const IBglData* data) -> void = 0;
+	virtual auto AddDataAtQmids(CPackedQmid* qmids, int count, const IBglData* data) -> void = 0;
+	virtual auto RemoveDataAtIndex(int index) -> void = 0;
 };
 
 
@@ -578,7 +591,7 @@ public:
 };
 
 
-class IBglFile
+class IBglFile  // NOLINT(hicpp-special-member-functions, cppcoreguidelines-special-member-functions)
 {
 public:
 	virtual auto GetLayerCount() const -> int = 0;
@@ -601,6 +614,9 @@ public:
 	virtual auto GetFileSize() const -> int = 0;
 	virtual auto TryMergeLayer(IBglLayer* layer) -> bool = 0;
 	virtual auto RemoveLayer(EBglLayerType type) -> void = 0;
+
+protected:
+	virtual ~IBglFile() = default;
 };
 
 
@@ -616,7 +632,7 @@ public:
 	virtual auto ReadBinary(BinaryFileStream& in) -> bool = 0;
 	virtual int CalculateSize() const = 0;
 	virtual int CalculateDataPointersSize() const = 0;
-	virtual bool WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) = 0;
+	virtual bool WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) = 0;
 	virtual bool WriteBinaryData(BinaryFileStream& out) = 0;
 	virtual bool WriteBinaryDataPointers(BinaryFileStream& out) = 0;
 	
@@ -655,54 +671,33 @@ private:
 class CBglDirectQmidLayer final : public IBglDirectQmidLayer, public CBglLayer
 {
 public:
-	CBglDirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
+	explicit CBglDirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
+	CBglDirectQmidLayer(const CBglDirectQmidLayer& other);
 
-	
-	CBglDirectQmidLayer(const CBglDirectQmidLayer& other) : CBglLayer(
-		other.GetType(), other.GetClass(), *other.GetLayerPointer()),
-		m_pointers(other.m_pointers.size())
-	{
-		
-		for (const auto& tile : other.m_tiles)
-		{
-			auto& it = m_tiles[tile.first] = 
-				std::vector<std::unique_ptr<CBglData>>(tile.second.size());
-
-			for (const auto& data : tile.second)
-			{
-				it.emplace_back(data->Clone());
-			}
-		}
-
-		for (auto i = 0u; i < other.m_pointers.size(); ++i)
-		{
-			m_pointers[i] = std::make_unique<SBglTilePointer>(*other.m_pointers[i]);
-		}
-	}
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
 	
 	auto GetQmidCount() const -> int override;
 	auto HasQmid(CPackedQmid qmid) const -> bool override;
 	auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* override;
-	// virtual auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* = 0;
 	auto GetDataCountAtQmid(CPackedQmid qmid) -> int override;
 	auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* override;
 	auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void override;
 	auto RemoveQmid(CPackedQmid qmid) -> void override;
 	auto RemoveDataAtQmid(CPackedQmid qmid, int index) -> void override;	
 
-	auto ReadBinary(BinaryFileStream& in) -> bool override;
-	auto CalculateSize() const -> int override;
-	auto CalculateDataPointersSize() const -> int override;
-	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
-	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
-	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
-
+private:
 	auto CloneImpl() const -> CBglLayer* override
 	{
 		return new CBglDirectQmidLayer(*this);
 	}
 
-private:
+	static auto GetSceneryObjectType(BinaryFileStream& in) -> IBglSceneryObject::ESceneryObjectType;
+	
 	std::map<CPackedQmid, std::vector<std::unique_ptr<CBglData>>> m_tiles;
 	std::vector<std::unique_ptr<SBglTilePointer>> m_pointers; // TODO - why pointer?
 };
@@ -711,23 +706,39 @@ private:
 class CBglIndirectQmidLayer final : public IBglIndirectQmidLayer, public CBglLayer
 {
 public:
+	explicit CBglIndirectQmidLayer(const SBglLayerPointer& pointer, EBglLayerType type);
+	CBglIndirectQmidLayer(const CBglIndirectQmidLayer& other);
+	
+	auto ReadBinary(BinaryFileStream& in) -> bool override;
+	auto CalculateSize() const -> int override;
+	auto CalculateDataPointersSize() const -> int override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) -> bool override;
+	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
+	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
+	
 	auto GetQmidCount() const -> int override;
 	auto HasQmid(CPackedQmid qmid) const -> bool override;
-	auto GetDataPointerAtIndex(int index) const -> const SBglTilePointer* override;
 	auto GetDataPointerAtQmid(CPackedQmid qmid) const -> const SBglTilePointer* override;
 	auto GetDataCountAtQmid(CPackedQmid qmid) const -> int override;
-	auto GetBlockPointerCount() const -> int override;
-	auto GetBlockPointerAtIndex(int index) const -> const SBglBlockPointer* override;
-	auto GetBlockPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglBlockPointer* override;
+	auto GetIndirectPointerCount() const -> int override;
+	auto GetIndirectPointerAtIndex(int index) const -> const SBglIndirectPointer* override;
+	auto GetIndirectPointerAtQmid(CPackedQmid qmid, int index) const -> const SBglIndirectPointer* override;
 	auto GetDataIndexAtQmid(CPackedQmid qmid, int index) const -> int override;
 	auto GetDataCount() const -> int override;
 	auto GetDataAtIndex(int index) -> IBglData* override;
-	auto GetDataAtQmid(CPackedQmid qmid, int index) -> IBglData* override;
-	auto AddDataAtQmid(CPackedQmid qmid, const IBglData* data) -> void override;
-	auto AddData(const IBglData* data) -> void override;
-	auto RemoveDataAtIndex(const IBglData* data) -> void override;
-	auto RemoveDataAtQmid(const IBglData* data) -> void override;
-	auto RemoveData(const IBglData* data) -> void override;
+	auto AddDataAtQmids(CPackedQmid* qmids, int count, const IBglData* data) -> void override;
+	auto RemoveDataAtIndex(int index) -> void override;
+
+private:
+	auto CloneImpl() const -> CBglLayer* override
+	{
+		return new CBglIndirectQmidLayer(*this);
+	}
+	
+	stlab::copy_on_write<std::map<CPackedQmid, SBglTilePointer>> m_tiles;
+	stlab::copy_on_write<std::vector<SBglIndirectPointer>> m_pointers;
+	stlab::copy_on_write<std::vector<int>> m_offsets;
+	std::vector<std::unique_ptr<CBglData>> m_data; // TODO - cow doesn't work here
 };
 
 
@@ -760,7 +771,7 @@ public:
 	auto ReadBinary(BinaryFileStream& in) -> bool override;
 	auto CalculateSize() const -> int override;
 	auto CalculateDataPointersSize() const -> int override;
-	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) -> bool override;
 	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
 	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
 	
@@ -795,7 +806,7 @@ public:
 	auto ReadBinary(BinaryFileStream& in) -> bool override;
 	auto CalculateSize() const -> int override;
 	auto CalculateDataPointersSize() const -> int override;
-	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) -> bool override;
 	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
 	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
 	
@@ -825,7 +836,7 @@ public:
 	auto ReadBinary(BinaryFileStream& in) -> bool override;
 	auto CalculateSize() const -> int override;
 	auto CalculateDataPointersSize() const -> int override;
-	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile) -> bool override;
+	auto WriteBinaryPointer(BinaryFileStream& out, int offset_to_tile, int offset_to_layer) -> bool override;
 	auto WriteBinaryData(BinaryFileStream& out) -> bool override;
 	auto WriteBinaryDataPointers(BinaryFileStream& out) -> bool override;
 	

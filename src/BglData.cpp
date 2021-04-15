@@ -7224,10 +7224,23 @@ auto flightsimlib::io::CBglBoundary::ReadBinary(BinaryFileStream& in) -> void
 				return;
 			}
 			break;
+		case EBglLayerType::None:
+			{
+				const auto pad_size = CalculatePadSize();
+				auto pad = uint8_t{ 0 };
+				
+				for (auto i = 0; i < pad_size; ++i)
+				{	
+					in >> pad;
+				}
+			}
+			break;
 		default:
 			return;
 		}
 	}
+
+
 }
 
 auto flightsimlib::io::CBglBoundary::WriteBinary(BinaryFileStream& out) -> void
@@ -7257,6 +7270,13 @@ auto flightsimlib::io::CBglBoundary::WriteBinary(BinaryFileStream& out) -> void
 	{
 		m_edges.write().WriteBinary(out);
 	}
+
+	const auto pad_size = CalculatePadSize();
+	for (auto i = 0; i < pad_size; ++i)
+	{
+		auto pad = uint8_t{ 0 };
+		out << pad;
+	}
 }
 
 auto flightsimlib::io::CBglBoundary::Validate() -> bool
@@ -7283,7 +7303,7 @@ auto flightsimlib::io::CBglBoundary::CalculateSize() const -> int
 		count += m_edges->CalculateSize();
 	}
 
-	return count;
+	return count + CalculatePadSize();
 }
 
 auto flightsimlib::io::CBglBoundary::GetType() const -> EType
@@ -7404,6 +7424,22 @@ auto flightsimlib::io::CBglBoundary::SetEdges(IBglBoundaryEdges* value) -> void
 {
 	// NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
 	m_edges = { *static_cast<CBglBoundaryEdges*>(value) };
+}
+
+auto flightsimlib::io::CBglBoundary::CalculatePadSize() const -> int
+{
+	// TODO - Pad utility
+	if (m_edges->IsEmpty())
+	{
+		return 0;
+	}
+	const auto size = m_edges->CalculateSize();
+	const auto pad_size = 4 - size % 4;
+	if (pad_size == 4)
+	{
+		return 0;
+	}
+	return pad_size;
 }
 
 

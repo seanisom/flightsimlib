@@ -1575,10 +1575,10 @@ public:
 	auto GetSceneryObject() -> IBglSceneryObject* override;
 	auto GetSceneryObject() const -> const IBglSceneryObject*  override;
 	auto SetSceneryObject(IBglSceneryObject* value) -> void override;
-
+	
+private:
 	auto CalculatePadSize() const -> int;
 
-private:
 	stlab::copy_on_write<SBglJetwayData> m_data;
 	std::unique_ptr<CBglSceneryObject> m_scenery_object;
 };
@@ -2720,6 +2720,8 @@ public:
 	auto SetEdges(IBglBoundaryEdges* value) -> void override;
 
 private:
+	auto CalculatePadSize() const -> int;
+
 	stlab::copy_on_write<SBglBoundaryData> m_data;
 	stlab::copy_on_write<CBglBoundaryEdges> m_edges;
 	stlab::copy_on_write<CBglCom> m_com;
