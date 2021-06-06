@@ -42,18 +42,16 @@
 #include <cassert>
 
 
-namespace flightsimlib
+namespace flightsimlib::io
 {
 
-namespace io
-{
 
 CByteArrayStreambuf::CByteArrayStreambuf(const uint8_t* begin, const size_t size) :
 	m_begin(begin),
 	m_end(begin + size),
 	m_current(m_begin)
 {
-	assert(std::less_equal<const uint8_t*>()(m_begin, m_end));
+	assert(std::less_equal<>()(m_begin, m_end));
 }
 
 	
@@ -86,7 +84,7 @@ CByteArrayStreambuf::int_type CByteArrayStreambuf::pbackfail(int_type ch)
 	
 std::streamsize CByteArrayStreambuf::showmanyc()
 {
-	assert(std::less_equal<const uint8_t*>()(m_current, m_end));
+	assert(std::less_equal<>()(m_current, m_end));
 	return m_end - m_current;
 }
 
@@ -110,7 +108,6 @@ std::streampos CByteArrayStreambuf::seekoff(std::streamoff off, std::ios_base::s
 	if (m_current < m_begin || m_current > m_end)
 		return -1;
 
-
 	return m_current - m_begin;
 }
 
@@ -126,6 +123,5 @@ std::streampos CByteArrayStreambuf::seekpos(std::streampos sp,
 	return m_current - m_begin;
 }
 
-}
 
 }

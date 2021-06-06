@@ -591,7 +591,7 @@ public:
 };
 
 
-class IBglFile  // NOLINT(hicpp-special-member-functions, cppcoreguidelines-special-member-functions)
+class FLIGHTSIMLIB_EXPORTED IBglFile  // NOLINT(hicpp-special-member-functions, cppcoreguidelines-special-member-functions)
 {
 public:
 	virtual auto GetLayerCount() const -> int = 0;

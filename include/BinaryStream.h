@@ -35,18 +35,14 @@
 #include <string>
 
 
-namespace flightsimlib
-{
-
-namespace io
+namespace flightsimlib::io
 {
 	
 class CByteArrayStreambuf final : public std::streambuf
 {
 public:
-
-	CByteArrayStreambuf(const uint8_t* begin, const size_t size);
-	~CByteArrayStreambuf() = default;
+	CByteArrayStreambuf(const uint8_t* begin, size_t size);
+	~CByteArrayStreambuf() override = default;
 	// copying not allowed
 	CByteArrayStreambuf(const CByteArrayStreambuf&) = delete;
 	CByteArrayStreambuf& operator= (const CByteArrayStreambuf&) = delete;
@@ -54,7 +50,6 @@ public:
 	CByteArrayStreambuf& operator=(CByteArrayStreambuf&&) = delete;
 
 private:
-
 	int_type underflow() override;
 	int_type uflow()  override;
 	int_type pbackfail(int_type ch)  override;
@@ -63,13 +58,11 @@ private:
 		std::streamoff off,
 		std::ios_base::seekdir way,
 		std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
-		override;
+	override;
 	std::streampos seekpos(
 		std::streampos sp,
 		std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
-		override;
-
-private:
+	override;
 
 	const uint8_t* const m_begin;
 	const uint8_t* const m_end;
@@ -77,80 +70,55 @@ private:
 };
 
 
-class CBinaryIStream final : public std::istream
+class IBinaryStream
 {
+protected:
+	explicit IBinaryStream(std::iostream& stream) : m_stream(stream) { }
+
 public:
-	explicit CBinaryIStream(std::streambuf* sb) : std::istream(sb) {}
-
-	template <class T>
-	std::istream& operator>> (T& val)
-	{
-		return read(reinterpret_cast<char*>(&val), sizeof(val));
-	}
-};
-
-
-// TODO - fstream leaky abstractions!
-class BinaryFileStream
-{
-public:
-	BinaryFileStream() = default;
-
-	explicit BinaryFileStream(const std::wstring& filename) :
-		m_stream(filename, std::fstream::out | std::fstream::in | std::fstream::binary) {}
-
-	void Open(const std::wstring& filename, std::ios_base::openmode mode =
-		std::fstream::out | std::fstream::in | std::fstream::binary)
-	{
-		m_stream.open(filename, mode);
-	}
-
-	bool IsOpen() const
-	{
-		return m_stream.is_open();
-	}
-
-	void Close()
-	{
-		m_stream.close();
-	}
-
-	template <class T>
-	BinaryFileStream& operator>> (T& val)
+	template <typename T>
+	IBinaryStream& operator>> (T& val)
 	{
 		m_stream.read(reinterpret_cast<char*>(&val), sizeof(val));
 		return *this;
 	}
 
-	template <class T>
-	BinaryFileStream& operator<< (T& val)
+	template <typename T>
+	T ReadType()
+	{
+		T t{};
+		m_stream.read(reinterpret_cast<char*>(&t), sizeof(t));
+		return t;
+	}
+	
+	template <typename T>
+	IBinaryStream& operator<< (T& val)
 	{
 		m_stream.write(reinterpret_cast<const char*>(&val), sizeof(val));
 		return *this;
 	}
 
-	BinaryFileStream& Read(void* val, int size)
+	IBinaryStream& Read(void* val, int size)
 	{
 		m_stream.read(static_cast<char*>(val), size);
 		return *this;
 	}
 
-	BinaryFileStream& Write(const void* val, int size)
+	IBinaryStream& Write(const void* val, int size)
 	{
 		m_stream.write(static_cast<const char*>(val), size);
 		return *this;
 	}
 
-	std::string ReadString(int count)
+	[[nodiscard]] std::string ReadString(int count) const
 	{
 		const auto bytes = std::unique_ptr<char[]>(new char[count]);
 
 		m_stream.read(bytes.get(), count);
-
 		return std::string(bytes.get(), count);
 	}
 
-	std::string ReadCString()
+	[[nodiscard]] std::string ReadCString() const
 	{
 		std::string buffer;
 		std::getline(m_stream, buffer, '\0');
@@ -167,24 +135,76 @@ public:
 		return m_stream.operator bool();
 	}
 
-	int GetPosition()
+	[[nodiscard]] int GetPosition() const
 	{
+		// This is a problem with ReSharper - no issue here
+		// ReSharper disable once CppRedundantCastExpression
 		return static_cast<int>(m_stream.tellg());
 	}
 
-	void SetPosition(int pos, std::fstream::_Seekdir dir = std::fstream::beg)
+	void SetPosition(int pos, std::fstream::_Seekdir dir = std::fstream::beg) const
 	{
 		m_stream.seekg(pos, dir);
 		m_stream.seekp(pos, dir);
 	}
 
-	std::fstream m_stream;
+protected:
+	std::iostream& m_stream;
 };
 
-	
-}
+
+// TODO - fstream leaky abstractions!
+class BinaryFileStream final : public IBinaryStream
+{
+public:
+	explicit BinaryFileStream(const std::wstring& filename) : IBinaryStream(m_fstream),
+		m_fstream(filename, std::fstream::out | std::fstream::in | std::fstream::binary) {}
+
+	void Open(const std::wstring& filename, std::ios_base::openmode mode =
+		          std::fstream::out | std::fstream::in | std::fstream::binary)
+	{
+		m_fstream.open(filename, mode);
+	}
+
+	[[nodiscard]] bool IsOpen() const
+	{
+		return m_fstream.is_open();
+	}
+
+	void Close()
+	{
+		m_fstream.close();
+	}
+
+private:
+	std::fstream m_fstream;
+};
+
+
+class BinaryMemoryStream final : public IBinaryStream
+{
+public:
+	explicit BinaryMemoryStream(uint8_t* pointer, int length) : IBinaryStream(m_iostream),
+		m_buf(pointer, length), m_iostream(&m_buf), m_pointer(pointer), m_length(length) {}
+
+	[[nodiscard]] uint8_t* GetPointer() const
+	{
+		return m_pointer;
+	}
+
+	[[nodiscard]] int GetLength() const
+	{
+		return m_length;
+	}
+
+private:
+	CByteArrayStreambuf m_buf;
+	std::iostream m_iostream;
+	uint8_t* m_pointer;
+	int m_length;
+};
+
 
 }
-
 
 #endif

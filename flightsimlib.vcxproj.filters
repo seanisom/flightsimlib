@@ -36,10 +36,34 @@
     <ClInclude Include="include\BglData.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\BglTypes.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Geo.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\WebMercator.h">
+      <Filter>include</Filter>
+    </ClInclude>
     <ClInclude Include="include\BinaryStream.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="include\BglTypes.h">
+    <ClInclude Include="include\VectorTile.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\IVectorTile.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\IObject.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ICglModule.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CglModule.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\FlightSimLib.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -57,6 +81,18 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\BinaryStream.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CglModule.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FlightSimLib.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IObject.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VectorTile.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

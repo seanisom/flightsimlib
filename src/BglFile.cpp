@@ -1935,7 +1935,8 @@ CBglFile::CBglFile(std::wstring file_name):
 	m_file_name(std::move(file_name)),
 	m_file_size(0),
 	m_header(),
-	m_dirty(false)
+	m_dirty(false),
+	m_stream(file_name)
 {
 }
 

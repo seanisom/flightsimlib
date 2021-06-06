@@ -4531,7 +4531,7 @@ auto flightsimlib::io::CBglApproach::ReadBinary(BinaryFileStream& in) -> void
 			m_transitions.write()[transition_index++].ReadBinary(in);
 			break;
 		case EChildType::TransitionLegs: 
-			[[fallthrough]]
+			[[fallthrough]];
 		case EChildType::None:
 			return;
 		}
@@ -5049,7 +5049,7 @@ auto flightsimlib::io::CBglAirport::ReadBinary(BinaryFileStream& in) -> void
 			}
 			break;
 		case EBglLayerType::BlastFence:
-			[[fallthrough]]
+			[[fallthrough]];
 		case EBglLayerType::BoundaryFence:
 			{
 				auto fence = CBglFence{};

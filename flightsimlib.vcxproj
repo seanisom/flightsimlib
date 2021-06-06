@@ -98,6 +98,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_WINDOWS;_USRDLL;FLIGHTSIMLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -111,6 +112,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>NOMINMAX;_DEBUG;_WINDOWS;_USRDLL;FLIGHTSIMLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -126,6 +128,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_WINDOWS;_USRDLL;FLIGHTSIMLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -151,6 +154,7 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NOMINMAX;NDEBUG;_WINDOWS;_USRDLL;FLIGHTSIMLIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -172,7 +176,15 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClInclude Include="include\BglFile.h" />
     <ClInclude Include="include\BglTypes.h" />
     <ClInclude Include="include\BinaryStream.h" />
+    <ClInclude Include="include\CglModule.h" />
     <ClInclude Include="include\Export.h" />
+    <ClInclude Include="include\FlightSimLib.h" />
+    <ClInclude Include="include\Geo.h" />
+    <ClInclude Include="include\ICglModule.h" />
+    <ClInclude Include="include\IObject.h" />
+    <ClInclude Include="include\IVectorTile.h" />
+    <ClInclude Include="include\VectorTile.h" />
+    <ClInclude Include="include\WebMercator.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -184,6 +196,10 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClCompile Include="src\BglDecompressor.cpp" />
     <ClCompile Include="src\BglFile.cpp" />
     <ClCompile Include="src\BinaryStream.cpp" />
+    <ClCompile Include="src\CglModule.cpp" />
+    <ClCompile Include="src\FlightSimLib.cpp" />
+    <ClCompile Include="src\IObject.cpp" />
+    <ClCompile Include="src\VectorTile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
