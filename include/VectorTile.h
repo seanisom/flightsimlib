@@ -18,9 +18,12 @@ static void Q16ToDouble(double* dest, const uint16_t* quantized);
 
 static bool IsValidHeight(float val);
 
+class VectorTileBuilder;
 
 class VectorTile final : public IVectorTile
 {
+	friend class VectorTileBuilder;
+	
 	struct VectorBounds
 	{
 		double delta_lat;
@@ -78,7 +81,7 @@ public:
 	[[nodiscard]] auto GetUnknown1FeatureAt(int type, int index) const -> const Unknown1Feature* override;
 	[[nodiscard]] auto GetUnknown1FeatureCount(int type) const -> int override;
 	[[nodiscard]] auto GetUnknown2VertexAt(int index) const -> const VectorVertex* override;
-	[[nodiscard]] auto GetUnknown2FeatureAt(int type, int index) const -> const Unknown1Feature* override;
+	[[nodiscard]] auto GetUnknown2FeatureAt(int type, int index) const -> const Unknown2Feature* override;
 	[[nodiscard]] auto GetUnknown2FeatureCount(int type) const -> int override;
 
 private:

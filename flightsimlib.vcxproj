@@ -186,6 +186,7 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClInclude Include="include\VectorTile.h" />
     <ClInclude Include="include\WebMercator.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="VectorTileBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="flightsimlib.rc" />
@@ -200,6 +201,7 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClCompile Include="src\FlightSimLib.cpp" />
     <ClCompile Include="src\IObject.cpp" />
     <ClCompile Include="src\VectorTile.cpp" />
+    <ClCompile Include="VectorTileBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

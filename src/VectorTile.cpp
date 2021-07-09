@@ -515,7 +515,7 @@ auto VectorTile::GetUnknown2VertexAt(int index) const -> const VectorVertex*
 	return &Unknown2Vertices[index];
 }
 
-auto VectorTile::GetUnknown2FeatureAt(int type, int index) const -> const Unknown1Feature*
+auto VectorTile::GetUnknown2FeatureAt(int type, int index) const -> const Unknown2Feature*
 {
 	return Unknown2Types[type] + index;
 }

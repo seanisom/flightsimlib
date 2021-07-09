@@ -155,7 +155,7 @@ public:
 	[[nodiscard]] virtual auto GetUnknown1FeatureAt(int type, int index) const -> const Unknown1Feature* = 0;
 	[[nodiscard]] virtual auto GetUnknown1FeatureCount(int type) const -> int = 0;
 	[[nodiscard]] virtual auto GetUnknown2VertexAt(int index) const -> const VectorVertex* = 0;
-	[[nodiscard]] virtual auto GetUnknown2FeatureAt(int type, int index) const -> const Unknown1Feature* = 0;
+	[[nodiscard]] virtual auto GetUnknown2FeatureAt(int type, int index) const -> const Unknown2Feature* = 0;
 	[[nodiscard]] virtual auto GetUnknown2FeatureCount(int type) const -> int = 0;
 
 	static auto constexpr RoadTypeCount = 31;
