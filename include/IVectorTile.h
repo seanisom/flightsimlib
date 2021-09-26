@@ -13,7 +13,7 @@ namespace flightsimlib::geo
 
 namespace flightsimlib::io
 {
-	class BinaryMemoryStream;
+	class IBinaryStream;
 }
 
 
@@ -129,6 +129,7 @@ class IVectorTile : public IObject
 {
 public:
 	virtual auto FromBinary(uint8_t* data, int length, const std::string& quad_key, int version) -> void = 0;
+	virtual auto ToBinary(io::IBinaryStream& stream) -> void = 0;
 	virtual auto VertexToLatLon(geo::LatLon& ll, const VectorVertex& vertex) const -> void = 0;
 	[[nodiscard]] virtual auto GetRoadVertexAt(int index) const -> const VectorVertex* = 0;
 	[[nodiscard]] virtual auto GetRoadFeatureAt(int type, int index) const -> const RoadFeature* = 0;

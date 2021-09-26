@@ -92,7 +92,7 @@ public:
 	}
 	
 	template <typename T>
-	IBinaryStream& operator<< (T& val)
+	IBinaryStream& operator<< (const T& val)
 	{
 		m_stream.write(reinterpret_cast<const char*>(&val), sizeof(val));
 		return *this;

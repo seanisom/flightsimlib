@@ -8,6 +8,11 @@
 #include <vector>
 
 
+namespace flightsimlib::io
+{
+	class BinaryMemoryStream;
+}
+
 
 namespace flightsimlib::cgl
 {
@@ -44,6 +49,7 @@ class VectorTile final : public IVectorTile
 	
 public:
 	auto FromBinary(uint8_t* data, int length, const std::string& quad_key, int version) -> void override;
+	auto ToBinary(io::IBinaryStream& stream) -> void override;
 	auto VertexToLatLon(geo::LatLon& ll, const VectorVertex& vertex) const -> void override;
 	void CalcWaterBoundingBox();
 

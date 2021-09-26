@@ -281,6 +281,64 @@ void VectorTile::CalcBounds()
 }
 
 
+template <typename T>
+T get_packed_bits(T src, int num_bits, int position)
+{
+	return (src >> position) & (1 << (num_bits - 1));
+}
+
+	
+template <typename T>
+void set_packed_bits(T& dest, int value, int num_bits, int position)
+{
+	dest &= ~((1 << (num_bits - 1)) << position);
+	dest |= static_cast<uint32_t>(value) << position;
+}
+
+	
+template<typename T, typename U, std::size_t S>
+bool pack_bitmask(io::IBinaryStream& out, std::array<U*, S>& types, std::vector<U>& features)
+{
+	T bit_mask = {};
+	
+	auto* last_offset = &features[0];
+
+	if (last_offset != &features[1])
+	{
+		set_packed_bits(bit_mask, 1, 1, 0);
+	}
+	
+	for (auto i = 1U; i < S; ++i)
+	{
+		if (types[i] != types[i + 1i64])
+		{
+			set_packed_bits(bit_mask, 1, 1, i);
+		}
+	}
+
+	out.Write(&bit_mask, sizeof(T));
+
+	if (!bit_mask)
+	{
+		return false;
+	}
+
+	for (auto i = 0U; i < S; ++i)
+	{
+		if (get_packed_bits(bit_mask, 1, i))
+		{
+			const auto count = types[i + 1i64] - types[i];
+			out.Write(&count, sizeof(uint16_t));
+		}
+	}
+
+	const auto count = features.size();
+	out.Write(&count, sizeof(uint16_t));
+
+	return true;
+}
+
+	
 template<typename T, typename U, std::size_t S>
 bool unpack_bitmask(io::BinaryMemoryStream& in, std::array<U*, S>& types, std::vector<U>& features)
 {
@@ -318,7 +376,7 @@ bool unpack_bitmask(io::BinaryMemoryStream& in, std::array<U*, S>& types, std::v
 		}
 	}
 
-	const auto  feature_count = in.ReadType<uint16_t>();
+	const auto feature_count = in.ReadType<uint16_t>();
 	
 	for (auto i = type; i < lengths.size(); ++i)
 	{
@@ -533,7 +591,7 @@ void VectorTile::FixRoads()
 	
 	for (auto i = 0u; i < RoadTypes.size() - 1; ++i)
 	{
-		for (auto road = RoadTypes[i]; road < RoadTypes[i + 1i64]; ++road)
+		for (auto* road = RoadTypes[i]; road < RoadTypes[i + 1i64]; ++road)
 		{
 			road->Flags &= 0xE0u;
 			road->Flags |= i & 0x1F;
@@ -635,6 +693,7 @@ void VectorTile::Parse(io::BinaryMemoryStream& reader, float* elevation)
 	{
 		WaterPolygons.resize(water_count);
 
+		
 		auto val = reader.ReadType<uint16_t>();
 		for (auto& [Height, Start, End] : WaterPolygons)
 		{
@@ -805,4 +864,171 @@ void VectorTile::FromBinary(uint8_t* data, int length, const std::string& quad_k
 	Parse(stream, nullptr);
 }
 
+auto VectorTile::ToBinary(io::IBinaryStream& stream) -> void
+{
+	// Roads
+	
+	if (pack_bitmask<uint32_t>(stream, RoadTypes, RoadFeatures))
+	{
+		stream.Write(&RoadFeatures[0].Start, sizeof(uint16_t));
+		
+		for (auto& feature : RoadFeatures)
+		{
+			stream << feature.Id;
+
+			/*
+			auto flags = feature.Flags;
+			if (m_version < 21)
+			{
+				entry.Flags |= ((flags >> 1) & 0xE0) | 0x80;
+			}
+			else
+			{
+				entry.Flags |= (flags >> 1) & 0x60; // bits 6-7
+			}
+			entry.Width = 2 * (flags & 0x3F);
+
+			if (m_version > 20)
+			{
+				const auto lanes = reader.ReadType<uint8_t>();
+				entry.Lanes = lanes & 0x1F;
+				entry.Flags = (4 * lanes) ^ ((entry.Flags ^ (4 * lanes)) & 0x7F);
+			}
+			*/
+			if ((feature.Flags & 0x60) == 0x40) // bits 6-7 == 2
+			{
+				stream >> feature.Level;
+			}
+
+			stream.Write(&feature.End, sizeof(uint16_t));
+		}
+
+		stream.Write(RoadVertices.data(), static_cast<int>(sizeof(VectorVertex) * RoadVertices.size()));
+	}
+
+	// Land
+	if (pack_bitmask<uint32_t>(stream, LandTypes, LandFeatures))
+	{
+		stream << LandFeatures[0].Start;
+		for (const auto& feature : LandFeatures)
+		{
+			stream << feature.End;
+		}
+
+		stream.Write(LandVertices.data(), static_cast<int>(sizeof(VectorVertex) * LandVertices.size()));
+	}
+
+	if (!WaterPolygons.empty())
+	{
+		stream << static_cast<uint16_t>(WaterPolygons.size());
+
+		stream << WaterPolygons[0].Start;
+		
+		for (const auto& polygon : WaterPolygons)
+		{
+			if (m_version < 20)
+			{
+				stream << polygon.Height;
+			}
+			
+			stream << polygon.End;
+		}
+
+		stream.Write(WaterVertices.data(), static_cast<int>(sizeof(VectorVertex) * WaterVertices.size()));
+
+		const auto num_polygons = static_cast<uint16_t>(WaterPolygons.size());
+		stream.Write(&num_polygons, sizeof(uint16_t));
+		
+		for (auto& entry : WaterFeatures)
+		{
+			stream << entry.End;
+
+			uint8_t water_type = {};
+			switch (entry.Start)
+			{
+			case 5:
+				water_type = 0;
+				break;
+			case 2:
+				water_type = 1;
+				break;
+			case 3:
+				water_type = 2;
+				break;
+			case 4:
+				water_type = 3;
+				break;
+			case 0:
+				water_type = 4;
+				break;
+			case 1:
+				water_type = 5;
+				break;
+			default:
+				water_type = 7;
+				break;
+			}
+
+			stream << water_type;
+		}
+	}
+
+	if (!RiverFeatures.empty())
+	{
+		stream << static_cast<uint16_t>(RiverFeatures.size());
+		
+		stream << RiverFeatures[0].Start;
+		
+		for (const auto& feature : RiverFeatures)
+		{
+			stream << feature.Width << feature.End;
+		}
+
+		stream.Read(RiverVertices.data(), static_cast<int>(sizeof(VectorVertex) * RiverVertices.size()));
+	}
+
+	const auto has_points = m_version > 20 ? 
+		pack_bitmask<uint32_t>(stream, PointTypes, PointVertices) :
+		pack_bitmask<uint16_t>(stream, PointTypes, PointVertices);
+	
+	if (has_points)
+	{
+		stream.Write(PointVertices.data(), static_cast<int>(sizeof(VectorVertex) * PointVertices.size()));
+	}
+
+	if (pack_bitmask<uint16_t>(stream, RailTypes, RailFeatures))
+	{
+		stream << RailFeatures[0].Start;
+		
+		for (const auto& entry : RailFeatures)
+		{
+			auto id = entry.Id;
+			set_packed_bits(id, entry.Crossing, 2, 30);
+
+			stream << id<< entry.Width;
+			
+			if (entry.Crossing == 2)
+			{
+				stream << entry.Level;
+			}
+
+			stream << entry.End;
+		}
+
+		stream.Write(RailVertices.data(), static_cast<int>(sizeof(VectorVertex) * RailVertices.size()));
+	}
+
+	if (pack_bitmask<uint8_t>(stream, PowerTypes, PowerFeatures))
+	{
+		stream << PowerFeatures[0].Start;
+		for (const auto& entry : PowerFeatures)
+		{
+			stream << entry.Id << entry.End;
+		}
+
+		stream.Write(PowerVertices.data(), static_cast<int>(sizeof(VectorVertex) * PowerVertices.size()));
+	}
+}
+
+	
 }
