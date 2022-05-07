@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="external">
+      <UniqueIdentifier>{41809c69-be32-4a95-bc91-58a6411c1edb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\PTC">
+      <UniqueIdentifier>{ba5cfc33-ba2f-48c3-9747-935c30434281}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="flightsimlib.rc">
@@ -66,7 +72,13 @@
     <ClInclude Include="include\FlightSimLib.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="VectorTileBuilder.h">
+    <ClInclude Include="external\PTC\PTC.h">
+      <Filter>external\PTC</Filter>
+    </ClInclude>
+    <ClInclude Include="external\PTC\PTCLib.h">
+      <Filter>external\PTC</Filter>
+    </ClInclude>
+    <ClInclude Include="include\VectorTileBuilder.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -98,7 +110,22 @@
     <ClCompile Include="src\VectorTile.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="VectorTileBuilder.cpp">
+    <ClCompile Include="external\PTC\PTC.c">
+      <Filter>external\PTC</Filter>
+    </ClCompile>
+    <ClCompile Include="external\PTC\PTCAdaptiveDecoder.c">
+      <Filter>external\PTC</Filter>
+    </ClCompile>
+    <ClCompile Include="external\PTC\PTCColorMapper.c">
+      <Filter>external\PTC</Filter>
+    </ClCompile>
+    <ClCompile Include="external\PTC\PTCRow.c">
+      <Filter>external\PTC</Filter>
+    </ClCompile>
+    <ClCompile Include="external\PTC\PTCTransform.c">
+      <Filter>external\PTC</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VectorTileBuilder.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

@@ -72,22 +72,22 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(SolutionDir)ptclib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(SolutionDir)ptclib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(SolutionDir)ptclib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(SolutionDir)ptclib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)external;$(ProjectDir)include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -170,6 +170,8 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="external\PTC\PTC.h" />
+    <ClInclude Include="external\PTC\PTCLib.h" />
     <ClInclude Include="include\BglCompressor.h" />
     <ClInclude Include="include\BglData.h" />
     <ClInclude Include="include\BglDecompressor.h" />
@@ -184,14 +186,19 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClInclude Include="include\IObject.h" />
     <ClInclude Include="include\IVectorTile.h" />
     <ClInclude Include="include\VectorTile.h" />
+    <ClInclude Include="include\VectorTileBuilder.h" />
     <ClInclude Include="include\WebMercator.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="VectorTileBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="flightsimlib.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="external\PTC\PTC.c" />
+    <ClCompile Include="external\PTC\PTCAdaptiveDecoder.c" />
+    <ClCompile Include="external\PTC\PTCColorMapper.c" />
+    <ClCompile Include="external\PTC\PTCRow.c" />
+    <ClCompile Include="external\PTC\PTCTransform.c" />
     <ClCompile Include="src\BglCompressor.cpp" />
     <ClCompile Include="src\BglData.cpp" />
     <ClCompile Include="src\BglDecompressor.cpp" />
@@ -201,7 +208,7 @@ xcopy /y /d  "$(ProjectDir)include\*.h" "$(ProjectDir)examples\include\*.h"</Com
     <ClCompile Include="src\FlightSimLib.cpp" />
     <ClCompile Include="src\IObject.cpp" />
     <ClCompile Include="src\VectorTile.cpp" />
-    <ClCompile Include="VectorTileBuilder.cpp" />
+    <ClCompile Include="src\VectorTileBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

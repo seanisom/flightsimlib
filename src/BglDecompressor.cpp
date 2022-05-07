@@ -42,7 +42,7 @@
 
 #include "BglDecompressor.h"
 
-#include "../external/PTCLib.h"
+#include "PTC/PTCLib.h"
 
 #include <cstring>
 
@@ -51,29 +51,6 @@ using namespace flightsimlib::io;
 
 
 // ReSharper disable CppInitializedValueIsAlwaysRewritten
-
-
-
-#ifdef _MSC_VER
-
-#ifdef PTC_LIB
-#ifdef _DEBUG
-#ifdef _WIN64
-#pragma comment(lib, "x64/ptclibD.lib")
-#else
-#pragma comment(lib, "Win32/ptclibD.lib")
-#endif
-#else // release
-#ifdef _WIN64
-#pragma comment(lib, "x64/ptclib.lib")
-#else
-#pragma comment(lib, "Win32/ptclib.lib")
-#endif
-#endif
-#else
-#pragma comment(lib, "ptclib.lib") // DLL PTC Build
-#endif
-#endif
 
 
 static void memset32(void* p_dest, unsigned int value, int count) 
