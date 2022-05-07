@@ -42,6 +42,8 @@
 
 #include "BglDecompressor.h"
 
+#include "../external/PTCLib.h"
+
 #include <cstring>
 
 
@@ -51,38 +53,27 @@ using namespace flightsimlib::io;
 // ReSharper disable CppInitializedValueIsAlwaysRewritten
 
 
+
 #ifdef _MSC_VER
-	extern "C" int __cdecl PTCDEC(
-		uintptr_t wrapper, 
-		unsigned int min_mip, 
-		unsigned int max_mip, 
-		unsigned int left_pixel, 
-		unsigned int top_pixel, 
-		unsigned int width, 
-		unsigned int height, 
-		unsigned int bit_depth, 
-		uintptr_t p_dest, 
-		uintptr_t p_row_length);
 
-	#ifdef PTC_LIB
-		#ifdef _DEBUG
-			#ifdef _WIN64
-				#pragma comment(lib, "x64/ptclibD.lib")
-			#else
-				#pragma comment(lib, "Win32/ptclibD.lib")
-			#endif
-		#else // release
-			#ifdef _WIN64
-				#pragma comment(lib, "x64/ptclib.lib")
-			#else
-				#pragma comment(lib, "Win32/ptclib.lib")
-			#endif
-		#endif
-	#else
-		#pragma comment(lib, "ptclib.lib") // DLL PTC Build
-	#endif
+#ifdef PTC_LIB
+#ifdef _DEBUG
+#ifdef _WIN64
+#pragma comment(lib, "x64/ptclibD.lib")
+#else
+#pragma comment(lib, "Win32/ptclibD.lib")
 #endif
-
+#else // release
+#ifdef _WIN64
+#pragma comment(lib, "x64/ptclib.lib")
+#else
+#pragma comment(lib, "Win32/ptclib.lib")
+#endif
+#endif
+#else
+#pragma comment(lib, "ptclib.lib") // DLL PTC Build
+#endif
+#endif
 
 
 static void memset32(void* p_dest, unsigned int value, int count) 
@@ -377,7 +368,54 @@ int CBglDecompressor::DecompressBitPack(
 	return 0;
 }
 
-// TODO - This needs some cleanup with the PTC refactor
+
+
+int numChannelsForFormat(int format)
+{
+	switch (format)
+	{
+	case 1:
+	case 3:
+	case 5:
+		return 3;
+	case 2:
+	case 4:
+	case 6:
+		return 4;
+	case 7:
+	case 8:
+	case 9:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+
+typedef struct
+{
+	char Magic[4];
+	uint8_t Version;
+	uint8_t PixelFormat;
+	uint16_t MipLevels;
+	uint32_t Width;
+	uint32_t Height;
+	float    Scale;
+	float    Bias;
+	uint32_t Length; // Header + Data
+} FSPTCHeader;
+
+typedef struct
+{
+	uint32_t Offset;
+	uint32_t Size;
+	uint8_t  MipLevel;
+	uint8_t  Reserved1;
+	uint16_t Reserved2;
+	uint32_t Reserved3;
+} FSPTCMipHeader;
+
+
 int CBglDecompressor::DecompressPtc(
 	uint8_t* p_uncompressed, 
 	int uncompressed_size, 
@@ -388,73 +426,95 @@ int CBglDecompressor::DecompressPtc(
 	int depth, 
 	int bpp)
 {
-	// PTC_LIB - static lib is only currently implemented for Windows!
-#ifndef _MSC_VER
-	return 0;
-#endif
 	auto length = bpp * 0x100;
 	auto* p_dest = new uint8_t[bpp * 0x100 * 0x100];
 
-	auto bit_depth = 8;
+	auto format = 8;
 	if (depth == 4)
 	{
-		bit_depth = 4;
+		format = 4;
 	}
 	if (bpp == 4)
 	{
-		bit_depth = 2;
+		format = 2;
 	}
-	
+
+	// This is DEM5 or Photo1 header
 	compressed_size -= 4;
 	p_compressed += 4;
 
-	auto* p_parent = new unsigned int[11]
+	WriteRowParams decodeObjects;
+	FSPTCHeader header;
+	FSPTCMipHeader subheader;
+	DecodeParams nested;
+
+	int numBytesRead = 0;
+
+	memcpy(&header, p_compressed, 28);
+	if(header.Magic[0] != 'P' || header.Magic[1] != 'T' || header.Magic[2] != 'C' || header.Magic[3] != '\0')
+		return 14;
+
+	const int num_channels = numChannelsForFormat(format);
+	if (num_channels == 0 || format != static_cast<int>(header.PixelFormat))
+		return 7;
+	
+	if (header.Height != 256 || header.Width != 256)
+		return 11;
+
+	auto nested_size = sizeof(nested);
+	memset(&nested, 0, nested_size);
+	auto decode_size = sizeof(decodeObjects);
+	memset(&decodeObjects, 0, decode_size);
+
+	nested.LP2 = 4;
+	nested.LP4 = 7;
+	nested.HasSubregion = 0;
+
+	memcpy(&subheader, p_compressed + 28, 16);
+	if (subheader.Offset != 44)
+		return 14;
+
+	if (subheader.MipLevel != 0)
+
+		return 6;
+
+	nested.MipGenerate[0] = 1;
+	nested.HasMipmaps = 0;
+	decodeObjects.Dest = p_dest;
+	decodeObjects.Type = static_cast<PixelType>(format);
+	decodeObjects.RowWidth = header.Width;
+	decodeObjects.StrideBytes = length;
+	if (decodeObjects.Type == PT32)
 	{
-		0x0,
-		0x0,
-		0x0,
-		0x0,
-		0x0,
-		0x0,
-		256,
-		256,
-		static_cast<unsigned int>(bit_depth),
-		0x0,
-		0x0
-	};
-
-	auto* p_child = new unsigned int[14]
+		decodeObjects.PixelParams.Bias = header.Bias;
+		decodeObjects.PixelParams.Scale = header.Scale;
+	}
+	else
 	{
-		0x0, 
-		0x2,
-		0x0,
-		0x0,
-		static_cast<unsigned int>(compressed_size),
-		static_cast<unsigned int>(compressed_size),
-		0x1,
-		0x0,
-		0x0,
-		static_cast<unsigned int>(compressed_size),
-		0x1C,
-		0x0,
-		0x0,
-		0x0
-	};
+		if (format == 4)
+		{
+			decodeObjects.PixelParams.NumBitsColor = 5;
+			decodeObjects.PixelParams.NumBitsAlpha = 1;
+		}
+		else if (format == 2)
+		{
+			decodeObjects.PixelParams.NumBitsColor = 8;
+			decodeObjects.PixelParams.NumBitsAlpha = 8;
+		}
+		else
+		{
+			decodeObjects.PixelParams.NumBitsColor = 16;
+			decodeObjects.PixelParams.NumBitsAlpha = 0;
+		}
+	}
 
-	*reinterpret_cast<const uint8_t**>(&p_child[12]) = p_compressed;
-	*reinterpret_cast<unsigned int**>(&p_parent[9]) = p_child;
+	nested.RowParams[0] = &decodeObjects;
 
-	const auto result = PTCDEC(
-	reinterpret_cast<uintptr_t>(p_parent),
-		0,
-		0,
-		0,
-		0,
-		0x100,
-		0x100,
-		bit_depth,
-		reinterpret_cast<uintptr_t>(&p_dest),
-		reinterpret_cast<uintptr_t>(&length) );
+
+	numBytesRead = PTCDecompress(&nested, p_compressed + 44, compressed_size - 44);
+	if (numBytesRead <= 0)
+		return 6;
+
 
 	//TODO Check this for TRQ2
 	if (depth == 1)
@@ -480,16 +540,14 @@ int CBglDecompressor::DecompressPtc(
 			}
 		}
 	}
-	else if (depth == 4 || bit_depth == 2)
+	else if (depth == 4 || format == 2)
 	{
 		memcpy(p_uncompressed, p_dest, uncompressed_size);
 	}
 
 	delete[] p_dest;
-	delete[] p_child;
-	delete[] p_parent;
 
-	return result;
+	return 0;
 }
 
 
