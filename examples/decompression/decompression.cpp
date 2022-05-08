@@ -43,7 +43,7 @@
 //     const char *p_compressed, int compressed_size, int rows, int cols);
 // HINSTANCE hDLL = NULL;
 // LP_DECOMPRESSBITPACK DecompressBitPack = nullptr;
-// hDLL = LoadLibrary(L"MYDLL.DLL");
+// hDLL = LoadLibrary(L"flightsimlib.dll");
 // DecompressBitPack = (LP_DECOMPRESSBITPACK)GetProcAddress((HMODULE)hDLL,
 //     "?DecompressBitPack@CBglDecompressor@io@flightsimlib@@SAHPEAEHPEBEHHH@Z");
 //
@@ -54,10 +54,8 @@
 // g++ -shared -o flightsimlib.so -fPIC BglDecompressor.o
 // g++ decompression.cpp -o decompression-L. -lflightsimlib
 //
-// Also important for this - PTC decoding support is currently supplied by a static library on Windows
-// Any attempts to call PTC functions if not built under Visual Studio will fail with 0 bytes read.
-// This is actively being worked on
-
+// NOTE - if you are missing the header or the .lib to link when you open this solution,
+// build the parent flightsimlib.sln first - it will xcopy these to the examples folder.
 
 #include "BglDecompressor.h"
 
@@ -67,7 +65,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
 
 
 #ifdef _WIN64

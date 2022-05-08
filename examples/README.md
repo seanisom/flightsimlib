@@ -10,6 +10,8 @@ The code can be built with the provided Visual Studio project or easily ported t
 
 Please [see the wiki](https://github.com/seanisom/flightsimlib/wiki) for basic usage.
 
+NOTE - if you are missing the header or the .lib to link to in this solution, build the parent flightsimlib.sln first - it will xcopy these to the examples folder.
+
 
 ## License
-Permissive MIT License - Use the code for whatever you want with attribution.
+Permissive MIT License - See LICENSE
