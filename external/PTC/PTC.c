@@ -322,88 +322,88 @@ int decodeTile(PTCImage* image, int tile, int width, int numChannels, int** ppCo
 				headerBytes = 1;
 			}
 
-			if (!numCoefficients)
-				return totalBytesRead;
-
 			int qs;
 			if (isAlpha)
 				qs = image->Frame.QSAlpha;
 			else
 				qs = image->Frame.QSColor;
 
-			int totalBytes = image->CurrentTileSize - compressedLength;
-			if (channel != image->Frame.NumChannels - 1)
-			{
-				totalBytes = *(unsigned short*)pSrc;  // NOLINT(clang-diagnostic-cast-align)
-				pSrc += 2;
-				headerBytes += 2;
-			}
+			int entropyBytes = 0;
 
-			int entropyBytes;
-			int type = (isAlpha ? image->Frame.Flags >> 2 : image->Frame.Flags) & 3;
-			if (isOneBitAlpha)
-				type = 2;
-
-			switch (type)
+			if (numCoefficients)
 			{
-			case 3:
-				memcpy(pDest, pSrc, sizeof(int) * numCoefficients);
-				entropyBytes = (int)sizeof(int) * numCoefficients;
-				break;
-			case 0:
-				if (numCoefficients <= chunkWidth)
+				int totalBytes = image->CurrentTileSize - compressedLength;
+				if (channel != image->Frame.NumChannels - 1)
 				{
-					entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, numCoefficients, 1);
+					totalBytes = *(unsigned short*)pSrc;  // NOLINT(clang-diagnostic-cast-align)
+					pSrc += 2;
+					headerBytes += 2;
 				}
-				else
+
+				int type = (isAlpha ? image->Frame.Flags >> 2 : image->Frame.Flags) & 3;
+				if (isOneBitAlpha)
+					type = 2;
+
+				switch (type)
 				{
-					entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, chunkWidth, 1);
-					if (genFull)
+				case 3:
+					memcpy(pDest, pSrc, sizeof(int) * numCoefficients);
+					entropyBytes = (int)sizeof(int) * numCoefficients;
+					break;
+				case 0:
+					if (numCoefficients <= chunkWidth)
 					{
-						entropyBytes += entropyBPC(pSrc + entropyBytes, compressedLength - entropyBytes, 0, pDest + chunkWidth, numCoefficients - chunkWidth, 1);
+						entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, numCoefficients, 1);
 					}
 					else
 					{
-						headerBytes = 0;
-						entropyBytes = totalBytes;
+						entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, chunkWidth, 1);
+						if (genFull)
+						{
+							entropyBytes += entropyBPC(pSrc + entropyBytes, compressedLength - entropyBytes, 0, pDest + chunkWidth, numCoefficients - chunkWidth, 1);
+						}
+						else
+						{
+							headerBytes = 0;
+							entropyBytes = totalBytes;
+						}
 					}
-				}
-				break;
-			case 1:
-				if (numCoefficients <= chunkWidth)
-				{
-					int range = 81920000 >> (24 - image->Frame.BitDepth);
-					if (qs)
-						range = range / ((qs >> 3) + 1) + 1;
-					entropyBytes = entropyRLGR(pSrc, compressedLength, pDest, numCoefficients, range);
-				}
-				else
-				{
-					int range = 81920000 >> (24 - image->Frame.BitDepth);
-					if (qs)
-						range = range / ((qs >> 3) + 1) + 1;
-					entropyBytes = entropyRLGR(pSrc, compressedLength, pDest, chunkWidth, range);
-					if (genFull)
+					break;
+				case 1:
+					if (numCoefficients <= chunkWidth)
 					{
-						range = 6225920 >> (24 - image->Frame.BitDepth);
+						int range = 81920000 >> (24 - image->Frame.BitDepth);
 						if (qs)
 							range = range / ((qs >> 3) + 1) + 1;
-						entropyBytes += entropyRLGR(pSrc + entropyBytes, compressedLength - entropyBytes, pDest + chunkWidth, numCoefficients - chunkWidth, range);
+						entropyBytes = entropyRLGR(pSrc, compressedLength, pDest, numCoefficients, range);
 					}
 					else
 					{
-						headerBytes = 0;
-						entropyBytes = totalBytes;
+						int range = 81920000 >> (24 - image->Frame.BitDepth);
+						if (qs)
+							range = range / ((qs >> 3) + 1) + 1;
+						entropyBytes = entropyRLGR(pSrc, compressedLength, pDest, chunkWidth, range);
+						if (genFull)
+						{
+							range = 6225920 >> (24 - image->Frame.BitDepth);
+							if (qs)
+								range = range / ((qs >> 3) + 1) + 1;
+							entropyBytes += entropyRLGR(pSrc + entropyBytes, compressedLength - entropyBytes, pDest + chunkWidth, numCoefficients - chunkWidth, range);
+						}
+						else
+						{
+							headerBytes = 0;
+							entropyBytes = totalBytes;
+						}
 					}
+					break;
+				case 2:
+					entropyBytes = entropyBLC(pSrc, compressedLength, (unsigned char*)pDest, (unsigned char*)image->VectorReorder, 16, chunkWidth);
+					break;
+				default:
+					return totalBytesRead;
 				}
-				break;
-			case 2:
-				entropyBytes = entropyBLC(pSrc, compressedLength, (unsigned char*)pDest, (unsigned char*)image->VectorReorder, 16, chunkWidth);
-				break;
-			default:
-				return totalBytesRead;
 			}
-
 			const int offset = channelOffsets[channel] + channel * width;
 			if (isOneBitAlpha)
 			{
