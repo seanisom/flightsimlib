@@ -77,7 +77,7 @@ namespace flightsimlib
 				int compressed_size, 
 				int rows, 
 				int cols, 
-				int depth, 
+				int channels, 
 				int bpp);
 
 		private:

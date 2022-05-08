@@ -113,7 +113,7 @@ int CBglDecompressor::DecompressLz1(
 	{
 		0,
 		0,
-		reinterpret_cast<const uint8_t*>(p_compressed + 4),
+		(p_compressed + 4),
 		compressed_size - 4
 	};
 
@@ -193,7 +193,7 @@ int CBglDecompressor::DecompressLz2(
 	{
 		0,
 		0,
-		reinterpret_cast<const uint8_t*>(p_compressed + 4),
+		(p_compressed + 4),
 		compressed_size - 4
 	};
 
@@ -369,7 +369,24 @@ int numChannelsForFormat(int format)
 }
 
 
-typedef struct
+struct PTCElevationHeader5
+{
+	unsigned char Version;
+	unsigned char SkipRow  : 1;
+	unsigned char SkipCol  : 1;
+	unsigned char Reserved : 6;
+	short Bias;
+};
+
+
+struct PTCImageHeader1
+{
+	unsigned int Version  : 8;
+	unsigned int Reserved : 24;
+};
+
+
+struct PTCBlockHeader
 {
 	char Magic[4];
 	uint8_t Version;
@@ -380,9 +397,10 @@ typedef struct
 	float    Scale;
 	float    Bias;
 	uint32_t Length; // Header + Data
-} FSPTCHeader;
+} ;
 
-typedef struct
+
+struct PTCMipHeader
 {
 	uint32_t Offset;
 	uint32_t Size;
@@ -390,9 +408,10 @@ typedef struct
 	uint8_t  Reserved1;
 	uint16_t Reserved2;
 	uint32_t Reserved3;
-} FSPTCMipHeader;
+};
 
 
+// TODO - There's still a lot of code from PTCImage1 that needs ported
 int CBglDecompressor::DecompressPtc(
 	uint8_t* p_uncompressed, 
 	int uncompressed_size, 
@@ -400,30 +419,53 @@ int CBglDecompressor::DecompressPtc(
 	int compressed_size, 
 	int rows, 
 	int cols, 
-	int depth, 
+	int channels, 
 	int bpp)
 {
 	auto length = bpp * 0x100;
 	auto* p_dest = new uint8_t[bpp * 0x100 * 0x100];
 
-	auto format = 8;
-	if (depth == 4)
+	auto format = 8; // U16
+	if (channels == 4)
 	{
-		format = 4;
+		format = 4; // 1555
 	}
 	if (bpp == 4)
 	{
-		format = 2;
+		format = 2; // 8888
 	}
 
-	// This is DEM5 or Photo1 header
+	PTCElevationHeader5 elevation_header{};
+	PTCImageHeader1 image_header{};
+
+	if (format == 8)
+	{
+		memcpy(&elevation_header, p_compressed, sizeof(elevation_header));
+		if (elevation_header.Version != 5U)
+		{
+			return -1;
+		}
+	}
+	else
+	{
+		memcpy(&image_header, p_compressed, sizeof(image_header));
+		if (image_header.Version != 1U)
+		{
+			return -1;
+		}
+	}
+	
 	compressed_size -= 4;
 	p_compressed += 4;
 
 	WriteRowParams decodeObjects;
-	FSPTCHeader header;
-	FSPTCMipHeader subheader;
-	DecodeParams nested;
+	memset(&decodeObjects, 0, sizeof(WriteRowParams));
+	DecodeParams params;
+	memset(&params, 0, sizeof(DecodeParams));
+	
+	PTCBlockHeader header{};
+	PTCMipHeader mip_header{};
+	
 
 	int numBytesRead = 0;
 
@@ -438,25 +480,20 @@ int CBglDecompressor::DecompressPtc(
 	if (header.Height != 256 || header.Width != 256)
 		return 11;
 
-	auto nested_size = sizeof(nested);
-	memset(&nested, 0, nested_size);
-	auto decode_size = sizeof(decodeObjects);
-	memset(&decodeObjects, 0, decode_size);
+	params.LP2 = 4;
+	params.LP4 = 7;
+	params.HasSubregion = 0;
 
-	nested.LP2 = 4;
-	nested.LP4 = 7;
-	nested.HasSubregion = 0;
-
-	memcpy(&subheader, p_compressed + 28, 16);
-	if (subheader.Offset != 44)
+	memcpy(&mip_header, p_compressed + 28, 16);
+	if (mip_header.Offset != 44)
 		return 14;
 
-	if (subheader.MipLevel != 0)
+	if (mip_header.MipLevel != 0)
 
 		return 6;
 
-	nested.MipGenerate[0] = 1;
-	nested.HasMipmaps = 0;
+	params.MipGenerate[0] = 1;
+	params.HasMipmaps = 0;
 	decodeObjects.Dest = p_dest;
 	decodeObjects.Type = static_cast<PixelType>(format);
 	decodeObjects.RowWidth = header.Width;
@@ -466,58 +503,57 @@ int CBglDecompressor::DecompressPtc(
 		decodeObjects.PixelParams.Bias = header.Bias;
 		decodeObjects.PixelParams.Scale = header.Scale;
 	}
+	else if (decodeObjects.Type == PT1555)
+	{
+		decodeObjects.PixelParams.NumBitsColor = 5;
+		decodeObjects.PixelParams.NumBitsAlpha = 1;
+	}
+	else if (decodeObjects.Type == PT8888)
+	{
+		decodeObjects.PixelParams.NumBitsColor = 8;
+		decodeObjects.PixelParams.NumBitsAlpha = 8;
+	}
 	else
 	{
-		if (format == 4)
-		{
-			decodeObjects.PixelParams.NumBitsColor = 5;
-			decodeObjects.PixelParams.NumBitsAlpha = 1;
-		}
-		else if (format == 2)
-		{
-			decodeObjects.PixelParams.NumBitsColor = 8;
-			decodeObjects.PixelParams.NumBitsAlpha = 8;
-		}
-		else
-		{
-			decodeObjects.PixelParams.NumBitsColor = 16;
-			decodeObjects.PixelParams.NumBitsAlpha = 0;
-		}
+		decodeObjects.PixelParams.NumBitsColor = 16;
+		decodeObjects.PixelParams.NumBitsAlpha = 0;
 	}
+	params.RowParams[0] = &decodeObjects;
 
-	nested.RowParams[0] = &decodeObjects;
-
-
-	numBytesRead = PTCDecompress(&nested, p_compressed + 44, compressed_size - 44);
+	numBytesRead = PTCDecompress(&params, p_compressed + 44, compressed_size - 44);
 	if (numBytesRead <= 0)
 		return 6;
 
-
 	//TODO Check this for TRQ2
-	if (depth == 1)
+	if (decodeObjects.Type == PT16)
 	{
-		auto uint8_t_counter = 0;
-		auto dest_ptr = 0;
-		const auto offset = *reinterpret_cast<const short*>(p_compressed - 2);
-		for (auto row = 0; row < rows; row++)
+		auto idx_norm = 0;
+		auto idx_denorm = cols * elevation_header.SkipRow * bpp;
+		const auto bias = elevation_header.Bias;
+		for (auto i = 0U; i < header.Height; i++)
 		{
-			if (row == 1)
+			if (elevation_header.SkipCol)
 			{
-				uint8_t_counter -= 0x200;
+				const auto var = *reinterpret_cast<short*>(p_dest + idx_norm);
+				*reinterpret_cast<short*>(p_uncompressed + idx_denorm) = static_cast<short>(var - bias);
+				idx_denorm += bpp;
 			}
-			for (auto col = 0; col < cols; col++)
+			
+			for (auto col = 0U; col < header.Width; col++)
 			{
-				const auto var = *reinterpret_cast<short*>(p_dest + uint8_t_counter);
-				*reinterpret_cast<short*>(p_uncompressed + dest_ptr) = static_cast<short>(var - offset);
-				dest_ptr += 2;
-				if (col != 0)
-				{
-					uint8_t_counter += 2;
-				}	
+				const auto var = *reinterpret_cast<short*>(p_dest + idx_norm);
+				*reinterpret_cast<short*>(p_uncompressed + idx_denorm) = static_cast<short>(var - bias);
+				idx_denorm += bpp;
+				idx_norm += bpp;
 			}
 		}
+
+		if (elevation_header.SkipRow)
+		{
+			memcpy(p_uncompressed, p_uncompressed + cols * bpp, static_cast<size_t>(cols)* bpp);
+		}
 	}
-	else if (depth == 4 || format == 2)
+	else
 	{
 		memcpy(p_uncompressed, p_dest, uncompressed_size);
 	}

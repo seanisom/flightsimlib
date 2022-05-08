@@ -11,7 +11,7 @@ This is my attempt to refactor what I can into a lightweight common C++ library 
 
 
 ## Features
-This library currently provides a thin (mostly) cross-platform abstraction for BGL File Decompression. 
+This library currently provides a thin cross-platform abstraction for BGL File Decompression. 
 This allows one to read raw compressed data from a ESP-based (FSX, ESP, P3D) resample-compressed BGL file.
 
 More features are coming, starting with BGL-file functions and structures.
@@ -27,7 +27,6 @@ Minimal sample code is provided in the `examples` folder.
 
 ## Roadmap
 * More Sample code / integration
-* Get rid of static .lib dependencies
 * Doxygen docs
 * Factory methods with C API wrapper to ease integration with other languages
 * Open-source more functionality of my Flight Sim projects into this library:
@@ -42,4 +41,4 @@ Minimal sample code is provided in the `examples` folder.
 
 
 ## License
-Permissive MIT License - Use the code for whatever you want with attribution.
+Permissive MIT License - See LICENSE
