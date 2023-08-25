@@ -142,7 +142,7 @@ public:
 		return static_cast<int>(m_stream.tellg());
 	}
 
-	void SetPosition(int pos, std::fstream::_Seekdir dir = std::fstream::beg) const
+	void SetPosition(int pos, std::ios_base::seekdir dir = std::fstream::beg) const
 	{
 		m_stream.seekg(pos, dir);
 		m_stream.seekp(pos, dir);
