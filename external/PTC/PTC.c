@@ -3,6 +3,8 @@
 #include <stdarg.h>
 #include "PTC.h"
 
+#include <assert.h>
+
 
 #pragma warning(disable: 6385)
 
@@ -757,29 +759,38 @@ int processHeader(PTCImage* image)
 
 int PTCDecompress(DecodeParams* dp, const void* pSrc, int length)
 {
-	int numBytesRead = 0;
-	PTCImage image;
-	memset(&image, 0, sizeof(image));
-	image.Params = dp;
+	int numBytesToRead = 0;
 
+	PTCImage image = {0};
+	image.Params = dp;
 	image.StreamLength = length;
 	image.StreamBytes = pSrc;
 
-	if (readArray(&image, &image, (int)sizeof(PTCFileHeader), 1) != 1)
+	if (readArray(&image, &image, sizeof(PTCFileHeader), 1) != 1 || 
+		image.Header.NumFrames != 1)
 		return -1;
-	if (image.Header.NumFrames != 1)
+	int totalBytesRead = sizeof(PTCFileHeader);
+
+	if (readPTCFrameLength(&image, &numBytesToRead))
 		return -1;
-	if (readPTCFrameLength(&image, &numBytesRead)
-		|| readPTCFrameHeader(&image) || numBytesRead != image.Frame.CompressedLength)
+	totalBytesRead += sizeof(int);
+
+	if(readPTCFrameHeader(&image) || numBytesToRead != image.Frame.CompressedLength)
 		return -1;
+	//totalBytesRead += sizeof(PTCFrameHeader); // This is incorporated into decompress()
+
 	if (processHeader(&image))
 	{
 		cleanup(&image);
 		return -1;
 	}
-	numBytesRead = decompress(&image);
-	
+
+	const int bytesRead = decompress(&image);
+	assert(bytesRead == numBytesToRead);
+	totalBytesRead += bytesRead;
+
 	cleanup(&image);
-	
-	return numBytesRead;
+
+	assert(totalBytesRead == length);
+	return totalBytesRead;
 }

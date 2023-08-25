@@ -45,6 +45,7 @@
 #include "PTC/PTCLib.h"
 
 #include <cstring>
+#include <memory>
 
 
 using namespace flightsimlib::io;
@@ -423,7 +424,7 @@ int CBglDecompressor::DecompressPtc(
 	int bpp)
 {
 	auto length = bpp * 0x100;
-	auto* p_dest = new uint8_t[bpp * 0x100 * 0x100];
+	auto p_dest = std::make_unique<uint8_t[]>(static_cast<size_t>(bpp) * 0x100 * 0x100);
 
 	auto format = 8; // U16
 	if (channels == 4)
@@ -465,7 +466,6 @@ int CBglDecompressor::DecompressPtc(
 	
 	PTCBlockHeader header{};
 	PTCMipHeader mip_header{};
-	
 
 	int numBytesRead = 0;
 
@@ -489,14 +489,17 @@ int CBglDecompressor::DecompressPtc(
 		return 14;
 
 	if (mip_header.MipLevel != 0)
-
 		return 6;
+
+	constexpr auto delta = sizeof(PTCBlockHeader) + sizeof(PTCMipHeader);
+	p_compressed += delta;
+	compressed_size -= delta;
 
 	params.MipGenerate[0] = 1;
 	params.HasMipmaps = 0;
-	decodeObjects.Dest = p_dest;
+	decodeObjects.Dest = p_dest.get();
 	decodeObjects.Type = static_cast<PixelType>(format);
-	decodeObjects.RowWidth = header.Width;
+	decodeObjects.RowWidth = static_cast<int>(header.Width);
 	decodeObjects.StrideBytes = length;
 	if (decodeObjects.Type == PT32)
 	{
@@ -520,8 +523,8 @@ int CBglDecompressor::DecompressPtc(
 	}
 	params.RowParams[0] = &decodeObjects;
 
-	numBytesRead = PTCDecompress(&params, p_compressed + 44, compressed_size - 44);
-	if (numBytesRead <= 0)
+	numBytesRead = PTCDecompress(&params, p_compressed, compressed_size);
+	if (numBytesRead != compressed_size)
 		return 6;
 
 	//TODO Check this for TRQ2
@@ -534,14 +537,14 @@ int CBglDecompressor::DecompressPtc(
 		{
 			if (elevation_header.SkipCol)
 			{
-				const auto var = *reinterpret_cast<short*>(p_dest + idx_norm);
+				const auto var = *reinterpret_cast<short*>(p_dest.get() + idx_norm);
 				*reinterpret_cast<short*>(p_uncompressed + idx_denorm) = static_cast<short>(var - bias);
 				idx_denorm += bpp;
 			}
 			
 			for (auto col = 0U; col < header.Width; col++)
 			{
-				const auto var = *reinterpret_cast<short*>(p_dest + idx_norm);
+				const auto var = *reinterpret_cast<short*>(p_dest.get() + idx_norm);
 				*reinterpret_cast<short*>(p_uncompressed + idx_denorm) = static_cast<short>(var - bias);
 				idx_denorm += bpp;
 				idx_norm += bpp;
@@ -555,10 +558,8 @@ int CBglDecompressor::DecompressPtc(
 	}
 	else
 	{
-		memcpy(p_uncompressed, p_dest, uncompressed_size);
+		memcpy(p_uncompressed, p_dest.get(), uncompressed_size);
 	}
-
-	delete[] p_dest;
 
 	return 0;
 }

@@ -600,5 +600,5 @@ int entropyBLC(const unsigned char* pCompressed, int length, unsigned char *pDes
 		}
 	}
 
-	return 0;
+	return bio.bytes;
 }
