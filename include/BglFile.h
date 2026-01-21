@@ -742,7 +742,7 @@ private:
 };
 
 
-class CBglNameListLayer final : public IBglNameListLayer, public CBglLayer
+class CBglNameListLayer : public IBglNameListLayer, public CBglLayer
 {
 public:
 	auto GetDataPointer() const -> const SBglTilePointer* override;
@@ -751,7 +751,7 @@ public:
 };
 
 
-class CBglIcaoLayer final : public IBglIcaoLayer, public CBglLayer
+class CBglIcaoLayer : public IBglIcaoLayer, public CBglLayer
 {
 public:
 	auto GetIcaoCount() const -> int override;
@@ -923,7 +923,7 @@ public:
 	CBglFile(const CBglFile&) = delete;
 	CBglFile& operator= (const CBglFile&) = delete;
 	CBglFile(CBglFile&&) noexcept = default;
-	CBglFile& operator=(CBglFile&&) noexcept = default;
+	CBglFile& operator=(CBglFile&&) noexcept = delete;
 
 
 	auto GetLayerCount() const -> int override;

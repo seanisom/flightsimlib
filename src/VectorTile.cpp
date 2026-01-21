@@ -260,12 +260,12 @@ void VectorTile::CalcBounds()
 	}
 	else if (m_quad.level > 0)
 	{
-		level_cells = static_cast<double>(1i64 << m_quad.level);
+		level_cells = static_cast<double>(1LL << m_quad.level);
 	}
 
 	const auto norm_lon = (static_cast<double>(m_quad.tile_x) + 0.5) / level_cells;
 	const auto norm_lat = (static_cast<double>(m_quad.tile_y) + 0.5) / level_cells;
-	const auto pixel_ratio = 1.442700600680826e10 / static_cast<double>(256i64 << m_quad.level);
+	const auto pixel_ratio = 1.442700600680826e10 / static_cast<double>(256LL << m_quad.level);
 	const auto overlap_y = static_cast<double>(m_bounds.overlap_factor) * 0.000008983152841195214 + pixel_ratio * 
 		0.00000002495320233665337 + 0.001122894105149402;
 	const auto overlap_x = 0.00000002495320233665337 / cos(normalized_to_lat(norm_lat) * m_pi / 180.0) * 
@@ -310,7 +310,7 @@ bool pack_bitmask(io::IBinaryStream& out, std::array<U*, S>& types, std::vector<
 	
 	for (auto i = 1U; i < S; ++i)
 	{
-		if (types[i] != types[i + 1i64])
+		if (types[i] != types[i + 1LL])
 		{
 			set_packed_bits(bit_mask, 1, 1, i);
 		}
@@ -327,7 +327,7 @@ bool pack_bitmask(io::IBinaryStream& out, std::array<U*, S>& types, std::vector<
 	{
 		if (get_packed_bits(bit_mask, 1, i))
 		{
-			const auto count = types[i + 1i64] - types[i];
+			const auto count = types[i + 1LL] - types[i];
 			out.Write(&count, sizeof(uint16_t));
 		}
 	}
@@ -453,7 +453,7 @@ auto VectorTile::GetRoadFeatureAt(int type, int index) const -> const RoadFeatur
 
 auto VectorTile::GetRoadFeatureCount(int type) const -> int
 {
-	return static_cast<int>(RoadTypes[type + 1i64] - RoadTypes[type]);
+	return static_cast<int>(RoadTypes[type + 1LL] - RoadTypes[type]);
 }
 
 auto VectorTile::GetLandVertexAt(int index) const -> const VectorVertex*
@@ -468,7 +468,7 @@ auto VectorTile::GetLandFeatureAt(int type, int index) const -> const LandFeatur
 
 auto VectorTile::GetLandFeatureCount(int type) const -> int
 {
-	return static_cast<int>(LandTypes[type + 1i64] - LandTypes[type]);
+	return static_cast<int>(LandTypes[type + 1LL] - LandTypes[type]);
 }
 
 auto VectorTile::GetWaterVertexAt(int index) const -> const VectorVertex*
@@ -480,7 +480,7 @@ auto VectorTile::GetWaterPolygonAt(int feature, int index) const -> const WaterP
 {
 	// TODO - This is how MSFS stores, but gives n*log(n) when globally iterating
 	// We should change to just store indices, not size
-	auto count = 0i64;
+	auto count = 0LL;
 	for (auto i = 0; i < feature; ++i)
 	{
 		count += WaterFeatures[i].End;
@@ -520,7 +520,7 @@ auto VectorTile::GetPointVertexAt(int type, int index) const -> const VectorVert
 
 auto VectorTile::GetPointVertexCount(int type) const -> int
 {
-	return static_cast<int>(PointTypes[type + 1i64] - PointTypes[type]);
+	return static_cast<int>(PointTypes[type + 1LL] - PointTypes[type]);
 }
 
 auto VectorTile::GetRailVertexAt(int index) const -> const VectorVertex*
@@ -535,7 +535,7 @@ auto VectorTile::GetRailFeatureAt(int type, int index) const -> const RailFeatur
 
 auto VectorTile::GetRailFeatureCount(int type) const -> int
 {
-	return static_cast<int>(RailTypes[type + 1i64] - RailTypes[type]);
+	return static_cast<int>(RailTypes[type + 1LL] - RailTypes[type]);
 }
 
 auto VectorTile::GetPowerVertexAt(int index) const -> const VectorVertex*
@@ -550,7 +550,7 @@ auto VectorTile::GetPowerFeatureAt(int type, int index) const -> const PowerFeat
 
 auto VectorTile::GetPowerFeatureCount(int type) const -> int
 {
-	return static_cast<int>(PowerTypes[type + 1i64] - PowerTypes[type]);
+	return static_cast<int>(PowerTypes[type + 1LL] - PowerTypes[type]);
 }
 
 auto VectorTile::GetUnknown1VertexAt(int index) const -> const VectorVertex*
@@ -565,7 +565,7 @@ auto VectorTile::GetUnknown1FeatureAt(int type, int index) const -> const Unknow
 
 auto VectorTile::GetUnknown1FeatureCount(int type) const -> int
 {
-	return static_cast<int>(Unknown1Types[type + 1i64] - Unknown1Types[type]);
+	return static_cast<int>(Unknown1Types[type + 1LL] - Unknown1Types[type]);
 }
 
 auto VectorTile::GetUnknown2VertexAt(int index) const -> const VectorVertex*
@@ -580,7 +580,7 @@ auto VectorTile::GetUnknown2FeatureAt(int type, int index) const -> const Unknow
 
 auto VectorTile::GetUnknown2FeatureCount(int type) const -> int
 {
-	return static_cast<int>(Unknown2Types[type + 1i64] - Unknown2Types[type]);
+	return static_cast<int>(Unknown2Types[type + 1LL] - Unknown2Types[type]);
 }
 
 
@@ -591,7 +591,7 @@ void VectorTile::FixRoads()
 	
 	for (auto i = 0u; i < RoadTypes.size() - 1; ++i)
 	{
-		for (auto* road = RoadTypes[i]; road < RoadTypes[i + 1i64]; ++road)
+		for (auto* road = RoadTypes[i]; road < RoadTypes[i + 1LL]; ++road)
 		{
 			road->Flags &= 0xE0u;
 			road->Flags |= i & 0x1F;
@@ -794,7 +794,7 @@ void VectorTile::Parse(io::BinaryMemoryStream& reader, float* elevation)
 
 		for (auto i = 0u; i < RailTypes.size() - 1; ++i)
 		{
-			for (auto entry = RailTypes[i]; entry < RailTypes[i + 1i64]; ++entry)
+			for (auto entry = RailTypes[i]; entry < RailTypes[i + 1LL]; ++entry)
 			{
 				entry->Class = static_cast<uint8_t>(i);
 			}			

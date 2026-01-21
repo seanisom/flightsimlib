@@ -148,7 +148,7 @@ flightsimlib::cgl::IVectorTile* flightsimlib::cgl::VectorTileBuilder::Build()
 			tile->RoadFeatures.emplace_back(feature);
 		}
 
-		tile->RoadTypes[i + 1i64] = reinterpret_cast<RoadFeature*>(road->second.size());
+		tile->RoadTypes[i + 1LL] = reinterpret_cast<RoadFeature*>(road->second.size());
 	}
 
 	for (auto i = 0; i < static_cast<int>(tile->RoadTypes.size()); ++i)
@@ -179,7 +179,7 @@ flightsimlib::cgl::IVectorTile* flightsimlib::cgl::VectorTileBuilder::Build()
 			tile->LandFeatures.emplace_back(feature);
 		}
 
-		tile->LandTypes[i + 1i64] = reinterpret_cast<LandFeature*>(land->second.size());
+		tile->LandTypes[i + 1LL] = reinterpret_cast<LandFeature*>(land->second.size());
 	}
 
 	for (auto i = 0; i < static_cast<int>(tile->LandTypes.size()); ++i)
@@ -251,7 +251,7 @@ flightsimlib::cgl::IVectorTile* flightsimlib::cgl::VectorTileBuilder::Build()
 			point_vertex_count += feature.End;
 		}
 
-		tile->PointTypes[i + 1i64] = reinterpret_cast<VectorVertex*>(point_vertex_count);
+		tile->PointTypes[i + 1LL] = reinterpret_cast<VectorVertex*>(point_vertex_count);
 	}
 
 	for (auto i = 0; i < static_cast<int>(tile->PointTypes.size()); ++i)
@@ -282,7 +282,7 @@ flightsimlib::cgl::IVectorTile* flightsimlib::cgl::VectorTileBuilder::Build()
 			tile->RailFeatures.emplace_back(feature);
 		}
 
-		tile->RailTypes[i + 1i64] = reinterpret_cast<RailFeature*>(rail->second.size());
+		tile->RailTypes[i + 1LL] = reinterpret_cast<RailFeature*>(rail->second.size());
 	}
 
 	for (auto i = 0; i < static_cast<int>(tile->RailTypes.size()); ++i)
@@ -313,7 +313,7 @@ flightsimlib::cgl::IVectorTile* flightsimlib::cgl::VectorTileBuilder::Build()
 			tile->PowerFeatures.emplace_back(feature);
 		}
 
-		tile->PowerTypes[i + 1i64] = reinterpret_cast<PowerFeature*>(power->second.size());
+		tile->PowerTypes[i + 1LL] = reinterpret_cast<PowerFeature*>(power->second.size());
 	}
 
 	for (auto i = 0; i < static_cast<int>(tile->PowerTypes.size()); ++i)

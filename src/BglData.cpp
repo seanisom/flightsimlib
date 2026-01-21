@@ -10058,7 +10058,7 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 	case ERasterCompressionType::None: // TODO - this should be implemented
 	case ERasterCompressionType::SolidBlock:
 	case ERasterCompressionType::Max:
-		throw std::exception("Unsupported Compression Type");
+		throw std::runtime_error("Unsupported Compression Type");
 	}
 
 	return p_uncompressed;

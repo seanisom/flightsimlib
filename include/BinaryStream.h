@@ -29,6 +29,7 @@
 
 
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <memory>
@@ -157,10 +158,10 @@ protected:
 class BinaryFileStream final : public IBinaryStream
 {
 public:
-	explicit BinaryFileStream(const std::wstring& filename) : IBinaryStream(m_fstream),
+	explicit BinaryFileStream(const std::filesystem::path& filename) : IBinaryStream(m_fstream),
 		m_fstream(filename, std::fstream::out | std::fstream::in | std::fstream::binary) {}
 
-	void Open(const std::wstring& filename, std::ios_base::openmode mode =
+	void Open(const std::filesystem::path& filename, std::ios_base::openmode mode =
 		          std::fstream::out | std::fstream::in | std::fstream::binary)
 	{
 		m_fstream.open(filename, mode);

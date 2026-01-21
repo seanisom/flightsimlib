@@ -3,12 +3,17 @@
 
 #include "IObject.h"
 
-#ifdef _WIN64
+#if defined(_WIN32)
+#if defined(_WIN64)
 #define FSLAPI __cdecl
 #define MEMBERCALL
 #else
 #define FSLAPI __stdcall
 #define MEMBERCALL __thiscall
+#endif
+#else
+#define FSLAPI
+#define MEMBERCALL
 #endif
 
 #ifdef FLIGHTSIMLIB_DLL
