@@ -15,7 +15,7 @@ typedef struct
 } BitIO;
 
 
-inline int readByte(BitIO* bio)
+static inline int readByte(BitIO* bio)
 {
 	if (bio->bytes >= bio->length)
 		return -1;
@@ -28,7 +28,7 @@ inline int readByte(BitIO* bio)
 }
 
 
-inline int readBit(BitIO* bio)
+static inline int readBit(BitIO* bio)
 {
 	if (!bio->acck) 
 	{
@@ -47,7 +47,7 @@ inline int readBit(BitIO* bio)
 }
 
 
-inline int readBits(BitIO* bio, int nb)
+static inline int readBits(BitIO* bio, int nb)
 {
 	int val = 0;
 	
@@ -78,7 +78,7 @@ inline int readBits(BitIO* bio, int nb)
 }
 
 
-inline int flushBitIO(BitIO* bio)
+static inline int flushBitIO(BitIO* bio)
 {
 	bio->acck = 0;
 	bio->accb = 0;
@@ -236,7 +236,7 @@ typedef	struct {
 } RLGRState;
 
 
-inline int runLength(RLGRState* bpk, int* pDest, int count, int destCount, int bPartial)
+static inline int runLength(RLGRState* bpk, int* pDest, int count, int destCount, int bPartial)
 {
 	if (bpk->run > 0)
 	{
@@ -264,7 +264,7 @@ inline int runLength(RLGRState* bpk, int* pDest, int count, int destCount, int b
 }
 
 
-inline int codeGR(BitIO* bio, RLGRState* bpk)
+static inline int codeGR(BitIO* bio, RLGRState* bpk)
 {
 	bpk->kr = bpk->krp >> 3;
 	int val, p = 0;
@@ -560,7 +560,7 @@ int entropyBLC(const unsigned char* pCompressed, int length, unsigned char *pDes
 				const int x = pc ^ adaptiveRLR(&bio, c, &blk); // error
 				row0[3 + i] = (unsigned char)x; // store
 
-				// QZ(c) <= QZ(c) + q, where q = 1 if x = 0, and q = –1 if x = 1
+				// QZ(c) <= QZ(c) + q, where q = 1 if x = 0, and q = -1 if x = 1
 				int qzc = blk.qzc[c] - 2 * x + 1;
 				if (qzc < 0)
 					qzc = 0;

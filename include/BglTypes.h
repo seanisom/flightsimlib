@@ -143,73 +143,73 @@ struct SBglIndex
 class IBglTerrainVectorDb
 {
 public:
-	
+	virtual ~IBglTerrainVectorDb() = default;
 };
 	
 class IBglTerrainElevation
 {
 public:
-
+	virtual ~IBglTerrainElevation() = default;
 };
 
 class IBglTerrainLandClass
 {
 public:
-
+	virtual ~IBglTerrainLandClass() = default;
 };
 
 class IBglTerrainWaterClass
 {
 public:
-
+	virtual ~IBglTerrainWaterClass() = default;
 };
 
 class IBglTerrainRegion
 {
 public:
-
+	virtual ~IBglTerrainRegion() = default;
 };
 
 class IBglPopulationDensity
 {
 public:
-
+	virtual ~IBglPopulationDensity() = default;
 };
 
 class IBglAutogenAnnotation
 {
 public:
-
+	virtual ~IBglAutogenAnnotation() = default;
 };
 
 class IBglTerrainIndex
 {
 public:
-
+	virtual ~IBglTerrainIndex() = default;
 };
 
 class IBglTerrainTextureLookup
 {
 public:
-
+	virtual ~IBglTerrainTextureLookup() = default;
 };
 
 class IBglTerrainSeason
 {
 public:
-
+	virtual ~IBglTerrainSeason() = default;
 };
 
 class IBglTerrainPhoto
 {
 public:
-
+	virtual ~IBglTerrainPhoto() = default;
 };
 
 class IBglTerrainPhoto32
 {
 public:
-
+	virtual ~IBglTerrainPhoto32() = default;
 };
 
 

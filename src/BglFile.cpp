@@ -149,6 +149,8 @@ std::unique_ptr<CBglData> FactoryImpl(EBglLayerType type,
 	case EBglLayerType::TerrainVectorDb:
 		break;
 	case EBglLayerType::TerrainElevation:
+		data = no_copy ? std::make_unique<CBglTerrainElevation>() :
+			std::make_unique<CBglTerrainElevation>(*dynamic_cast<const CBglTerrainElevation*>(args)...);
 		break;
 	case EBglLayerType::TerrainLandClass:
 		break;
@@ -161,6 +163,8 @@ std::unique_ptr<CBglData> FactoryImpl(EBglLayerType type,
 	case EBglLayerType::AutogenAnnotation:
 		break;
 	case EBglLayerType::TerrainIndex:
+		data = no_copy ? std::make_unique<CBglTerrainIndex>() :
+			std::make_unique<CBglTerrainIndex>(*dynamic_cast<const CBglTerrainIndex*>(args)...);
 		break;
 	case EBglLayerType::TerrainTextureLookup:
 		break;
@@ -216,7 +220,7 @@ auto CBglData::AsAirport() -> IBglAirport*
 {
 	if (m_type == EBglLayerType::Airport)
 	{
-		return dynamic_cast<IBglAirport*>(this);
+		return dynamic_cast<IBglAirport*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -225,7 +229,7 @@ auto CBglData::AsNav() -> IBglNav*
 {
 	if (m_type == EBglLayerType::Nav)
 	{
-		return dynamic_cast<IBglNav*>(this);
+		return dynamic_cast<IBglNav*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -234,7 +238,7 @@ auto CBglData::AsNdb() -> IBglNdb*
 {
 	if (m_type == EBglLayerType::Ndb)
 	{
-		return dynamic_cast<IBglNdb*>(this);
+		return dynamic_cast<IBglNdb*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -243,7 +247,7 @@ auto CBglData::AsMarker() -> IBglMarker*
 {
 	if (m_type == EBglLayerType::Marker)
 	{
-		return dynamic_cast<IBglMarker*>(this);
+		return dynamic_cast<IBglMarker*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -252,7 +256,7 @@ auto CBglData::AsBoundary() -> IBglBoundary*
 {
 	if (m_type == EBglLayerType::Boundary)
 	{
-		return dynamic_cast<IBglBoundary*>(this);
+		return dynamic_cast<IBglBoundary*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -261,7 +265,7 @@ auto CBglData::AsWaypoint() -> IBglWaypoint*
 {
 	if (m_type == EBglLayerType::Waypoint)
 	{
-		return dynamic_cast<IBglWaypoint*>(this);
+		return dynamic_cast<IBglWaypoint*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -270,7 +274,7 @@ auto CBglData::AsGeopol() -> IBglGeopol*
 {
 	if (m_type == EBglLayerType::Geopol)
 	{
-		return dynamic_cast<IBglGeopol*>(this);
+		return dynamic_cast<IBglGeopol*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -279,7 +283,7 @@ auto CBglData::AsSceneryObject() -> IBglSceneryObject*
 {
 	if (m_type == EBglLayerType::SceneryObject)
 	{
-		return dynamic_cast<IBglSceneryObject*>(this);
+		return dynamic_cast<IBglSceneryObject*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -288,7 +292,7 @@ auto CBglData::AsModelData() -> IBglModelData*
 {
 	if (m_type == EBglLayerType::ModelData)
 	{
-		return dynamic_cast<IBglModelData*>(this);
+		return dynamic_cast<IBglModelData*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -297,7 +301,7 @@ auto CBglData::AsAirportSummary() -> IBglAirportSummary*
 {
 	if (m_type == EBglLayerType::AirportSummary)
 	{
-		return dynamic_cast<IBglAirportSummary*>(this);
+		return dynamic_cast<IBglAirportSummary*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -306,16 +310,16 @@ auto CBglData::AsTerrainVectorDb() -> IBglTerrainVectorDb*
 {
 	if (m_type == EBglLayerType::TerrainVectorDb)
 	{
-		return dynamic_cast<IBglTerrainVectorDb*>(this);
+		return dynamic_cast<IBglTerrainVectorDb*>(m_data.get());
 	}
 	return nullptr;
 }
 
 auto CBglData::AsTerrainElevation() -> IBglTerrainElevation*
 {
-	if (m_type == EBglLayerType::TerrainLandClass)
+	if (m_type == EBglLayerType::TerrainElevation)
 	{
-		return dynamic_cast<IBglTerrainElevation*>(this);
+		return dynamic_cast<IBglTerrainElevation*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -324,7 +328,7 @@ auto CBglData::AsTerrainLandClass() -> IBglTerrainLandClass*
 {
 	if (m_type == EBglLayerType::TerrainLandClass)
 	{
-		return dynamic_cast<IBglTerrainLandClass*>(this);
+		return dynamic_cast<IBglTerrainLandClass*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -333,7 +337,7 @@ auto CBglData::AsTerrainWaterClass() -> IBglTerrainWaterClass*
 {
 	if (m_type == EBglLayerType::TerrainWaterClass)
 	{
-		return dynamic_cast<IBglTerrainWaterClass*>(this);
+		return dynamic_cast<IBglTerrainWaterClass*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -342,7 +346,7 @@ auto CBglData::AsTerrainRegion() -> IBglTerrainRegion*
 {
 	if (m_type == EBglLayerType::TerrainRegion)
 	{
-		return dynamic_cast<IBglTerrainRegion*>(this);
+		return dynamic_cast<IBglTerrainRegion*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -351,7 +355,7 @@ auto CBglData::AsPopulationDensity() -> IBglPopulationDensity*
 {
 	if (m_type == EBglLayerType::PopulationDensity)
 	{
-		return dynamic_cast<IBglPopulationDensity*>(this);
+		return dynamic_cast<IBglPopulationDensity*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -360,7 +364,7 @@ auto CBglData::AsAutogenAnnotation() -> IBglAutogenAnnotation*
 {
 	if (m_type == EBglLayerType::AutogenAnnotation)
 	{
-		return dynamic_cast<IBglAutogenAnnotation*>(this);
+		return dynamic_cast<IBglAutogenAnnotation*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -369,7 +373,7 @@ auto CBglData::AsTerrainIndex() -> IBglTerrainIndex*
 {
 	if (m_type == EBglLayerType::TerrainIndex)
 	{
-		return dynamic_cast<IBglTerrainIndex*>(this);
+		return dynamic_cast<IBglTerrainIndex*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -378,7 +382,7 @@ auto CBglData::AsTerrainTextureLookup() -> IBglTerrainTextureLookup*
 {
 	if (m_type == EBglLayerType::TerrainTextureLookup)
 	{
-		return dynamic_cast<IBglTerrainTextureLookup*>(this);
+		return dynamic_cast<IBglTerrainTextureLookup*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -393,7 +397,7 @@ auto CBglData::AsTerrainSeason() -> IBglTerrainSeason*
 	
 	if (layer_type >= lower_bound && layer_type <= upper_bound)
 	{
-		return dynamic_cast<IBglTerrainSeason*>(this);
+		return dynamic_cast<IBglTerrainSeason*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -408,7 +412,7 @@ auto CBglData::AsTerrainPhoto() -> IBglTerrainPhoto*
 
 	if (layer_type >= lower_bound && layer_type <= upper_bound)
 	{
-		return dynamic_cast<IBglTerrainPhoto*>(this);
+		return dynamic_cast<IBglTerrainPhoto*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -423,7 +427,7 @@ auto CBglData::AsTerrainPhoto32() -> IBglTerrainPhoto32*
 
 	if (layer_type >= lower_bound && layer_type <= upper_bound)
 	{
-		return dynamic_cast<IBglTerrainPhoto32*>(this);
+		return dynamic_cast<IBglTerrainPhoto32*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -432,7 +436,7 @@ auto CBglData::AsTacan() -> IBglTacan*
 {
 	if (m_type == EBglLayerType::Tacan)
 	{
-		return dynamic_cast<IBglTacan*>(this);
+		return dynamic_cast<IBglTacan*>(m_data.get());
 	}
 	return nullptr;
 }
@@ -724,10 +728,31 @@ auto CBglDirectQmidLayer::ReadBinary(BinaryFileStream& in) -> bool
 	if (existing == false)
 	{
 		m_pointers.resize(qmid_count);
+		const bool is_terrain_layer =
+			CBglLayer::IsTrq1BglLayer(layer_pointer->Type) || CBglLayer::IsRcs1BglLayer(layer_pointer->Type);
+		const auto entry_size = (layer_pointer->TileCount > 0)
+			? (layer_pointer->SizeBytes / layer_pointer->TileCount)
+			: 0u;
 		for (auto i = 0; i < qmid_count; ++i)
 		{
 			m_pointers[i] = std::make_unique<SBglTilePointer>();
-			m_pointers[i]->ReadBinary(in, layer_pointer->HasQmidHigh != 0);
+			if (is_terrain_layer && (entry_size == 16 || entry_size == 20))
+			{
+				in >> m_pointers[i]->QmidLow >> m_pointers[i]->QmidHigh;
+				if (entry_size == 20)
+				{
+					in >> m_pointers[i]->RecordCount;
+				}
+				else
+				{
+					m_pointers[i]->RecordCount = 1;
+				}
+				in >> m_pointers[i]->StreamOffset >> m_pointers[i]->SizeBytes;
+			}
+			else
+			{
+				m_pointers[i]->ReadBinary(in, layer_pointer->HasQmidHigh != 0);
+			}
 			if (!in)
 			{
 				return false;
@@ -783,7 +808,14 @@ auto CBglDirectQmidLayer::ReadBinary(BinaryFileStream& in) -> bool
 					return false;
 				}
 				data_list.emplace_back(std::move(data));
-				in.SetPosition(pos + static_cast<int>(size));
+				if (is_terrain_layer)
+				{
+					in.SetPosition(pos + static_cast<int>(tile_pointer->SizeBytes));
+				}
+				else
+				{
+					in.SetPosition(pos + static_cast<int>(size));
+				}
 				if (!in)
 				{
 					return false;
