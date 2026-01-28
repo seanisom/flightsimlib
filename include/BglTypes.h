@@ -29,6 +29,7 @@
 
 // TODO: We need a cross platform library for this
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -1790,6 +1791,7 @@ class IBglTaxiwaySigns;
 class IBglTrigger;
 class IBglBeacon;
 class IBglExtrusionBridge;
+class CBglSceneryObject;
 
 	
 class IBglSceneryObject
@@ -1862,6 +1864,7 @@ public:
 	virtual IBglTrigger* GetTrigger() = 0;
 	virtual IBglBeacon* GetBeacon() = 0;
 	virtual IBglExtrusionBridge* GetExtrusionBridge() = 0;
+	virtual auto CloneSceneryObject() const -> std::unique_ptr<CBglSceneryObject> = 0;
 };
 
 

@@ -62,7 +62,6 @@ template <typename T> void set_packed_bits(T& dest, int value, int num_bits, int
     dest |= static_cast<uint32_t>(value) << position;
 }
 
-
 //******************************************************************************
 // CBglFuelAvailability
 //******************************************************************************
@@ -3032,8 +3031,12 @@ auto flightsimlib::io::CBglJetway::GetSceneryObject() const -> const IBglScenery
 
 auto flightsimlib::io::CBglJetway::SetSceneryObject(IBglSceneryObject* value) -> void
 {
-    // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
-    m_scenery_object = dynamic_cast<CBglSceneryObject*>(value)->Clone();
+    if (!value)
+    {
+        m_scenery_object.reset();
+        return;
+    }
+    m_scenery_object = value->CloneSceneryObject();
 }
 
 auto flightsimlib::io::CBglJetway::CalculatePadSize() const -> int
@@ -6483,42 +6486,74 @@ void flightsimlib::io::CBglSceneryObject::SetInstanceId(_GUID value) { m_data.wr
 
 flightsimlib::io::IBglGenericBuilding* flightsimlib::io::CBglSceneryObject::GetGenericBuilding()
 {
-    return dynamic_cast<IBglGenericBuilding*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::GenericBuilding)
+    {
+        return static_cast<CBglGenericBuilding*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglLibraryObject* flightsimlib::io::CBglSceneryObject::GetLibraryObject()
 {
-    return dynamic_cast<IBglLibraryObject*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::LibraryObject)
+    {
+        return static_cast<CBglLibraryObject*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglWindsock* flightsimlib::io::CBglSceneryObject::GetWindsock()
 {
-    return dynamic_cast<IBglWindsock*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::Windsock)
+    {
+        return static_cast<CBglWindsock*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglEffect* flightsimlib::io::CBglSceneryObject::GetEffect()
 {
-    return dynamic_cast<IBglEffect*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::Effect)
+    {
+        return static_cast<CBglEffect*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglTaxiwaySigns* flightsimlib::io::CBglSceneryObject::GetTaxiwaySigns()
 {
-    return dynamic_cast<IBglTaxiwaySigns*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::TaxiwaySigns)
+    {
+        return static_cast<CBglTaxiwaySigns*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglTrigger* flightsimlib::io::CBglSceneryObject::GetTrigger()
 {
-    return dynamic_cast<IBglTrigger*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::Trigger)
+    {
+        return static_cast<CBglTrigger*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglBeacon* flightsimlib::io::CBglSceneryObject::GetBeacon()
 {
-    return dynamic_cast<IBglBeacon*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::Beacon)
+    {
+        return static_cast<CBglBeacon*>(this);
+    }
+    return nullptr;
 }
 
 flightsimlib::io::IBglExtrusionBridge* flightsimlib::io::CBglSceneryObject::GetExtrusionBridge()
 {
-    return dynamic_cast<IBglExtrusionBridge*>(this);
+    if (GetSceneryObjectType() == ESceneryObjectType::ExtrusionBridge)
+    {
+        return static_cast<CBglExtrusionBridge*>(this);
+    }
+    return nullptr;
 }
 
 auto flightsimlib::io::CBglSceneryObject::IsEmpty() const -> bool
@@ -7820,7 +7855,8 @@ int flightsimlib::io::CTerrainRasterQuad1::Rows() const { return m_header->Rows;
 int flightsimlib::io::CTerrainRasterQuad1::Cols() const { return m_header->Cols; }
 
 std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData(
-    ERasterCompressionType compression_type, const uint8_t* compressed_data, int compressed_size, int uncompressed_size) const
+    ERasterCompressionType compression_type, const uint8_t* compressed_data, int compressed_size,
+    int uncompressed_size) const
 {
     auto p_uncompressed = std::make_unique<uint8_t[]>(uncompressed_size);
     const auto bpp = GetBpp();
@@ -7844,12 +7880,12 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
             p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size, Rows(), Cols());
         break;
     case ERasterCompressionType::Lz1:
-        bytes_read = CBglDecompressor::DecompressLz1(
-            p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size);
+        bytes_read =
+            CBglDecompressor::DecompressLz1(p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size);
         break;
     case ERasterCompressionType::Lz2:
-        bytes_read = CBglDecompressor::DecompressLz2(
-            p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size);
+        bytes_read =
+            CBglDecompressor::DecompressLz2(p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size);
         break;
     case ERasterCompressionType::DeltaLz1:
     case ERasterCompressionType::DeltaLz2:
@@ -7865,7 +7901,8 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
             return nullptr;
         }
         intermediate.resize(static_cast<size_t>(intermediate_size));
-        if (compression_type == ERasterCompressionType::DeltaLz1 || compression_type == ERasterCompressionType::BitPackLz1)
+        if (compression_type == ERasterCompressionType::DeltaLz1 ||
+            compression_type == ERasterCompressionType::BitPackLz1)
         {
             bytes_read = CBglDecompressor::DecompressLz1(
                 intermediate.data(), intermediate_size, compressed_data + sizeof(int), compressed_size);
@@ -7879,10 +7916,11 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
         {
             return nullptr;
         }
-        if (compression_type == ERasterCompressionType::DeltaLz1 || compression_type == ERasterCompressionType::DeltaLz2)
+        if (compression_type == ERasterCompressionType::DeltaLz1 ||
+            compression_type == ERasterCompressionType::DeltaLz2)
         {
-            bytes_read = CBglDecompressor::DecompressDelta(
-                p_uncompressed.get(), uncompressed_size, intermediate.data());
+            bytes_read =
+                CBglDecompressor::DecompressDelta(p_uncompressed.get(), uncompressed_size, intermediate.data());
         }
         else
         {
@@ -7891,9 +7929,8 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
         }
         break;
     case ERasterCompressionType::Ptc:
-        bytes_read = CBglDecompressor::DecompressPtc(
-            p_uncompressed.get(), uncompressed_size, compressed_data, compressed_size, Rows(), Cols(), num_channels,
-            bit_depth);
+        bytes_read = CBglDecompressor::DecompressPtc(p_uncompressed.get(), uncompressed_size, compressed_data,
+            compressed_size, Rows(), Cols(), num_channels, bit_depth);
         break;
     case ERasterCompressionType::Dxt1:
     case ERasterCompressionType::Dxt3:
@@ -7914,49 +7951,48 @@ std::unique_ptr<uint8_t[]> flightsimlib::io::CTerrainRasterQuad1::DecompressData
 }
 
 bool flightsimlib::io::CTerrainRasterQuad1::ReadCompressedData(
-	BinaryFileStream& in, std::vector<uint8_t>& out_data, std::optional<SRcs1Data>& out_rcs1) const
+    BinaryFileStream& in, std::vector<uint8_t>& out_data, std::optional<SRcs1Data>& out_rcs1) const
 {
-	const auto data_length = m_data->DataLength;
-	if (data_length <= 0)
-	{
-		return false;
-	}
+    const auto data_length = m_data->DataLength;
+    if (data_length <= 0)
+    {
+        return false;
+    }
 
-	in.SetPosition(m_data->DataOffset);
-	if (!in)
-	{
-		return false;
-	}
+    in.SetPosition(m_data->DataOffset);
+    if (!in)
+    {
+        return false;
+    }
 
-	std::vector<uint8_t> buffer(static_cast<size_t>(data_length));
-	in.Read(buffer.data(), data_length);
-	if (!in)
-	{
-		return false;
-	}
+    std::vector<uint8_t> buffer(static_cast<size_t>(data_length));
+    in.Read(buffer.data(), data_length);
+    if (!in)
+    {
+        return false;
+    }
 
-	out_rcs1.reset();
+    out_rcs1.reset();
     if (buffer.size() >= 12)
     {
         uint32_t signature = 0;
         std::memcpy(&signature, buffer.data(), sizeof(signature));
         if (signature == 0x31534352) // "RCS1"
         {
-			SRcs1Data rcs1{};
-			rcs1.Signature = signature;
-			std::memcpy(&rcs1.Scale, buffer.data() + 4, sizeof(rcs1.Scale));
-			std::memcpy(&rcs1.Base, buffer.data() + 8, sizeof(rcs1.Base));
-			out_rcs1 = rcs1;
+            SRcs1Data rcs1{};
+            rcs1.Signature = signature;
+            std::memcpy(&rcs1.Scale, buffer.data() + 4, sizeof(rcs1.Scale));
+            std::memcpy(&rcs1.Base, buffer.data() + 8, sizeof(rcs1.Base));
+            out_rcs1 = rcs1;
 
-			out_data.assign(buffer.begin() + 12, buffer.end());
-			return true;
-		}
-	}
+            out_data.assign(buffer.begin() + 12, buffer.end());
+            return true;
+        }
+    }
 
-	out_data = std::move(buffer);
-	return true;
+    out_data = std::move(buffer);
+    return true;
 }
-
 
 bool flightsimlib::io::CTerrainRasterQuad1::GetImageFormatForType(
     ERasterDataType data_type, int& bit_depth, int& num_channels)
@@ -8015,8 +8051,7 @@ bool flightsimlib::io::CTerrainRasterQuad1::DecodeToImage(
 
     const int bytes_per_channel = bit_depth / 8;
     const int bytes_per_pixel = bytes_per_channel * num_channels;
-    const int uncompressed_size =
-        static_cast<int>(bytes_per_pixel * header.Rows * header.Cols);
+    const int uncompressed_size = static_cast<int>(bytes_per_pixel * header.Rows * header.Cols);
     if (uncompressed_size <= 0)
     {
         return false;
@@ -8027,8 +8062,7 @@ bool flightsimlib::io::CTerrainRasterQuad1::DecodeToImage(
     out_image.DataType = header.DataType;
     out_image.BitDepth = bit_depth;
     out_image.Channels = num_channels;
-    auto decoded =
-        DecompressData(header.CompressionTypeData, compressed_data, compressed_size, uncompressed_size);
+    auto decoded = DecompressData(header.CompressionTypeData, compressed_data, compressed_size, uncompressed_size);
     if (!decoded)
     {
         return false;
@@ -8058,13 +8092,15 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
     const uint8_t* src = image.Data.get();
     uint8_t* dst = out_rgba.data();
 
-    auto read_u16 = [](const uint8_t* data, size_t offset) -> uint16_t {
+    auto read_u16 = [](const uint8_t* data, size_t offset) -> uint16_t
+    {
         uint16_t value = 0;
         std::memcpy(&value, data + offset, sizeof(value));
         return value;
     };
 
-    auto read_u32 = [](const uint8_t* data, size_t offset) -> uint32_t {
+    auto read_u32 = [](const uint8_t* data, size_t offset) -> uint32_t
+    {
         uint32_t value = 0;
         std::memcpy(&value, data + offset, sizeof(value));
         return value;

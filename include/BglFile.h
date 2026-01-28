@@ -408,15 +408,18 @@ namespace flightsimlib
         class IBglGuidLayer;
         class IBglExclusionLayer;
         class IBglTimeZoneLayer;
+        class CBglLayer;
 
         class IBglLayer
         {
           public:
+            virtual ~IBglLayer() = default;
             virtual auto GetType() const -> EBglLayerType = 0;
             virtual auto SetType(EBglLayerType value) -> void = 0;
             virtual auto GetClass() const -> EBglLayerClass = 0;
             virtual auto SetClass(EBglLayerClass value) -> void = 0;
             virtual auto GetLayerPointer() const -> const SBglLayerPointer* = 0;
+            virtual auto CloneLayer() const -> std::unique_ptr<CBglLayer> = 0;
             virtual auto AsIndirectQmidLayer() -> IBglIndirectQmidLayer* = 0;
             virtual auto AsDirectQmidLayer() -> IBglDirectQmidLayer* = 0;
             virtual auto AsNameListLayer() -> IBglNameListLayer* = 0;
@@ -577,6 +580,7 @@ namespace flightsimlib
             auto GetClass() const -> EBglLayerClass override;
             auto SetClass(EBglLayerClass value) -> void override;
             auto GetLayerPointer() const -> const SBglLayerPointer* override;
+            auto CloneLayer() const -> std::unique_ptr<CBglLayer> override { return Clone(); }
             auto AsIndirectQmidLayer() -> IBglIndirectQmidLayer* override;
             auto AsDirectQmidLayer() -> IBglDirectQmidLayer* override;
             auto AsNameListLayer() -> IBglNameListLayer* override;
