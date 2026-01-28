@@ -329,6 +329,7 @@ namespace flightsimlib
           public:
             virtual auto GetType() const -> EBglLayerType = 0;
             virtual auto SetType(EBglLayerType value) -> void = 0;
+            virtual auto AsRasterQuad1() -> ITerrainRasterQuad1* = 0;
             virtual auto AsAirport() -> IBglAirport* = 0;
             virtual auto AsNav() -> IBglNav* = 0;
             virtual auto AsNdb() -> IBglNdb* = 0;
@@ -365,6 +366,7 @@ namespace flightsimlib
 
             auto GetType() const -> EBglLayerType override;
             auto SetType(EBglLayerType value) -> void override;
+            auto AsRasterQuad1() -> ITerrainRasterQuad1* override;
             auto AsAirport() -> IBglAirport* override;
             auto AsNav() -> IBglNav* override;
             auto AsNdb() -> IBglNdb* override;

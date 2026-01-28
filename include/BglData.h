@@ -3505,7 +3505,8 @@ namespace flightsimlib
             size_t DataSize = 0;
         };
 
-        class CTerrainRasterQuad1 : public IBglSerializable, ITerrainRasterQuad1
+        // Raster data container with decode helpers exposed through ITerrainRasterQuad1.
+        class CTerrainRasterQuad1 : public IBglSerializable, public ITerrainRasterQuad1
         {
           public:
             void ReadBinary(BinaryFileStream& in) override;
@@ -3513,29 +3514,24 @@ namespace flightsimlib
             bool Validate() override;
             int CalculateSize() const override;
 
+            using SRcs1Data = ITerrainRasterQuad1::SRcs1Data;
+
             int Rows() const override;
             int Cols() const override;
             ERasterDataType GetDataType() const { return m_header->DataType; }
             static bool GetImageFormatForType(ERasterDataType data_type, int& bit_depth, int& num_channels);
             std::unique_ptr<uint8_t[]> DecompressData(ERasterCompressionType compression_type,
                 const uint8_t* compressed_data, int compressed_size, int uncompressed_size) const;
-            bool DecodeToImage(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const;
+            bool DecodeToImage(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const override;
 
-            const SBglTerrainRasterQuad1Data& GetHeader() const { return m_header.read(); }
+            auto GetHeader() const -> const SBglTerrainRasterQuad1Data& override { return m_header.read(); }
 
-            int GetDataOffset() const { return m_data->DataOffset; }
+            auto GetDataOffset() const -> int override { return m_data->DataOffset; }
 
-            int GetDataLength() const { return m_data->DataLength; }
+            auto GetDataLength() const -> int override { return m_data->DataLength; }
 
-            struct SRcs1Data
-            {
-                uint32_t Signature = 0;
-                float Scale = 1.0f;
-                float Base = 0.0f;
-            };
-
-            bool ReadCompressedData(
-                BinaryFileStream& in, std::vector<uint8_t>& out_data, std::optional<SRcs1Data>& out_rcs1) const;
+            bool ReadCompressedData(BinaryFileStream& in, std::vector<uint8_t>& out_data,
+                std::optional<SRcs1Data>& out_rcs1) const override;
 
           private:
             int GetBpp() const
@@ -3578,6 +3574,34 @@ namespace flightsimlib
         };
 
         class CBglTerrainElevation final : public CTerrainRasterQuad1, public IBglTerrainElevation
+        {
+        };
+
+        class CBglTerrainLandClass final : public CTerrainRasterQuad1, public IBglTerrainLandClass
+        {
+        };
+
+        class CBglTerrainWaterClass final : public CTerrainRasterQuad1, public IBglTerrainWaterClass
+        {
+        };
+
+        class CBglTerrainRegion final : public CTerrainRasterQuad1, public IBglTerrainRegion
+        {
+        };
+
+        class CBglPopulationDensity final : public CTerrainRasterQuad1, public IBglPopulationDensity
+        {
+        };
+
+        class CBglTerrainSeason final : public CTerrainRasterQuad1, public IBglTerrainSeason
+        {
+        };
+
+        class CBglTerrainPhoto final : public CTerrainRasterQuad1, public IBglTerrainPhoto
+        {
+        };
+
+        class CBglTerrainPhoto32 final : public CTerrainRasterQuad1, public IBglTerrainPhoto32
         {
         };
 

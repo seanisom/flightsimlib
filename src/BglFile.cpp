@@ -65,6 +65,36 @@ std::unique_ptr<CBglData> FactoryImpl(EBglLayerType type,
 	std::unique_ptr<IBglSerializable> data = nullptr;
 
 	constexpr auto no_copy = sizeof...(Args) != 0;
+
+	using layer_t = std::underlying_type<EBglLayerType>::type;
+	const auto layer_value = static_cast<layer_t>(type);
+	constexpr auto season_lower = static_cast<layer_t>(EBglLayerType::TerrainSeasonJan);
+	constexpr auto season_upper = static_cast<layer_t>(EBglLayerType::TerrainSeasonDec);
+	constexpr auto photo_lower = static_cast<layer_t>(EBglLayerType::TerrainPhotoJan);
+	constexpr auto photo_upper = static_cast<layer_t>(EBglLayerType::TerrainPhotoNight);
+	constexpr auto photo32_lower = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Jan);
+	constexpr auto photo32_upper = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Night);
+
+	if (layer_value >= season_lower && layer_value <= season_upper)
+	{
+		data = no_copy ? std::make_unique<CBglTerrainSeason>() :
+			std::make_unique<CBglTerrainSeason>(*dynamic_cast<const CBglTerrainSeason*>(args)...);
+		return std::make_unique<CBglData>(type, std::move(data));
+	}
+
+	if (layer_value >= photo_lower && layer_value <= photo_upper)
+	{
+		data = no_copy ? std::make_unique<CBglTerrainPhoto>() :
+			std::make_unique<CBglTerrainPhoto>(*dynamic_cast<const CBglTerrainPhoto*>(args)...);
+		return std::make_unique<CBglData>(type, std::move(data));
+	}
+
+	if (layer_value >= photo32_lower && layer_value <= photo32_upper)
+	{
+		data = no_copy ? std::make_unique<CBglTerrainPhoto32>() :
+			std::make_unique<CBglTerrainPhoto32>(*dynamic_cast<const CBglTerrainPhoto32*>(args)...);
+		return std::make_unique<CBglData>(type, std::move(data));
+	}
 	
 	switch (type)  // NOLINT(clang-diagnostic-switch-enum)
 	{
@@ -153,12 +183,20 @@ std::unique_ptr<CBglData> FactoryImpl(EBglLayerType type,
 			std::make_unique<CBglTerrainElevation>(*dynamic_cast<const CBglTerrainElevation*>(args)...);
 		break;
 	case EBglLayerType::TerrainLandClass:
+		data = no_copy ? std::make_unique<CBglTerrainLandClass>() :
+			std::make_unique<CBglTerrainLandClass>(*dynamic_cast<const CBglTerrainLandClass*>(args)...);
 		break;
 	case EBglLayerType::TerrainWaterClass:
+		data = no_copy ? std::make_unique<CBglTerrainWaterClass>() :
+			std::make_unique<CBglTerrainWaterClass>(*dynamic_cast<const CBglTerrainWaterClass*>(args)...);
 		break;
 	case EBglLayerType::TerrainRegion:
+		data = no_copy ? std::make_unique<CBglTerrainRegion>() :
+			std::make_unique<CBglTerrainRegion>(*dynamic_cast<const CBglTerrainRegion*>(args)...);
 		break;
 	case EBglLayerType::PopulationDensity:
+		data = no_copy ? std::make_unique<CBglPopulationDensity>() :
+			std::make_unique<CBglPopulationDensity>(*dynamic_cast<const CBglPopulationDensity*>(args)...);
 		break;
 	case EBglLayerType::AutogenAnnotation:
 		break;
@@ -214,6 +252,49 @@ auto CBglData::GetType() const -> EBglLayerType
 auto CBglData::SetType(EBglLayerType value) -> void
 {
 	m_type = value;
+}
+
+auto CBglData::AsRasterQuad1() -> ITerrainRasterQuad1*
+{
+	using layer_t = std::underlying_type<EBglLayerType>::type;
+
+	constexpr auto season_lower = static_cast<layer_t>(EBglLayerType::TerrainSeasonJan);
+	constexpr auto season_upper = static_cast<layer_t>(EBglLayerType::TerrainSeasonDec);
+	constexpr auto photo_lower = static_cast<layer_t>(EBglLayerType::TerrainPhotoJan);
+	constexpr auto photo_upper = static_cast<layer_t>(EBglLayerType::TerrainPhotoNight);
+	constexpr auto photo32_lower = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Jan);
+	constexpr auto photo32_upper = static_cast<layer_t>(EBglLayerType::TerrainPhoto32Night);
+
+	const auto layer_value = static_cast<layer_t>(m_type);
+	if (layer_value >= season_lower && layer_value <= season_upper)
+	{
+		return static_cast<CTerrainRasterQuad1*>(m_data.get());
+	}
+
+	if (layer_value >= photo_lower && layer_value <= photo_upper)
+	{
+		return static_cast<CTerrainRasterQuad1*>(m_data.get());
+	}
+
+	if (layer_value >= photo32_lower && layer_value <= photo32_upper)
+	{
+		return static_cast<CTerrainRasterQuad1*>(m_data.get());
+	}
+
+	switch (m_type)
+	{
+	case EBglLayerType::TerrainElevation:
+	case EBglLayerType::TerrainLandClass:
+	case EBglLayerType::TerrainWaterClass:
+	case EBglLayerType::TerrainRegion:
+	case EBglLayerType::PopulationDensity:
+	case EBglLayerType::TerrainIndex:
+		return static_cast<CTerrainRasterQuad1*>(m_data.get());
+	default:
+		break;
+	}
+
+	return nullptr;
 }
 
 auto CBglData::AsAirport() -> IBglAirport*

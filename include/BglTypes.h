@@ -29,6 +29,8 @@
 
 // TODO: We need a cross platform library for this
 #include <cstdint>
+#include <optional>
+#include <vector>
 
 #if defined(_WIN32)
 #include <guiddef.h>
@@ -2143,12 +2145,29 @@ public:
 	virtual auto GetLength() const -> int = 0;
 };
 
+class BinaryFileStream;
+struct SRasterImage;
+struct SBglTerrainRasterQuad1Data;
 
 class ITerrainRasterQuad1
 {
 public:
+	struct SRcs1Data
+	{
+		uint32_t Signature = 0;
+		float Scale = 1.0f;
+		float Base = 0.0f;
+	};
+
 	virtual int Rows() const = 0;
 	virtual int Cols() const = 0;
+	virtual auto GetHeader() const -> const SBglTerrainRasterQuad1Data& = 0;
+	virtual auto GetDataOffset() const -> int = 0;
+	virtual auto GetDataLength() const -> int = 0;
+	virtual auto DecodeToImage(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const
+		-> bool = 0;
+	virtual auto ReadCompressedData(BinaryFileStream& in, std::vector<uint8_t>& out_data,
+		std::optional<SRcs1Data>& out_rcs1) const -> bool = 0;
 };
 
 
