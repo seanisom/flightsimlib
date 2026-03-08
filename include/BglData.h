@@ -3509,9 +3509,11 @@ public:
     int Cols() const override;
     ERasterDataType GetDataType() const { return m_header->DataType; }
     static bool GetImageFormatForType(ERasterDataType data_type, int& bit_depth, int& num_channels);
-    std::unique_ptr<uint8_t[]> DecompressData(ERasterCompressionType compression_type, const uint8_t* compressed_data,
-        int compressed_size, int uncompressed_size) const;
-    bool DecodeToImage(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const override;
+    bool DecompressRaster(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const override;
+    bool ReadCompressedRaster(
+        BinaryFileStream& in, std::vector<uint8_t>& out_data, std::optional<SRcs1Data>& out_rcs1) const override;
+    bool ReadCompressedMask(BinaryFileStream& in, std::vector<uint8_t>& out_mask) const override;
+    bool DecompressMask(BinaryFileStream& in, std::vector<uint8_t>& out_mask) const override;
 
     auto GetHeader() const -> const SBglTerrainRasterQuad1Data& override { return m_header.read(); }
 
@@ -3519,10 +3521,9 @@ public:
 
     auto GetDataLength() const -> int override { return m_data->DataLength; }
 
-    bool ReadCompressedData(
-        BinaryFileStream& in, std::vector<uint8_t>& out_data, std::optional<SRcs1Data>& out_rcs1) const override;
-
 private:
+    std::unique_ptr<uint8_t[]> DecompressData(ERasterCompressionType compression_type, const uint8_t* compressed_data,
+        int compressed_size, int uncompressed_size) const;
     int GetBpp() const
     {
         switch (GetDataType())

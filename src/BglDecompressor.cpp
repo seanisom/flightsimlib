@@ -561,7 +561,7 @@ int CBglDecompressor::DecompressPtc(
 		memcpy(p_uncompressed, p_dest.get(), uncompressed_size);
 	}
 
-	return 0;
+	return uncompressed_size;
 }
 
 

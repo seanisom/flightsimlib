@@ -2167,10 +2167,12 @@ public:
 	virtual auto GetHeader() const -> const SBglTerrainRasterQuad1Data& = 0;
 	virtual auto GetDataOffset() const -> int = 0;
 	virtual auto GetDataLength() const -> int = 0;
-	virtual auto DecodeToImage(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const
+	virtual auto DecompressRaster(const uint8_t* compressed_data, int compressed_size, SRasterImage& out_image) const
 		-> bool = 0;
-	virtual auto ReadCompressedData(BinaryFileStream& in, std::vector<uint8_t>& out_data,
+	virtual auto ReadCompressedRaster(BinaryFileStream& in, std::vector<uint8_t>& out_data,
 		std::optional<SRcs1Data>& out_rcs1) const -> bool = 0;
+	virtual auto ReadCompressedMask(BinaryFileStream& in, std::vector<uint8_t>& out_mask) const -> bool = 0;
+	virtual auto DecompressMask(BinaryFileStream& in, std::vector<uint8_t>& out_mask) const -> bool = 0;
 };
 
 
