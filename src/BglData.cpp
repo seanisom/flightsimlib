@@ -7804,9 +7804,11 @@ std::shared_ptr<uint8_t[]> flightsimlib::io::CRasterBlock::GetCompressedData() {
 void flightsimlib::io::CTerrainRasterQuad1::ReadBinary(BinaryFileStream& in)
 {
     auto& header = m_header.write();
+    // On-disk order: Cols (u16) + padding (u16), then Rows (u16) + padding
+    // (u16). See SBglTerrainRasterQuad1Data comment in BglData.h.
     in >> header.Version >> header.Size >> header.DataType >> header.CompressionTypeData >>
-        header.CompressionTypeMask >> header.QmidLow >> header.QmidHigh >> header.Variations >> header.Rows >>
-        header.Cols >> header.SizeData >> header.SizeMask;
+        header.CompressionTypeMask >> header.QmidLow >> header.QmidHigh >> header.Variations >> header.Cols >>
+        header.ColsPadding >> header.Rows >> header.RowsPadding >> header.SizeData >> header.SizeMask;
 
     if (in)
     {
@@ -7827,7 +7829,8 @@ void flightsimlib::io::CTerrainRasterQuad1::WriteBinary(BinaryFileStream& out)
     m_header.write().SizeMask = m_data->MaskLength;
     out << m_header->Version << m_header->Size << m_header->DataType << m_header->CompressionTypeData
         << m_header->CompressionTypeMask << m_header->QmidLow << m_header->QmidHigh << m_header->Variations
-        << m_header->Rows << m_header->Cols << m_header->SizeData << m_header->SizeMask;
+        << m_header->Cols << m_header->ColsPadding << m_header->Rows << m_header->RowsPadding << m_header->SizeData
+        << m_header->SizeMask;
 
     m_data.write().DataOffset = out.GetPosition();
     if (m_data->MaskLength)
@@ -8079,10 +8082,19 @@ bool flightsimlib::io::CTerrainRasterQuad1::GetImageFormatForType(
         num_channels = 1;
         return true;
     case ERasterDataType::Photo:
+        // ARGB1555 packed into 16 bits total. `bit_depth` is the TOTAL
+        // pixel bit-width (not per-channel), and `num_channels` is the
+        // number of logical channels the codec should treat the pixel as
+        // having (four: alpha, red, green, blue). Callers must NOT
+        // multiply `bit_depth/8` by `num_channels` to derive bytes per
+        // pixel — use `GetBpp()` for that. The quirk is historical; see
+        // SBglTerrainRasterQuad1Data comment in BglData.h.
         bit_depth = 16;
         num_channels = 4;
         return true;
     case ERasterDataType::PhotoFlight:
+        // PhotoFlight is 32 bits per pixel across four channels (8 bpc).
+        // Same GetBpp-not-multiplication rule as Photo.
         bit_depth = 32;
         num_channels = 4;
         return true;
@@ -8120,8 +8132,11 @@ bool flightsimlib::io::CTerrainRasterQuad1::DecompressRaster(
         return false;
     }
 
-    const int bytes_per_channel = bit_depth / 8;
-    const int bytes_per_pixel = bytes_per_channel * num_channels;
+    // `bit_depth` from GetImageFormatForType is the TOTAL pixel width, not
+    // per-channel. Multiplying by `num_channels` would over-size the
+    // buffer for packed formats (Photo is ARGB1555 = 16 bits total across
+    // 4 channels). Use GetBpp() which already returns bytes per pixel.
+    const int bytes_per_pixel = GetBpp();
     const int uncompressed_size = static_cast<int>(bytes_per_pixel * header.Rows * header.Cols);
     if (uncompressed_size <= 0)
     {
@@ -8152,9 +8167,15 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
     }
 
     const size_t pixel_count = static_cast<size_t>(image.Width) * static_cast<size_t>(image.Height);
-    const size_t expected_bytes =
-        pixel_count * static_cast<size_t>(image.Channels) * static_cast<size_t>(image.BitDepth / 8);
-    if (image.DataSize < expected_bytes)
+    // Minimum bytes required: Channels * BitDepth/8 for formats where
+    // BitDepth is per-channel (8, 32), or just BitDepth/8 for Photo where
+    // BitDepth is total. We do the permissive union check here and let
+    // each per-format branch below verify its own specific size.
+    const size_t min_bytes_per_pixel =
+        (image.DataType == ERasterDataType::Photo)
+            ? static_cast<size_t>(image.BitDepth / 8)
+            : static_cast<size_t>(image.Channels) * static_cast<size_t>(image.BitDepth / 8);
+    if (image.DataSize < pixel_count * min_bytes_per_pixel)
     {
         return false;
     }
@@ -8190,8 +8211,37 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
         return true;
     }
 
+    // TERRAIN_PHOTO is ARGB1555 packed into a single u16 per pixel: bit
+    // 15 = opacity, bits 10..14 = R, bits 5..9 = G, bits 0..4 = B. The
+    // DataType is the discriminator here, not Channels / BitDepth — for
+    // Photo the reported values are (bit_depth=16, num_channels=4) where
+    // bit_depth is the total pixel width, not per-channel. See
+    // GetImageFormatForType comment + bgldec's WritePixel24From16.
+    if (image.DataType == ERasterDataType::Photo && image.BitDepth == 16)
+    {
+        if (image.DataSize < pixel_count * sizeof(uint16_t))
+        {
+            return false;
+        }
+        for (size_t i = 0; i < pixel_count; ++i)
+        {
+            const uint16_t pixel = read_u16(src, i * sizeof(uint16_t));
+            const auto blue = static_cast<uint8_t>(8u * (pixel & 0x1Fu));
+            const auto green = static_cast<uint8_t>((static_cast<uint32_t>(pixel) >> 2) & 0xF8u);
+            const auto red = static_cast<uint8_t>((static_cast<uint32_t>(pixel) >> 7) & 0xF8u);
+            const auto alpha = static_cast<uint8_t>((pixel & 0x8000u) ? 255u : 0u);
+            dst[i * 4 + 0] = red;
+            dst[i * 4 + 1] = green;
+            dst[i * 4 + 2] = blue;
+            dst[i * 4 + 3] = alpha;
+        }
+        return true;
+    }
+
     if (image.Channels == 1 && image.BitDepth == 16)
     {
+        // Single-channel 16-bit (elevation / index / land-class): greyscale
+        // preview using the high byte.
         for (size_t i = 0; i < pixel_count; ++i)
         {
             const uint16_t raw = read_u16(src, i * sizeof(uint16_t));
@@ -8200,19 +8250,6 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
             dst[i * 4 + 1] = value;
             dst[i * 4 + 2] = value;
             dst[i * 4 + 3] = 255;
-        }
-        return true;
-    }
-
-    if (image.Channels == 4 && image.BitDepth == 16)
-    {
-        for (size_t i = 0; i < pixel_count; ++i)
-        {
-            const size_t base = i * 4;
-            dst[base + 0] = static_cast<uint8_t>(read_u16(src, (base + 0) * sizeof(uint16_t)) >> 8);
-            dst[base + 1] = static_cast<uint8_t>(read_u16(src, (base + 1) * sizeof(uint16_t)) >> 8);
-            dst[base + 2] = static_cast<uint8_t>(read_u16(src, (base + 2) * sizeof(uint16_t)) >> 8);
-            dst[base + 3] = static_cast<uint8_t>(read_u16(src, (base + 3) * sizeof(uint16_t)) >> 8);
         }
         return true;
     }

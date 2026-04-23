@@ -3453,6 +3453,19 @@ enum class ERasterDataType : uint16_t
 #pragma pack(1)
 
 // Exclusions are always 0,0 QMID!
+//
+// On-disk layout (40 bytes, #pragma pack 1):
+//   Version(4) Size(4) DataType(u16) CompTypeData(u8) CompTypeMask(u8)
+//   QmidLow(4) QmidHigh(4) Variations(4)
+//   Cols(u16) ColsPadding(u16) Rows(u16) RowsPadding(u16)
+//   SizeData(4) SizeMask(4)
+//
+// Note the *column-major* order (NColumns, NRows) and the u16 width for
+// each dimension with a 2-byte padding/flags field after. FSX-era files
+// typically leave the padding zero, but newer P3D v6 SDK outputs populate
+// the Cols padding with a non-zero flag byte; declaring the dimensions
+// as u32 would then pull that flag into the high half of the decoded
+// value and blow up every uncompressed-size calculation downstream.
 struct SBglTerrainRasterQuad1Data
 {
     uint32_t Version;
@@ -3463,8 +3476,10 @@ struct SBglTerrainRasterQuad1Data
     uint32_t QmidLow;
     uint32_t QmidHigh;
     uint32_t Variations;
-    uint32_t Rows;
-    uint32_t Cols;
+    uint16_t Cols;
+    uint16_t ColsPadding;
+    uint16_t Rows;
+    uint16_t RowsPadding;
     uint32_t SizeData;
     uint32_t SizeMask;
 };
