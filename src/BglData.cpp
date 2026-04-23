@@ -8132,10 +8132,11 @@ bool flightsimlib::io::CTerrainRasterQuad1::DecompressRaster(
         return false;
     }
 
-    // `bit_depth` from GetImageFormatForType is the TOTAL pixel width, not
-    // per-channel. Multiplying by `num_channels` would over-size the
-    // buffer for packed formats (Photo is ARGB1555 = 16 bits total across
-    // 4 channels). Use GetBpp() which already returns bytes per pixel.
+    // `bit_depth` from GetImageFormatForType is the TOTAL pixel width,
+    // not per-channel (see the comment on that function). Do NOT
+    // multiply by `num_channels`; that over-sizes the buffer 4x for
+    // packed types like Photo (ARGB1555) and PhotoFlight. GetBpp()
+    // already reports the correct bytes-per-pixel value.
     const int bytes_per_pixel = GetBpp();
     const int uncompressed_size = static_cast<int>(bytes_per_pixel * header.Rows * header.Cols);
     if (uncompressed_size <= 0)
@@ -8167,15 +8168,11 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
     }
 
     const size_t pixel_count = static_cast<size_t>(image.Width) * static_cast<size_t>(image.Height);
-    // Minimum bytes required: Channels * BitDepth/8 for formats where
-    // BitDepth is per-channel (8, 32), or just BitDepth/8 for Photo where
-    // BitDepth is total. We do the permissive union check here and let
-    // each per-format branch below verify its own specific size.
-    const size_t min_bytes_per_pixel =
-        (image.DataType == ERasterDataType::Photo)
-            ? static_cast<size_t>(image.BitDepth / 8)
-            : static_cast<size_t>(image.Channels) * static_cast<size_t>(image.BitDepth / 8);
-    if (image.DataSize < pixel_count * min_bytes_per_pixel)
+    // `BitDepth` is the TOTAL pixel bit width for every supported data
+    // type (see GetImageFormatForType). Do NOT multiply by Channels.
+    // This mirrors CTerrainRasterQuad1::GetBpp() on the decode side.
+    const size_t bytes_per_pixel = static_cast<size_t>(image.BitDepth / 8);
+    if (image.DataSize < pixel_count * bytes_per_pixel)
     {
         return false;
     }

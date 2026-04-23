@@ -3539,12 +3539,16 @@ public:
 private:
     std::unique_ptr<uint8_t[]> DecompressData(ERasterCompressionType compression_type, const uint8_t* compressed_data,
         int compressed_size, int uncompressed_size) const;
+    // Bytes per decoded output pixel for each TRQ1 data type. Used as the
+    // output pixel stride by the PTC codec (see DecompressPtc) and by the
+    // CalculateLength helper. Must match the actual on-disk / in-memory
+    // stride of a single pixel, NOT the PTC codec's internal block-element
+    // size which coincides for most types.
     int GetBpp() const
     {
         switch (GetDataType())
         {
         case ERasterDataType::PopulationDensity:
-        case ERasterDataType::TerrainIndex:
         case ERasterDataType::LandClass:
         case ERasterDataType::Region:
         case ERasterDataType::Season:
@@ -3554,6 +3558,7 @@ private:
         case ERasterDataType::Elevation:
         case ERasterDataType::ModifiedElevation:
         case ERasterDataType::Photo:
+        case ERasterDataType::TerrainIndex:
             return 2;
         case ERasterDataType::PhotoFlight:
             return 4;
