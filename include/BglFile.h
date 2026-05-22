@@ -41,6 +41,7 @@
 
 #include "../external/stlab/copy_on_write.hpp"
 
+#include <cstring>
 #include <map>
 #include <memory>
 #include <string>
