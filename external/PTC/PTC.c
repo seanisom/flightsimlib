@@ -4,6 +4,7 @@
 #include "PTC.h"
 
 #include <assert.h>
+#include <stdint.h>
 
 
 #pragma warning(disable: 6385)
