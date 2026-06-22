@@ -191,10 +191,70 @@ public:
 	virtual ~IBglTerrainIndex() = default;
 };
 
+// One row of the LCLookup (TerrainTextureLookup, layer 0x6F) texture block.
+// 24 bytes on disk (see CBglTerrainTextureLookup::ReadBinary), but stored here
+// unpacked so callers don't depend on the packed layout. `Index` is implicit
+// (the row's position in the texture block).
+struct SBglTextureLookupEntry
+{
+	int16_t VULCNNumber = 0;       // FSX land-class id ("VULCN" numbering)
+	uint8_t VULCNRegion = 0;       // region qualifier
+	uint8_t VULCNMask = 0;         // mask qualifier
+	int16_t SeasonMask = 0;        // seasons this row covers (displayed octal)
+	int16_t DrawPriority = 0;      // §2 step-2 stencil / compositing order
+	int16_t BlendTextureVULCN = 0; // blend-texture land-class ref
+	uint8_t BlendTextureRegion = 0;
+	uint8_t BlendTextureMask = 0;
+	int64_t BlendTextureVariant = 0; // variation selector (GAP B core)
+	int16_t AutogenVULCN = 0;        // autogen ref (out of scope for imagery)
+	uint8_t AutogenRegion = 0;
+	uint8_t AutogenMask = 0;
+};
+
+// LCLookup (TerrainTextureLookup, layer 0x6F) per-QMID record: the table that
+// maps (land class, season, region) -> texture tile, plus slope / vector class
+// remaps. Decoded byte-for-byte per LANDCLASS_SYNTHESIS.md §6. Getters expose
+// the decoded table; setters let the tiny writer author test records.
 class IBglTerrainTextureLookup
 {
 public:
+	// Fixed lookup widths from §6: slope is a 16-entry band table, vector a
+	// 5-entry feature table, per land class.
+	static constexpr int SlopeLookupCount = 16;
+	static constexpr int VectorLookupCount = 5;
+
 	virtual ~IBglTerrainTextureLookup() = default;
+
+	virtual auto GetHeaderMagic() const -> int32_t = 0;
+	virtual auto GetTextureCount() const -> int = 0;
+	virtual auto GetRegionCount() const -> int = 0;
+	virtual auto GetLandClassCount() const -> int = 0;
+	virtual auto GetWaterClassCount() const -> int = 0;
+
+	// Texture block row by implicit index, or nullptr if out of range.
+	virtual auto GetTextureAt(int index) const -> const SBglTextureLookupEntry* = 0;
+
+	// Region block: per region, the texture-block index a given land / water
+	// class resolves to. Returns -1 for out-of-range indices.
+	virtual auto GetRegionLandClassTexture(int region, int land_class) const -> int32_t = 0;
+	virtual auto GetRegionWaterClassTexture(int region, int water_class) const -> int32_t = 0;
+
+	// Slope / vector remap tables, indexed by land class then band / feature.
+	virtual auto GetSlopeLookup(int land_class, int slope_band) const -> uint8_t = 0;
+	virtual auto GetVectorLookup(int land_class, int vector_feature) const -> uint8_t = 0;
+
+	// --- Authoring (used by the tiny writer / round-trip test) ---
+	virtual auto SetHeaderMagic(int32_t value) -> void = 0;
+	// Size the region / slope / vector tables. Clears any existing region,
+	// slope and vector data; texture rows are managed separately via
+	// AddTexture / ClearTextures.
+	virtual auto ResizeTables(int num_regions, int num_land_classes, int num_water_classes) -> void = 0;
+	virtual auto ClearTextures() -> void = 0;
+	virtual auto AddTexture(const SBglTextureLookupEntry& entry) -> void = 0;
+	virtual auto SetRegionLandClassTexture(int region, int land_class, int32_t texture_index) -> void = 0;
+	virtual auto SetRegionWaterClassTexture(int region, int water_class, int32_t texture_index) -> void = 0;
+	virtual auto SetSlopeLookup(int land_class, int slope_band, uint8_t value) -> void = 0;
+	virtual auto SetVectorLookup(int land_class, int vector_feature, uint8_t value) -> void = 0;
 };
 
 class IBglTerrainSeason

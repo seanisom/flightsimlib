@@ -30,6 +30,7 @@
 #include "BglTypes.h"
 #include "../external/stlab/copy_on_write.hpp"
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -3620,6 +3621,70 @@ class CBglTerrainIndex final : public CTerrainRasterQuad1, public IBglTerrainInd
 };
 
 auto ConvertRasterToRgba(const SRasterImage& image, std::vector<uint8_t>& out_rgba) -> bool;
+
+//******************************************************************************
+// CBglTerrainTextureLookup (LCLookup, layer 0x6F)
+//******************************************************************************
+
+// Per-QMID LCLookup record. On-disk layout (LANDCLASS_SYNTHESIS.md §6), all
+// little-endian, every block offset relative to the record start:
+//   header (36 B): 9x i32 - Header, NumTextures, NumRegions, NumLandclasses,
+//     NumWaterclasses, OffsetTextureBlock, OffsetRegionBlock,
+//     OffsetSlopeLookupBlock, OffsetVectorLookupBlock
+//   texture block: NumTextures x 24 B + 4 pad
+//   region block:  NumRegions x (LandclassOffset i32, WaterclassOffset i32) +
+//     4 pad, then per region NumLandclasses x i32 (+4 pad) at LandclassOffset
+//     and NumWaterclasses x i32 (+4 pad) at WaterclassOffset
+//   slope block:   NumLandclasses x 16 u8 + 4 pad
+//   vector block:  NumLandclasses x 5 u8 + padding
+// ReadBinary is offset-driven (it seeks each block by its header offset) so it
+// is robust to inter-block padding variance; WriteBinary lays the blocks out
+// contiguously, 4-byte aligned.
+class CBglTerrainTextureLookup final : public IBglSerializable, public IBglTerrainTextureLookup
+{
+public:
+    auto ReadBinary(BinaryFileStream& in) -> void override;
+    auto WriteBinary(BinaryFileStream& out) -> void override;
+    auto Validate() -> bool override;
+    auto CalculateSize() const -> int override;
+
+    auto GetHeaderMagic() const -> int32_t override;
+    auto GetTextureCount() const -> int override;
+    auto GetRegionCount() const -> int override;
+    auto GetLandClassCount() const -> int override;
+    auto GetWaterClassCount() const -> int override;
+    auto GetTextureAt(int index) const -> const SBglTextureLookupEntry* override;
+    auto GetRegionLandClassTexture(int region, int land_class) const -> int32_t override;
+    auto GetRegionWaterClassTexture(int region, int water_class) const -> int32_t override;
+    auto GetSlopeLookup(int land_class, int slope_band) const -> uint8_t override;
+    auto GetVectorLookup(int land_class, int vector_feature) const -> uint8_t override;
+
+    auto SetHeaderMagic(int32_t value) -> void override;
+    auto ResizeTables(int num_regions, int num_land_classes, int num_water_classes) -> void override;
+    auto ClearTextures() -> void override;
+    auto AddTexture(const SBglTextureLookupEntry& entry) -> void override;
+    auto SetRegionLandClassTexture(int region, int land_class, int32_t texture_index) -> void override;
+    auto SetRegionWaterClassTexture(int region, int water_class, int32_t texture_index) -> void override;
+    auto SetSlopeLookup(int land_class, int slope_band, uint8_t value) -> void override;
+    auto SetVectorLookup(int land_class, int vector_feature, uint8_t value) -> void override;
+
+private:
+    // Texture-block fixed entry size (bytes on disk).
+    static constexpr int s_texture_entry_size = 24;
+    // Record header: 9 x i32.
+    static constexpr int s_header_size = 9 * 4;
+
+    int32_t m_header_magic = 0;
+    int32_t m_num_land_classes = 0;
+    int32_t m_num_water_classes = 0;
+    std::vector<SBglTextureLookupEntry> m_textures;
+    // [region][land_class] / [region][water_class] texture-block indices.
+    std::vector<std::vector<int32_t>> m_region_land_textures;
+    std::vector<std::vector<int32_t>> m_region_water_textures;
+    // [land_class] slope / vector remap tables.
+    std::vector<std::array<uint8_t, SlopeLookupCount>> m_slope_lookups;
+    std::vector<std::array<uint8_t, VectorLookupCount>> m_vector_lookups;
+};
 
 //******************************************************************************
 // CBglTimeZone
