@@ -205,6 +205,9 @@ namespace flightsimlib
                                : std::make_unique<CBglTerrainIndex>(*static_cast<const CBglTerrainIndex*>(args)...);
                 break;
             case EBglLayerType::TerrainTextureLookup:
+                data = no_copy ? std::make_unique<CBglTerrainTextureLookup>()
+                               : std::make_unique<CBglTerrainTextureLookup>(
+                                     *static_cast<const CBglTerrainTextureLookup*>(args)...);
                 break;
             case EBglLayerType::Tacan:
                 data = no_copy ? std::make_unique<CBglTacan>() : // NOLINT(bugprone-branch-clone)
@@ -455,10 +458,10 @@ namespace flightsimlib
 
         auto CBglData::AsTerrainTextureLookup() -> IBglTerrainTextureLookup*
         {
-            // if (m_type == EBglLayerType::TerrainTextureLookup)
-            // {
-            //     return dynamic_cast<IBglTerrainTextureLookup*>(m_data.get());
-            // }
+            if (m_type == EBglLayerType::TerrainTextureLookup)
+            {
+                return static_cast<CBglTerrainTextureLookup*>(m_data.get());
+            }
             return nullptr;
         }
 
@@ -784,12 +787,18 @@ namespace flightsimlib
                 m_pointers.resize(qmid_count);
                 const bool is_terrain_layer =
                     CBglLayer::IsTrq1BglLayer(layer_pointer->Type) || CBglLayer::IsRcs1BglLayer(layer_pointer->Type);
+                // LCLookup (0x6F) is not a TRQ1 raster but shares the packed
+                // 16-byte direct-QMID tile-pointer shape and SizeBytes-based
+                // record advance. Gate on this rather than IsTrq1BglLayer so
+                // 0x6F never lands on the AsRasterQuad1 / IsTerrainLayer paths.
+                const bool uses_packed_tile_pointer =
+                    is_terrain_layer || layer_pointer->Type == EBglLayerType::TerrainTextureLookup;
                 const auto entry_size =
                     (layer_pointer->TileCount > 0) ? (layer_pointer->SizeBytes / layer_pointer->TileCount) : 0u;
                 for (auto i = 0; i < qmid_count; ++i)
                 {
                     m_pointers[i] = std::make_unique<SBglTilePointer>();
-                    if (is_terrain_layer && (entry_size == 16 || entry_size == 20))
+                    if (uses_packed_tile_pointer && (entry_size == 16 || entry_size == 20))
                     {
                         in >> m_pointers[i]->QmidLow >> m_pointers[i]->QmidHigh;
                         if (entry_size == 20)
@@ -861,7 +870,7 @@ namespace flightsimlib
                             return false;
                         }
                         data_list.emplace_back(std::move(data));
-                        if (is_terrain_layer)
+                        if (uses_packed_tile_pointer)
                         {
                             in.SetPosition(pos + static_cast<int>(tile_pointer->SizeBytes));
                         }

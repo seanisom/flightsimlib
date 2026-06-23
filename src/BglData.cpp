@@ -8281,6 +8281,390 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
 }
 
 //******************************************************************************
+// CBglTerrainTextureLookup (LCLookup, layer 0x6F)
+//******************************************************************************
+
+namespace
+{
+// Round a block length up to a 4-byte boundary. The §6 blocks are each
+// followed by a small pad to keep the next block 4-byte aligned.
+auto AlignUp4(int value) -> int { return (value + 3) & ~3; }
+} // namespace
+
+void flightsimlib::io::CBglTerrainTextureLookup::ReadBinary(BinaryFileStream& in)
+{
+    const auto base = in.GetPosition();
+
+    int32_t header = 0;
+    int32_t num_textures = 0;
+    int32_t num_regions = 0;
+    int32_t num_land_classes = 0;
+    int32_t num_water_classes = 0;
+    int32_t offset_texture_block = 0;
+    int32_t offset_region_block = 0;
+    int32_t offset_slope_block = 0;
+    int32_t offset_vector_block = 0;
+    in >> header >> num_textures >> num_regions >> num_land_classes >> num_water_classes >> offset_texture_block >>
+        offset_region_block >> offset_slope_block >> offset_vector_block;
+    if (!in)
+    {
+        return;
+    }
+
+    m_header_magic = header;
+    m_num_land_classes = num_land_classes;
+    m_num_water_classes = num_water_classes;
+
+    // --- Texture block ---
+    m_textures.clear();
+    m_textures.reserve(num_textures < 0 ? 0 : static_cast<size_t>(num_textures));
+    in.SetPosition(base + offset_texture_block);
+    for (int32_t i = 0; i < num_textures; ++i)
+    {
+        SBglTextureLookupEntry entry{};
+        in >> entry.VULCNNumber >> entry.VULCNRegion >> entry.VULCNMask >> entry.SeasonMask >> entry.DrawPriority >>
+            entry.BlendTextureVULCN >> entry.BlendTextureRegion >> entry.BlendTextureMask >> entry.BlendTextureVariant >>
+            entry.AutogenVULCN >> entry.AutogenRegion >> entry.AutogenMask;
+        m_textures.push_back(entry);
+    }
+
+    // --- Region block: pointer table, then per-region land / water arrays ---
+    m_region_land_textures.assign(num_regions < 0 ? 0 : static_cast<size_t>(num_regions), {});
+    m_region_water_textures.assign(num_regions < 0 ? 0 : static_cast<size_t>(num_regions), {});
+    std::vector<int32_t> land_offsets(num_regions < 0 ? 0 : static_cast<size_t>(num_regions), 0);
+    std::vector<int32_t> water_offsets(num_regions < 0 ? 0 : static_cast<size_t>(num_regions), 0);
+    in.SetPosition(base + offset_region_block);
+    for (int32_t r = 0; r < num_regions; ++r)
+    {
+        in >> land_offsets[static_cast<size_t>(r)] >> water_offsets[static_cast<size_t>(r)];
+    }
+    for (int32_t r = 0; r < num_regions; ++r)
+    {
+        auto& land = m_region_land_textures[static_cast<size_t>(r)];
+        land.assign(num_land_classes < 0 ? 0 : static_cast<size_t>(num_land_classes), -1);
+        in.SetPosition(base + land_offsets[static_cast<size_t>(r)]);
+        for (int32_t l = 0; l < num_land_classes; ++l)
+        {
+            in >> land[static_cast<size_t>(l)];
+        }
+
+        auto& water = m_region_water_textures[static_cast<size_t>(r)];
+        water.assign(num_water_classes < 0 ? 0 : static_cast<size_t>(num_water_classes), -1);
+        in.SetPosition(base + water_offsets[static_cast<size_t>(r)]);
+        for (int32_t w = 0; w < num_water_classes; ++w)
+        {
+            in >> water[static_cast<size_t>(w)];
+        }
+    }
+
+    // --- Slope lookup block: NumLandclasses x 16 u8 ---
+    m_slope_lookups.assign(num_land_classes < 0 ? 0 : static_cast<size_t>(num_land_classes), {});
+    in.SetPosition(base + offset_slope_block);
+    for (auto& row : m_slope_lookups)
+    {
+        for (auto& band : row)
+        {
+            in >> band;
+        }
+    }
+
+    // --- Vector lookup block: NumLandclasses x 5 u8 ---
+    m_vector_lookups.assign(num_land_classes < 0 ? 0 : static_cast<size_t>(num_land_classes), {});
+    in.SetPosition(base + offset_vector_block);
+    for (auto& row : m_vector_lookups)
+    {
+        for (auto& feature : row)
+        {
+            in >> feature;
+        }
+    }
+}
+
+void flightsimlib::io::CBglTerrainTextureLookup::WriteBinary(BinaryFileStream& out)
+{
+    const auto num_textures = static_cast<int32_t>(m_textures.size());
+    const auto num_regions = static_cast<int32_t>(m_region_land_textures.size());
+    const auto num_land_classes = m_num_land_classes;
+    const auto num_water_classes = m_num_water_classes;
+
+    // Compute block offsets (relative to the record start) up front so the
+    // header can carry them. Layout: header, texture block, region pointer
+    // table, per-region land + water arrays, slope block, vector block -
+    // each block 4-byte aligned.
+    const int32_t offset_texture_block = s_header_size;
+    const int32_t texture_block_size = AlignUp4(num_textures * s_texture_entry_size);
+    const int32_t offset_region_block = offset_texture_block + texture_block_size;
+
+    const int32_t region_ptr_size = AlignUp4(num_regions * 8);
+    const int32_t land_array_size = AlignUp4(num_land_classes * 4);
+    const int32_t water_array_size = AlignUp4(num_water_classes * 4);
+
+    std::vector<int32_t> land_offsets(static_cast<size_t>(num_regions), 0);
+    std::vector<int32_t> water_offsets(static_cast<size_t>(num_regions), 0);
+    int32_t cursor = offset_region_block + region_ptr_size;
+    for (int32_t r = 0; r < num_regions; ++r)
+    {
+        land_offsets[static_cast<size_t>(r)] = cursor;
+        cursor += land_array_size;
+        water_offsets[static_cast<size_t>(r)] = cursor;
+        cursor += water_array_size;
+    }
+
+    const int32_t offset_slope_block = cursor;
+    const int32_t slope_block_size = AlignUp4(num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
+    const int32_t offset_vector_block = offset_slope_block + slope_block_size;
+
+    // --- Header ---
+    out << m_header_magic << num_textures << num_regions << num_land_classes << num_water_classes
+        << offset_texture_block << offset_region_block << offset_slope_block << offset_vector_block;
+
+    auto write_pad = [&out](int32_t bytes)
+    {
+        const auto pad = uint8_t{0};
+        for (int32_t i = 0; i < bytes; ++i)
+        {
+            out << pad;
+        }
+    };
+
+    // --- Texture block ---
+    for (const auto& entry : m_textures)
+    {
+        out << entry.VULCNNumber << entry.VULCNRegion << entry.VULCNMask << entry.SeasonMask << entry.DrawPriority
+            << entry.BlendTextureVULCN << entry.BlendTextureRegion << entry.BlendTextureMask << entry.BlendTextureVariant
+            << entry.AutogenVULCN << entry.AutogenRegion << entry.AutogenMask;
+    }
+    write_pad(texture_block_size - num_textures * s_texture_entry_size);
+
+    // --- Region pointer table ---
+    for (int32_t r = 0; r < num_regions; ++r)
+    {
+        out << land_offsets[static_cast<size_t>(r)] << water_offsets[static_cast<size_t>(r)];
+    }
+    write_pad(region_ptr_size - num_regions * 8);
+
+    // --- Per-region land + water texture-index arrays ---
+    for (int32_t r = 0; r < num_regions; ++r)
+    {
+        const auto& land = m_region_land_textures[static_cast<size_t>(r)];
+        for (int32_t l = 0; l < num_land_classes; ++l)
+        {
+            const int32_t value = (static_cast<size_t>(l) < land.size()) ? land[static_cast<size_t>(l)] : -1;
+            out << value;
+        }
+        write_pad(land_array_size - num_land_classes * 4);
+
+        const auto& water = m_region_water_textures[static_cast<size_t>(r)];
+        for (int32_t w = 0; w < num_water_classes; ++w)
+        {
+            const int32_t value = (static_cast<size_t>(w) < water.size()) ? water[static_cast<size_t>(w)] : -1;
+            out << value;
+        }
+        write_pad(water_array_size - num_water_classes * 4);
+    }
+
+    // --- Slope lookup block ---
+    for (int32_t l = 0; l < num_land_classes; ++l)
+    {
+        const auto& row = m_slope_lookups[static_cast<size_t>(l)];
+        for (auto band : row)
+        {
+            out << band;
+        }
+    }
+    write_pad(slope_block_size - num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
+
+    // --- Vector lookup block ---
+    for (int32_t l = 0; l < num_land_classes; ++l)
+    {
+        const auto& row = m_vector_lookups[static_cast<size_t>(l)];
+        for (auto feature : row)
+        {
+            out << feature;
+        }
+    }
+    const int32_t vector_payload = num_land_classes * IBglTerrainTextureLookup::VectorLookupCount;
+    write_pad(AlignUp4(vector_payload) - vector_payload);
+}
+
+bool flightsimlib::io::CBglTerrainTextureLookup::Validate()
+{
+    if (m_num_land_classes < 0 || m_num_water_classes < 0)
+    {
+        return false;
+    }
+    if (m_region_land_textures.size() != m_region_water_textures.size())
+    {
+        return false;
+    }
+    if (m_slope_lookups.size() != static_cast<size_t>(m_num_land_classes) ||
+        m_vector_lookups.size() != static_cast<size_t>(m_num_land_classes))
+    {
+        return false;
+    }
+    return true;
+}
+
+int flightsimlib::io::CBglTerrainTextureLookup::CalculateSize() const
+{
+    const auto num_textures = static_cast<int32_t>(m_textures.size());
+    const auto num_regions = static_cast<int32_t>(m_region_land_textures.size());
+    int32_t size = s_header_size;
+    size += AlignUp4(num_textures * s_texture_entry_size);
+    size += AlignUp4(num_regions * 8);
+    size += num_regions * (AlignUp4(m_num_land_classes * 4) + AlignUp4(m_num_water_classes * 4));
+    size += AlignUp4(m_num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
+    size += AlignUp4(m_num_land_classes * IBglTerrainTextureLookup::VectorLookupCount);
+    return size;
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetHeaderMagic() const -> int32_t { return m_header_magic; }
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetTextureCount() const -> int
+{
+    return static_cast<int>(m_textures.size());
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetRegionCount() const -> int
+{
+    return static_cast<int>(m_region_land_textures.size());
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetLandClassCount() const -> int { return m_num_land_classes; }
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetWaterClassCount() const -> int { return m_num_water_classes; }
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetTextureAt(int index) const -> const SBglTextureLookupEntry*
+{
+    if (index < 0 || static_cast<size_t>(index) >= m_textures.size())
+    {
+        return nullptr;
+    }
+    return &m_textures[static_cast<size_t>(index)];
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetRegionLandClassTexture(int region, int land_class) const -> int32_t
+{
+    if (region < 0 || static_cast<size_t>(region) >= m_region_land_textures.size())
+    {
+        return -1;
+    }
+    const auto& land = m_region_land_textures[static_cast<size_t>(region)];
+    if (land_class < 0 || static_cast<size_t>(land_class) >= land.size())
+    {
+        return -1;
+    }
+    return land[static_cast<size_t>(land_class)];
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetRegionWaterClassTexture(int region, int water_class) const -> int32_t
+{
+    if (region < 0 || static_cast<size_t>(region) >= m_region_water_textures.size())
+    {
+        return -1;
+    }
+    const auto& water = m_region_water_textures[static_cast<size_t>(region)];
+    if (water_class < 0 || static_cast<size_t>(water_class) >= water.size())
+    {
+        return -1;
+    }
+    return water[static_cast<size_t>(water_class)];
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetSlopeLookup(int land_class, int slope_band) const -> uint8_t
+{
+    if (land_class < 0 || static_cast<size_t>(land_class) >= m_slope_lookups.size() || slope_band < 0 ||
+        slope_band >= IBglTerrainTextureLookup::SlopeLookupCount)
+    {
+        return 0;
+    }
+    return m_slope_lookups[static_cast<size_t>(land_class)][static_cast<size_t>(slope_band)];
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::GetVectorLookup(int land_class, int vector_feature) const -> uint8_t
+{
+    if (land_class < 0 || static_cast<size_t>(land_class) >= m_vector_lookups.size() || vector_feature < 0 ||
+        vector_feature >= IBglTerrainTextureLookup::VectorLookupCount)
+    {
+        return 0;
+    }
+    return m_vector_lookups[static_cast<size_t>(land_class)][static_cast<size_t>(vector_feature)];
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::SetHeaderMagic(int32_t value) -> void { m_header_magic = value; }
+
+auto flightsimlib::io::CBglTerrainTextureLookup::ResizeTables(
+    int num_regions, int num_land_classes, int num_water_classes) -> void
+{
+    m_num_land_classes = num_land_classes < 0 ? 0 : num_land_classes;
+    m_num_water_classes = num_water_classes < 0 ? 0 : num_water_classes;
+    const auto regions = num_regions < 0 ? size_t{0} : static_cast<size_t>(num_regions);
+
+    m_region_land_textures.assign(regions, std::vector<int32_t>(static_cast<size_t>(m_num_land_classes), -1));
+    m_region_water_textures.assign(regions, std::vector<int32_t>(static_cast<size_t>(m_num_water_classes), -1));
+    m_slope_lookups.assign(static_cast<size_t>(m_num_land_classes), {});
+    m_vector_lookups.assign(static_cast<size_t>(m_num_land_classes), {});
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::ClearTextures() -> void { m_textures.clear(); }
+
+auto flightsimlib::io::CBglTerrainTextureLookup::AddTexture(const SBglTextureLookupEntry& entry) -> void
+{
+    m_textures.push_back(entry);
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::SetRegionLandClassTexture(
+    int region, int land_class, int32_t texture_index) -> void
+{
+    if (region < 0 || static_cast<size_t>(region) >= m_region_land_textures.size())
+    {
+        return;
+    }
+    auto& land = m_region_land_textures[static_cast<size_t>(region)];
+    if (land_class < 0 || static_cast<size_t>(land_class) >= land.size())
+    {
+        return;
+    }
+    land[static_cast<size_t>(land_class)] = texture_index;
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::SetRegionWaterClassTexture(
+    int region, int water_class, int32_t texture_index) -> void
+{
+    if (region < 0 || static_cast<size_t>(region) >= m_region_water_textures.size())
+    {
+        return;
+    }
+    auto& water = m_region_water_textures[static_cast<size_t>(region)];
+    if (water_class < 0 || static_cast<size_t>(water_class) >= water.size())
+    {
+        return;
+    }
+    water[static_cast<size_t>(water_class)] = texture_index;
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::SetSlopeLookup(int land_class, int slope_band, uint8_t value) -> void
+{
+    if (land_class < 0 || static_cast<size_t>(land_class) >= m_slope_lookups.size() || slope_band < 0 ||
+        slope_band >= IBglTerrainTextureLookup::SlopeLookupCount)
+    {
+        return;
+    }
+    m_slope_lookups[static_cast<size_t>(land_class)][static_cast<size_t>(slope_band)] = value;
+}
+
+auto flightsimlib::io::CBglTerrainTextureLookup::SetVectorLookup(
+    int land_class, int vector_feature, uint8_t value) -> void
+{
+    if (land_class < 0 || static_cast<size_t>(land_class) >= m_vector_lookups.size() || vector_feature < 0 ||
+        vector_feature >= IBglTerrainTextureLookup::VectorLookupCount)
+    {
+        return;
+    }
+    m_vector_lookups[static_cast<size_t>(land_class)][static_cast<size_t>(vector_feature)] = value;
+}
+
+//******************************************************************************
 // CBglTimeZone
 //******************************************************************************
 
