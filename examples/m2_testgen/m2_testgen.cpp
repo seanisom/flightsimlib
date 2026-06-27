@@ -442,96 +442,179 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
     for (int i = 1; i < argc; ++i)
     {
         const std::string a = argv[i];
-        auto next = [&]() -> std::string { return (i + 1 < argc) ? argv[++i] : std::string(); };
+        std::string value;
+        // Consume the next token as this option's value. Rejects a missing
+        // value or a following long option (e.g. `--qmid --raster`, or `--lat`
+        // at end of argv) so they fail fast instead of silently parsing as 0.
+        // A single leading '-' is allowed so negative numbers (e.g.
+        // `--lon -122.3`) still work.
+        auto need = [&](const char* opt) -> bool
+        {
+            if (i + 1 >= argc || (argv[i + 1][0] == '-' && argv[i + 1][1] == '-'))
+            {
+                std::fprintf(stderr, "Option %s requires a value.\n", opt);
+                return false;
+            }
+            value = argv[++i];
+            return true;
+        };
         if (a == "--qmid")
         {
+            if (!need("--qmid"))
+            {
+                return false;
+            }
             cfg.qmid_explicit = true;
-            cfg.qmid_low = static_cast<uint32_t>(std::strtoul(next().c_str(), nullptr, 0));
+            cfg.qmid_low = static_cast<uint32_t>(std::strtoul(value.c_str(), nullptr, 0));
+            // Optional high word: consume only if a non-flag token follows.
             if (i + 1 < argc && argv[i + 1][0] != '-')
             {
-                cfg.qmid_high = static_cast<uint32_t>(std::strtoul(next().c_str(), nullptr, 0));
+                cfg.qmid_high = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 0));
             }
         }
         else if (a == "--lat")
         {
-            cfg.lat = std::atof(next().c_str());
+            if (!need("--lat"))
+            {
+                return false;
+            }
+            cfg.lat = std::atof(value.c_str());
         }
         else if (a == "--lon")
         {
-            cfg.lon = std::atof(next().c_str());
+            if (!need("--lon"))
+            {
+                return false;
+            }
+            cfg.lon = std::atof(value.c_str());
         }
         else if (a == "--level")
         {
-            cfg.level = std::atoi(next().c_str());
+            if (!need("--level"))
+            {
+                return false;
+            }
+            cfg.level = std::atoi(value.c_str());
         }
         else if (a == "--raster")
         {
-            cfg.raster = std::atoi(next().c_str());
+            if (!need("--raster"))
+            {
+                return false;
+            }
+            cfg.raster = std::atoi(value.c_str());
         }
         else if (a == "--class-a")
         {
-            cfg.class_a = std::atoi(next().c_str());
+            if (!need("--class-a"))
+            {
+                return false;
+            }
+            cfg.class_a = std::atoi(value.c_str());
         }
         else if (a == "--class-b")
         {
-            cfg.class_b = std::atoi(next().c_str());
+            if (!need("--class-b"))
+            {
+                return false;
+            }
+            cfg.class_b = std::atoi(value.c_str());
         }
         else if (a == "--layout")
         {
-            const std::string l = next();
-            if (l == "half")
+            if (!need("--layout"))
+            {
+                return false;
+            }
+            if (value == "half")
             {
                 cfg.layout = Layout::Half;
             }
-            else if (l == "diag")
+            else if (value == "diag")
             {
                 cfg.layout = Layout::Diagonal;
             }
-            else if (l == "checker")
+            else if (value == "checker")
             {
                 cfg.layout = Layout::Checker;
             }
             else
             {
-                std::fprintf(stderr, "Unknown layout: %s\n", l.c_str());
+                std::fprintf(stderr, "Unknown layout: %s\n", value.c_str());
                 return false;
             }
         }
         else if (a == "--region")
         {
-            cfg.region = std::atoi(next().c_str());
+            if (!need("--region"))
+            {
+                return false;
+            }
+            cfg.region = std::atoi(value.c_str());
         }
         else if (a == "--variant")
         {
-            cfg.variant = static_cast<int64_t>(std::strtoll(next().c_str(), nullptr, 0));
+            if (!need("--variant"))
+            {
+                return false;
+            }
+            cfg.variant = static_cast<int64_t>(std::strtoll(value.c_str(), nullptr, 0));
         }
         else if (a == "--vulcn-mask")
         {
-            cfg.vulcn_mask = std::atoi(next().c_str());
+            if (!need("--vulcn-mask"))
+            {
+                return false;
+            }
+            cfg.vulcn_mask = std::atoi(value.c_str());
         }
         else if (a == "--blend-vulcn")
         {
-            cfg.blend_vulcn = std::atoi(next().c_str());
+            if (!need("--blend-vulcn"))
+            {
+                return false;
+            }
+            cfg.blend_vulcn = std::atoi(value.c_str());
         }
         else if (a == "--blend-region")
         {
-            cfg.blend_region = std::atoi(next().c_str());
+            if (!need("--blend-region"))
+            {
+                return false;
+            }
+            cfg.blend_region = std::atoi(value.c_str());
         }
         else if (a == "--blend-mask")
         {
-            cfg.blend_mask = std::atoi(next().c_str());
+            if (!need("--blend-mask"))
+            {
+                return false;
+            }
+            cfg.blend_mask = std::atoi(value.c_str());
         }
         else if (a == "--season-mask")
         {
-            cfg.season_mask = static_cast<int>(std::strtol(next().c_str(), nullptr, 0));
+            if (!need("--season-mask"))
+            {
+                return false;
+            }
+            cfg.season_mask = static_cast<int>(std::strtol(value.c_str(), nullptr, 0));
         }
         else if (a == "--draw-priority")
         {
-            cfg.draw_priority = std::atoi(next().c_str());
+            if (!need("--draw-priority"))
+            {
+                return false;
+            }
+            cfg.draw_priority = std::atoi(value.c_str());
         }
         else if (a == "--out")
         {
-            cfg.out = next();
+            if (!need("--out"))
+            {
+                return false;
+            }
+            cfg.out = value;
         }
         else if (a == "--no-verify")
         {
@@ -564,7 +647,32 @@ int main(int argc, char** argv)
 
     if (cfg.raster < 2 || cfg.raster > 4096 || cfg.level < 1 || cfg.level > 24)
     {
-        std::fprintf(stderr, "Invalid raster/level.\n");
+        std::fprintf(stderr, "Invalid raster/level (raster 2..4096, level 1..24).\n");
+        return 1;
+    }
+
+    // Validate that values fit their on-disk field sizes; out-of-range inputs
+    // would otherwise silently wrap and produce a misleading test file.
+    auto in_u8 = [](int v) { return v >= 0 && v <= 255; };
+    auto in_i16 = [](int v) { return v >= -32768 && v <= 32767; };
+    if (!in_u8(cfg.class_a) || !in_u8(cfg.class_b))
+    {
+        std::fprintf(stderr, "Land-class ids must be 0..255 (written as uint8 raster samples).\n");
+        return 1;
+    }
+    if (cfg.class_a == cfg.class_b)
+    {
+        std::fprintf(stderr, "--class-a and --class-b must differ (they map to distinct texture rows).\n");
+        return 1;
+    }
+    if (!in_u8(cfg.region) || !in_u8(cfg.vulcn_mask) || !in_u8(cfg.blend_mask) || !in_u8(cfg.blend_region))
+    {
+        std::fprintf(stderr, "--region / --vulcn-mask / --blend-mask / --blend-region must be 0..255.\n");
+        return 1;
+    }
+    if (!in_i16(cfg.blend_vulcn) || !in_i16(cfg.season_mask) || !in_i16(cfg.draw_priority))
+    {
+        std::fprintf(stderr, "--blend-vulcn / --season-mask / --draw-priority must fit int16 (-32768..32767).\n");
         return 1;
     }
 

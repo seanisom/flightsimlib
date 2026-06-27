@@ -322,26 +322,61 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i];
-        auto next = [&]() -> std::string { return (i + 1 < argc) ? argv[++i] : std::string(); };
+        std::string value;
+        // Consume the next token as this option's value, failing fast on a
+        // missing value or a following option instead of silently parsing "".
+        auto need = [&](const char* opt) -> bool
+        {
+            // Reject a missing value or a following long option (--foo). A
+            // single leading '-' is allowed so a negative list element reaches
+            // the explicit non-negative validation with a clearer message.
+            if (i + 1 >= argc || (argv[i + 1][0] == '-' && argv[i + 1][1] == '-'))
+            {
+                std::fprintf(stderr, "Option %s requires a value.\n", opt);
+                return false;
+            }
+            value = argv[++i];
+            return true;
+        };
         if (arg == "--out")
         {
-            out_dir = next();
+            if (!need("--out"))
+            {
+                return 1;
+            }
+            out_dir = value;
         }
         else if (arg == "--size")
         {
-            size = std::atoi(next().c_str());
+            if (!need("--size"))
+            {
+                return 1;
+            }
+            size = std::atoi(value.c_str());
         }
         else if (arg == "--classes")
         {
-            classes = ParseIntList(next());
+            if (!need("--classes"))
+            {
+                return 1;
+            }
+            classes = ParseIntList(value);
         }
         else if (arg == "--regions")
         {
-            regions = ParseIntList(next());
+            if (!need("--regions"))
+            {
+                return 1;
+            }
+            regions = ParseIntList(value);
         }
         else if (arg == "--variants")
         {
-            variants = std::atoi(next().c_str());
+            if (!need("--variants"))
+            {
+                return 1;
+            }
+            variants = std::atoi(value.c_str());
         }
         else if (arg == "-h" || arg == "--help")
         {
@@ -358,12 +393,37 @@ int main(int argc, char** argv)
 
     if (size < 16 || classes.empty() || regions.empty() || variants < 1)
     {
-        std::fprintf(stderr, "Invalid parameters.\n");
+        std::fprintf(stderr, "Invalid parameters (size >= 16, non-empty --classes/--regions, --variants >= 1).\n");
         return 1;
+    }
+
+    // Land-class / region ids are non-negative (and the baked label font has no
+    // '-' glyph, so a negative would render misleadingly). Reject up front.
+    for (int v : classes)
+    {
+        if (v < 0)
+        {
+            std::fprintf(stderr, "Land-class ids must be non-negative (got %d).\n", v);
+            return 1;
+        }
+    }
+    for (int v : regions)
+    {
+        if (v < 0)
+        {
+            std::fprintf(stderr, "Region ids must be non-negative (got %d).\n", v);
+            return 1;
+        }
     }
 
     std::error_code ec;
     std::filesystem::create_directories(out_dir, ec);
+    if (ec)
+    {
+        std::fprintf(
+            stderr, "Could not create output directory %s: %s\n", out_dir.string().c_str(), ec.message().c_str());
+        return 1;
+    }
 
     int written = 0;
     for (int land_class : classes)
