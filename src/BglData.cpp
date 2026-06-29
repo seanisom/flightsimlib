@@ -8286,9 +8286,20 @@ auto flightsimlib::io::ConvertRasterToRgba(const SRasterImage& image, std::vecto
 
 namespace
 {
-// Round a block length up to a 4-byte boundary. The §6 blocks are each
-// followed by a small pad to keep the next block 4-byte aligned.
+// Round a block length up to a 4-byte boundary (pad 0..3). Used for the final
+// (vector) block, which is merely aligned to close out the record.
 auto AlignUp4(int value) -> int { return (value + 3) & ~3; }
+
+// Size of a non-final block including its trailing pad. The real (Microsoft)
+// lclookup format always writes a 4-byte terminator pad after the texture
+// block, the region pointer table, every per-region land/water array, and the
+// slope block — even when the payload is already 4-byte aligned (see §6 of
+// LANDCLASS_SYNTHESIS.md, and the byte-exact offsets of the global
+// lclookup.bgl). The pad is therefore always 1..4 bytes, never 0. Emitting
+// this exactly is required to round-trip real lookups byte-for-byte; the
+// offset-driven ReadBinary tolerates either, but a faithful WriteBinary must
+// reproduce it.
+auto PadBlock4(int value) -> int { return value + 4 - (value & 3); }
 } // namespace
 
 void flightsimlib::io::CBglTerrainTextureLookup::ReadBinary(BinaryFileStream& in)
@@ -8389,15 +8400,17 @@ void flightsimlib::io::CBglTerrainTextureLookup::WriteBinary(BinaryFileStream& o
 
     // Compute block offsets (relative to the record start) up front so the
     // header can carry them. Layout: header, texture block, region pointer
-    // table, per-region land + water arrays, slope block, vector block -
-    // each block 4-byte aligned.
+    // table, per-region land + water arrays, slope block, vector block. Every
+    // block but the final vector block carries an always-present 4-byte
+    // terminator pad (PadBlock4); the vector block closes the record with a
+    // plain 4-byte alignment (AlignUp4). See the PadBlock4 note above.
     const int32_t offset_texture_block = s_header_size;
-    const int32_t texture_block_size = AlignUp4(num_textures * s_texture_entry_size);
+    const int32_t texture_block_size = PadBlock4(num_textures * s_texture_entry_size);
     const int32_t offset_region_block = offset_texture_block + texture_block_size;
 
-    const int32_t region_ptr_size = AlignUp4(num_regions * 8);
-    const int32_t land_array_size = AlignUp4(num_land_classes * 4);
-    const int32_t water_array_size = AlignUp4(num_water_classes * 4);
+    const int32_t region_ptr_size = PadBlock4(num_regions * 8);
+    const int32_t land_array_size = PadBlock4(num_land_classes * 4);
+    const int32_t water_array_size = PadBlock4(num_water_classes * 4);
 
     std::vector<int32_t> land_offsets(static_cast<size_t>(num_regions), 0);
     std::vector<int32_t> water_offsets(static_cast<size_t>(num_regions), 0);
@@ -8411,7 +8424,7 @@ void flightsimlib::io::CBglTerrainTextureLookup::WriteBinary(BinaryFileStream& o
     }
 
     const int32_t offset_slope_block = cursor;
-    const int32_t slope_block_size = AlignUp4(num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
+    const int32_t slope_block_size = PadBlock4(num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
     const int32_t offset_vector_block = offset_slope_block + slope_block_size;
 
     // --- Header ---
@@ -8510,10 +8523,10 @@ int flightsimlib::io::CBglTerrainTextureLookup::CalculateSize() const
     const auto num_textures = static_cast<int32_t>(m_textures.size());
     const auto num_regions = static_cast<int32_t>(m_region_land_textures.size());
     int32_t size = s_header_size;
-    size += AlignUp4(num_textures * s_texture_entry_size);
-    size += AlignUp4(num_regions * 8);
-    size += num_regions * (AlignUp4(m_num_land_classes * 4) + AlignUp4(m_num_water_classes * 4));
-    size += AlignUp4(m_num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
+    size += PadBlock4(num_textures * s_texture_entry_size);
+    size += PadBlock4(num_regions * 8);
+    size += num_regions * (PadBlock4(m_num_land_classes * 4) + PadBlock4(m_num_water_classes * 4));
+    size += PadBlock4(m_num_land_classes * IBglTerrainTextureLookup::SlopeLookupCount);
     size += AlignUp4(m_num_land_classes * IBglTerrainTextureLookup::VectorLookupCount);
     return size;
 }

@@ -27,30 +27,32 @@
 //
 // M2 LCLookup + land-class test .bgl generator (LANDCLASS_SYNTHESIS.md §7 M2).
 //
-// Authors TWO single-layer .bgl files over a chosen QMID:
-//   1. <out-lookup>    a TerrainTextureLookup (LCLookup, 0x6F) record mapping
-//      land classes to texture-lookup rows, with the GAP B knobs
-//      (BlendTextureVariant, the *Mask refs) exposed as CLI flags so the
-//      maintainer can SWEEP them.
-//   2. <out-landclass> a TerrainLandClass (0x68) raster painted with a clean
-//      A/B class boundary (half / diagonal / checker) so the in-sim land-class
-//      transition — the dithered 1-bit-mask blend of GDC2006 §7.1 / Fig 10 — is
-//      directly observable, and so it can be cross-referenced against the
-//      numbered textures from m2_texgen.
+// Produces the M2 experiment inputs as TWO files, matching how FSX's terrain
+// engine actually consumes these layers:
 //
-// Why two files instead of one 2-layer .bgl: FSX's terrain engine only honors
-// LCLookup (0x6F) from its single GLOBAL lookup file — a per-scenery-area 0x6F
-// is legal by BGL structure but is ignored by the terrain engine (this differs
-// from MS Flight (2012), where the lookup can be overridden per layer). The
-// land-class raster (0x68), by contrast, IS overridable from a scenery-layer
-// .bgl. So for the M2 experiment the LCLookup file must REPLACE the global
-// default lookup, while the land-class file drops into an active scenery area's
-// scenery/ folder. Both records carry the same QMID.
+//   1. <out-landclass> (always) — a TerrainLandClass (0x68) raster painted with
+//      a clean A/B class boundary (half / diagonal / checker) so the in-sim
+//      land-class transition — the dithered 1-bit-mask blend of GDC2006 §7.1 /
+//      Fig 10 — is directly observable. The raster (0x68) IS overridable from a
+//      scenery-layer .bgl, so this drops into an active scenery area's scenery/
+//      folder at high priority.
+//
+//   2. <out-lookup> (only with --lclookup-in) — a PATCHED copy of the real
+//      global lclookup. FSX's terrain engine only ever consults its single
+//      GLOBAL terrain-texture lookup; a per-scenery-area 0x6F is legal by BGL
+//      structure but is silently IGNORED by the engine (this differs from MS
+//      Flight (2012), where the lookup is per-layer with a fallback chain). So
+//      we cannot author a standalone world-valid lookup — we must take the real
+//      global file as input, decode it via the M1 reader, NON-DESTRUCTIVELY
+//      append two texture rows (class A / class B) carrying the swept GAP B
+//      knobs, repoint classes A/B in every region table to those rows, and
+//      re-emit the complete file (CBglFile::Read -> mutate -> Rename -> Write,
+//      which never clobbers the input). The maintainer backs up the original
+//      and swaps in the patched file as the global lookup.
 //
 // This is M2 *prep*: it produces the experiment input. The actual fly / observe
 // / write-down-the-rule step happens on local FSX (see the M2 protocol in
-// LANDCLASS_SYNTHESIS.md). It deliberately reuses the M1 round-trip's byte
-// layout (the layout verified by lclookup_roundtrip) so the file is known-good.
+// LANDCLASS_SYNTHESIS.md).
 //
 // All integer I/O is little-endian, matching flightsimlib's BinaryStream.
 // Returns 0 on success, non-zero on failure.
@@ -104,6 +106,16 @@ struct Config
 {
     std::filesystem::path out_lookup = "m2_lclookup.bgl";
     std::filesystem::path out_landclass = "m2_landclass.bgl";
+
+    // The real global lclookup.bgl to patch. Empty => skip the lookup file
+    // (only the land-class raster is written), since FSX ignores a from-scratch
+    // per-area 0x6F and a standalone world-valid lookup cannot be synthesized.
+    std::filesystem::path lclookup_in;
+
+    // Diagnostic: read --lclookup-in and write it back UNCHANGED to --out-lookup,
+    // then assert byte-for-byte identity. Proves the flightsimlib writer is
+    // faithful (no padding drift). Does nothing else.
+    bool roundtrip_check = false;
 
     // Target QMID. Either supplied directly, or derived from lat/lon/level.
     bool qmid_explicit = false;
@@ -189,71 +201,35 @@ uint8_t ClassAtCell(const Config& cfg, int col, int row)
     return static_cast<uint8_t>(a_or_b ? cfg.class_a : cfg.class_b);
 }
 
-// Author the LCLookup record: one texture row per (region, class) carrying the
-// swept GAP B knobs, and a region table mapping the painted classes to those
-// rows. NumLandclasses is sized so the table is indexable directly by raster
-// class id (slot == id), which keeps the raster<->lookup correspondence trivial
-// for the experiment (documented in the M2 protocol).
-void BuildLookup(const Config& cfg, CBglTerrainTextureLookup& lookup, int& row_a, int& row_b)
+// Build one texture-lookup row carrying the swept GAP B knobs for a land class.
+// Appended to each patched record; the region table is then repointed at it.
+SBglTextureLookupEntry MakeTextureRow(const Config& cfg, int vulcn)
 {
-    const int num_land = std::max(cfg.class_a, cfg.class_b) + 1;
-    const int num_regions = cfg.region + 1;
-    const int num_water = 1;
+    SBglTextureLookupEntry e{};
+    e.VULCNNumber = static_cast<int16_t>(vulcn);
+    e.VULCNRegion = static_cast<uint8_t>(cfg.region);
+    e.VULCNMask = static_cast<uint8_t>(cfg.vulcn_mask);
+    e.SeasonMask = static_cast<int16_t>(cfg.season_mask);
+    e.DrawPriority = static_cast<int16_t>(cfg.draw_priority);
+    e.BlendTextureVULCN = static_cast<int16_t>(cfg.blend_vulcn);
+    e.BlendTextureRegion = static_cast<uint8_t>(cfg.blend_region);
+    e.BlendTextureMask = static_cast<uint8_t>(cfg.blend_mask);
+    e.BlendTextureVariant = cfg.variant;
+    e.AutogenVULCN = 0;
+    e.AutogenRegion = 0;
+    e.AutogenMask = 0;
+    return e;
+}
 
-    lookup.SetHeaderMagic(0x4C434C4B); // 'LCLK'
-    lookup.ResizeTables(num_regions, num_land, num_water);
-    lookup.ClearTextures();
-
-    auto make_row = [&](int vulcn) -> SBglTextureLookupEntry
+// Create the output's parent directory if it doesn't exist (so an --out under a
+// not-yet-created folder doesn't fail at open time). Best-effort.
+void EnsureParentDir(const std::filesystem::path& path)
+{
+    const auto parent = path.parent_path();
+    if (!parent.empty())
     {
-        SBglTextureLookupEntry e{};
-        e.VULCNNumber = static_cast<int16_t>(vulcn);
-        e.VULCNRegion = static_cast<uint8_t>(cfg.region);
-        e.VULCNMask = static_cast<uint8_t>(cfg.vulcn_mask);
-        e.SeasonMask = static_cast<int16_t>(cfg.season_mask);
-        e.DrawPriority = static_cast<int16_t>(cfg.draw_priority);
-        e.BlendTextureVULCN = static_cast<int16_t>(cfg.blend_vulcn);
-        e.BlendTextureRegion = static_cast<uint8_t>(cfg.blend_region);
-        e.BlendTextureMask = static_cast<uint8_t>(cfg.blend_mask);
-        e.BlendTextureVariant = cfg.variant;
-        e.AutogenVULCN = 0;
-        e.AutogenRegion = 0;
-        e.AutogenMask = 0;
-        return e;
-    };
-
-    row_a = 0;
-    lookup.AddTexture(make_row(cfg.class_a));
-    row_b = 1;
-    lookup.AddTexture(make_row(cfg.class_b));
-
-    // Region table: every land/water slot defaults to row 0; the two painted
-    // classes point at their own rows.
-    for (int r = 0; r < num_regions; ++r)
-    {
-        for (int l = 0; l < num_land; ++l)
-        {
-            lookup.SetRegionLandClassTexture(r, l, 0);
-        }
-        for (int w = 0; w < num_water; ++w)
-        {
-            lookup.SetRegionWaterClassTexture(r, w, 0);
-        }
-    }
-    lookup.SetRegionLandClassTexture(cfg.region, cfg.class_a, row_a);
-    lookup.SetRegionLandClassTexture(cfg.region, cfg.class_b, row_b);
-
-    // Identity slope / vector remaps (no remap) — exercised later in M4/M5.
-    for (int l = 0; l < num_land; ++l)
-    {
-        for (int b = 0; b < IBglTerrainTextureLookup::SlopeLookupCount; ++b)
-        {
-            lookup.SetSlopeLookup(l, b, static_cast<uint8_t>(l));
-        }
-        for (int v = 0; v < IBglTerrainTextureLookup::VectorLookupCount; ++v)
-        {
-            lookup.SetVectorLookup(l, v, static_cast<uint8_t>(l));
-        }
+        std::error_code ec;
+        std::filesystem::create_directories(parent, ec);
     }
 }
 
@@ -299,38 +275,155 @@ void WriteSingleTileLayer(BinaryFileStream& out, EBglLayerType type, int tile_pt
     layer.WriteBinary(out);
 }
 
-// File 1: the LCLookup (0x6F) record on its own. This is the file that REPLACES
-// FSX's single global terrain-texture-lookup — a per-scenery-area 0x6F is not
-// honored by the terrain engine (see the header comment).
-bool WriteLookupBgl(const Config& cfg, CBglTerrainTextureLookup& lookup)
+// Read two files fully and report whether they are byte-identical; on mismatch,
+// print sizes and the first differing offset.
+bool CompareFilesBytewise(const std::filesystem::path& a, const std::filesystem::path& b)
 {
-    if (!TruncateCreate(cfg.out_lookup))
+    std::ifstream fa(a, std::ios::binary);
+    std::ifstream fb(b, std::ios::binary);
+    if (!fa || !fb)
     {
+        std::fprintf(stderr, "  compare: could not open both files\n");
         return false;
     }
-    BinaryFileStream out(cfg.out_lookup);
-    if (!out)
+    const std::vector<char> ba((std::istreambuf_iterator<char>(fa)), std::istreambuf_iterator<char>());
+    const std::vector<char> bb((std::istreambuf_iterator<char>(fb)), std::istreambuf_iterator<char>());
+    if (ba.size() != bb.size())
     {
+        std::fprintf(stderr, "  compare: size differs (in=%zu out=%zu)\n", ba.size(), bb.size());
         return false;
     }
-
-    const int tile_ptr = kHeaderSize + kLayerPointerSize * 1;
-    const int record = tile_ptr + kTilePointerSize;
-    const int record_size = lookup.CalculateSize();
-
-    WriteHeader(out, 1);
-    WriteSingleTileLayer(out, EBglLayerType::TerrainTextureLookup, tile_ptr);
-
-    out << cfg.qmid_low << cfg.qmid_high << static_cast<uint32_t>(record) << static_cast<uint32_t>(record_size);
-    lookup.WriteBinary(out);
-
-    return static_cast<bool>(out);
+    for (size_t i = 0; i < ba.size(); ++i)
+    {
+        if (ba[i] != bb[i])
+        {
+            std::fprintf(stderr, "  compare: first byte differs at offset %zu (in=0x%02X out=0x%02X)\n", i,
+                static_cast<uint8_t>(ba[i]), static_cast<uint8_t>(bb[i]));
+            return false;
+        }
+    }
+    return true;
 }
 
-// File 2: the TerrainLandClass (0x68) raster on its own. This is the file that
-// drops into an active scenery area's scenery/ folder as a land-class override.
+// Read --lclookup-in and write it back UNCHANGED to --out-lookup, then assert
+// the output is byte-for-byte identical. This is the faithful-writer regression
+// guard: it must hold before any patch can be trusted to be FSX-safe.
+bool RoundTripCheck(const Config& cfg)
+{
+    CBglFile bgl(cfg.lclookup_in.wstring());
+    if (!bgl.Read())
+    {
+        std::fprintf(stderr, "FAIL: could not read %s\n", cfg.lclookup_in.string().c_str());
+        return false;
+    }
+    EnsureParentDir(cfg.out_lookup);
+    bgl.Rename(cfg.out_lookup.wstring().c_str());
+    if (!bgl.Write())
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_lookup.string().c_str());
+        return false;
+    }
+    bgl.Close(); // flush before reading the output back for comparison
+    return CompareFilesBytewise(cfg.lclookup_in, cfg.out_lookup);
+}
+
+// Patch the real global lclookup: read it, NON-DESTRUCTIVELY append class A / B
+// rows carrying the swept knobs into every QMID record, repoint classes A/B in
+// each region table to those rows, then re-emit the complete file to out_lookup
+// (Rename before Write leaves the input file untouched). Reports how many
+// records were patched and how many region entries were repointed.
+bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoints)
+{
+    records_patched = 0;
+    region_repoints = 0;
+
+    CBglFile bgl(cfg.lclookup_in.wstring());
+    if (!bgl.Read())
+    {
+        std::fprintf(stderr, "FAIL: could not read input lclookup %s\n", cfg.lclookup_in.string().c_str());
+        return false;
+    }
+
+    auto* layer = bgl.GetDirectQmidLayer(EBglLayerType::TerrainTextureLookup);
+    if (layer == nullptr)
+    {
+        std::fprintf(
+            stderr, "FAIL: input has no TerrainTextureLookup (0x6F) layer: %s\n", cfg.lclookup_in.string().c_str());
+        return false;
+    }
+
+    const int qmid_count = layer->GetQmidCount();
+    for (int i = 0; i < qmid_count; ++i)
+    {
+        const auto* tile_ptr = layer->GetDataPointerAtIndex(i);
+        if (tile_ptr == nullptr)
+        {
+            continue;
+        }
+        const CPackedQmid qmid{tile_ptr->QmidLow, tile_ptr->QmidHigh};
+        const int data_count = layer->GetDataCountAtQmid(qmid);
+        for (int j = 0; j < data_count; ++j)
+        {
+            auto* data = layer->GetDataAtQmid(qmid, j);
+            if (data == nullptr)
+            {
+                continue;
+            }
+            auto* lookup = data->AsTerrainTextureLookup();
+            if (lookup == nullptr)
+            {
+                continue;
+            }
+
+            const int land_count = lookup->GetLandClassCount();
+            const int region_count = lookup->GetRegionCount();
+            // Only patch records whose region table can address both classes.
+            if (cfg.class_a >= land_count || cfg.class_b >= land_count)
+            {
+                continue;
+            }
+
+            const int row_a = lookup->GetTextureCount();
+            lookup->AddTexture(MakeTextureRow(cfg, cfg.class_a));
+            const int row_b = lookup->GetTextureCount();
+            lookup->AddTexture(MakeTextureRow(cfg, cfg.class_b));
+
+            for (int r = 0; r < region_count; ++r)
+            {
+                lookup->SetRegionLandClassTexture(r, cfg.class_a, row_a);
+                lookup->SetRegionLandClassTexture(r, cfg.class_b, row_b);
+                region_repoints += 2;
+            }
+            ++records_patched;
+        }
+    }
+
+    if (records_patched == 0)
+    {
+        std::fprintf(stderr,
+            "FAIL: no LCLookup record could address classes %d/%d "
+            "(input land-class count too small?). Nothing written.\n",
+            cfg.class_a, cfg.class_b);
+        return false;
+    }
+
+    EnsureParentDir(cfg.out_lookup);
+    // Rename redirects the next Write at out_lookup; the input file (already
+    // read into memory) is left untouched.
+    bgl.Rename(cfg.out_lookup.wstring().c_str());
+    if (!bgl.Write())
+    {
+        std::fprintf(stderr, "FAIL: could not write patched lclookup %s\n", cfg.out_lookup.string().c_str());
+        return false;
+    }
+    return true;
+}
+
+// The TerrainLandClass (0x68) raster on its own. This is the file that drops
+// into an active scenery area's scenery/ folder as a land-class override.
 bool WriteLandClassBgl(const Config& cfg)
 {
+    EnsureParentDir(cfg.out_landclass);
     if (!TruncateCreate(cfg.out_landclass))
     {
         return false;
@@ -374,9 +467,10 @@ bool WriteLandClassBgl(const Config& cfg)
     return static_cast<bool>(out);
 }
 
-// Read the just-written .bgl back through the M1 decoder and assert the
-// authored LCLookup fields survive the round trip. Returns true on success.
-bool Verify(const Config& cfg, int row_a, int row_b)
+// Read the patched lclookup back through the M1 decoder and assert classes A/B
+// in the first record's region table now resolve to rows carrying the swept
+// knobs. Returns true on success.
+bool VerifyPatched(const Config& cfg)
 {
     int failures = 0;
     auto check = [&](bool ok, const char* msg)
@@ -389,7 +483,7 @@ bool Verify(const Config& cfg, int row_a, int row_b)
     };
 
     CBglFile bgl(cfg.out_lookup.wstring());
-    check(bgl.Read(), "CBglFile::Read");
+    check(bgl.Read(), "CBglFile::Read(out_lookup)");
 
     auto* layer = bgl.GetDirectQmidLayer(EBglLayerType::TerrainTextureLookup);
     check(layer != nullptr, "GetDirectQmidLayer(TerrainTextureLookup)");
@@ -397,9 +491,19 @@ bool Verify(const Config& cfg, int row_a, int row_b)
     {
         return false;
     }
+    check(layer->GetQmidCount() > 0, "patched file retains >=1 QMID record");
+    if (layer->GetQmidCount() == 0)
+    {
+        return false;
+    }
 
-    const CPackedQmid qmid{cfg.qmid_low, cfg.qmid_high};
-    check(layer->GetDataCountAtQmid(qmid) == 1, "record count at QMID == 1");
+    const auto* tile_ptr = layer->GetDataPointerAtIndex(0);
+    check(tile_ptr != nullptr, "GetDataPointerAtIndex(0)");
+    if (tile_ptr == nullptr)
+    {
+        return false;
+    }
+    const CPackedQmid qmid{tile_ptr->QmidLow, tile_ptr->QmidHigh};
     auto* data = layer->GetDataAtQmid(qmid, 0);
     check(data != nullptr, "GetDataAtQmid");
     if (data == nullptr)
@@ -413,23 +517,85 @@ bool Verify(const Config& cfg, int row_a, int row_b)
         return false;
     }
 
-    check(read->GetTextureCount() == 2, "texture count == 2");
-    const auto* a = read->GetTextureAt(row_a);
-    const auto* b = read->GetTextureAt(row_b);
-    check(a != nullptr && b != nullptr, "texture rows present");
-    if (a != nullptr)
+    const int texture_count = read->GetTextureCount();
+    const int row_a = read->GetRegionLandClassTexture(0, cfg.class_a);
+    const int row_b = read->GetRegionLandClassTexture(0, cfg.class_b);
+    check(row_a >= 0 && row_a < texture_count, "class A repoint in range");
+    check(row_b >= 0 && row_b < texture_count, "class B repoint in range");
+
+    const auto* a = (row_a >= 0 && row_a < texture_count) ? read->GetTextureAt(row_a) : nullptr;
+    const auto* b = (row_b >= 0 && row_b < texture_count) ? read->GetTextureAt(row_b) : nullptr;
+    check(a != nullptr && a->BlendTextureVariant == cfg.variant, "class A row carries swept variant");
+    check(a != nullptr && a->VULCNMask == static_cast<uint8_t>(cfg.vulcn_mask), "class A row carries swept vulcn-mask");
+    check(b != nullptr && b->BlendTextureVariant == cfg.variant, "class B row carries swept variant");
+
+    // No-data-loss cross-check vs. the original input: Write() is not
+    // byte-preserving (it re-emits padding tighter than the source compiler), so
+    // assert that nothing beyond the two appended rows actually changed.
+    CBglFile orig(cfg.lclookup_in.wstring());
+    check(orig.Read(), "CBglFile::Read(lclookup_in)");
+    check(orig.GetLayerCount() == bgl.GetLayerCount(), "layer count preserved (no layer dropped)");
+    auto* olayer = orig.GetDirectQmidLayer(EBglLayerType::TerrainTextureLookup);
+    check(olayer != nullptr, "orig GetDirectQmidLayer");
+    if (olayer == nullptr || olayer->GetQmidCount() == 0)
     {
-        check(a->VULCNNumber == cfg.class_a, "row A VULCNNumber");
-        check(a->BlendTextureVariant == cfg.variant, "row A BlendTextureVariant");
-        check(a->VULCNMask == static_cast<uint8_t>(cfg.vulcn_mask), "row A VULCNMask");
+        return false;
     }
-    if (b != nullptr)
+    check(olayer->GetQmidCount() == layer->GetQmidCount(), "QMID record count preserved");
+    const auto* otp = olayer->GetDataPointerAtIndex(0);
+    if (otp == nullptr)
     {
-        check(b->VULCNNumber == cfg.class_b, "row B VULCNNumber");
-        check(b->BlendTextureVariant == cfg.variant, "row B BlendTextureVariant");
+        return false;
     }
-    check(read->GetRegionLandClassTexture(cfg.region, cfg.class_a) == row_a, "region table class A -> row A");
-    check(read->GetRegionLandClassTexture(cfg.region, cfg.class_b) == row_b, "region table class B -> row B");
+    const CPackedQmid oqmid{otp->QmidLow, otp->QmidHigh};
+    auto* odata = olayer->GetDataAtQmid(oqmid, 0);
+    auto* oread = odata != nullptr ? odata->AsTerrainTextureLookup() : nullptr;
+    check(oread != nullptr, "orig AsTerrainTextureLookup");
+    if (oread == nullptr)
+    {
+        return false;
+    }
+
+    const int orig_textures = oread->GetTextureCount();
+    check(texture_count == orig_textures + 2, "texture count grew by exactly 2 (rows appended)");
+    check(read->GetRegionCount() == oread->GetRegionCount(), "region count preserved");
+    check(read->GetLandClassCount() == oread->GetLandClassCount(), "land-class count preserved");
+    check(read->GetWaterClassCount() == oread->GetWaterClassCount(), "water-class count preserved");
+
+    // Every original texture row must survive byte-for-byte (we only append).
+    for (int i = 0; i < orig_textures; ++i)
+    {
+        const auto* op = oread->GetTextureAt(i);
+        const auto* np = read->GetTextureAt(i);
+        if (op == nullptr || np == nullptr)
+        {
+            check(false, "original texture row present after patch");
+            continue;
+        }
+        const bool same = op->VULCNNumber == np->VULCNNumber && op->VULCNRegion == np->VULCNRegion &&
+            op->VULCNMask == np->VULCNMask && op->SeasonMask == np->SeasonMask &&
+            op->DrawPriority == np->DrawPriority && op->BlendTextureVULCN == np->BlendTextureVULCN &&
+            op->BlendTextureRegion == np->BlendTextureRegion && op->BlendTextureMask == np->BlendTextureMask &&
+            op->BlendTextureVariant == np->BlendTextureVariant && op->AutogenVULCN == np->AutogenVULCN &&
+            op->AutogenRegion == np->AutogenRegion && op->AutogenMask == np->AutogenMask;
+        check(same, "original texture row preserved byte-for-byte");
+    }
+
+    // Region mappings for classes OTHER than A/B must be untouched.
+    const int land_count = read->GetLandClassCount();
+    const int region_count = read->GetRegionCount();
+    for (int r = 0; r < region_count; ++r)
+    {
+        for (int l = 0; l < land_count; ++l)
+        {
+            if (l == cfg.class_a || l == cfg.class_b)
+            {
+                continue;
+            }
+            check(read->GetRegionLandClassTexture(r, l) == oread->GetRegionLandClassTexture(r, l),
+                "non-A/B region land-class mapping preserved");
+        }
+    }
 
     return failures == 0;
 }
@@ -438,7 +604,10 @@ void PrintUsage(const char* argv0)
 {
     std::printf("Usage: %s [options]\n"
                 "\n"
-                "Generates an M2 LCLookup + land-class test .bgl (LANDCLASS_SYNTHESIS.md M2).\n"
+                "Generates the M2 experiment inputs (LANDCLASS_SYNTHESIS.md M2): a land-class\n"
+                "raster override .bgl, and (with --lclookup-in) a patched copy of the real\n"
+                "global lclookup. FSX ignores a per-scenery-area 0x6F, so the lookup must be\n"
+                "a patch of the global file, not a from-scratch standalone .bgl.\n"
                 "\n"
                 "Target QMID:\n"
                 "  --qmid LOW [HIGH]   packed QMID directly (HIGH defaults to 0)\n"
@@ -453,7 +622,7 @@ void PrintUsage(const char* argv0)
                 "  --layout L          half | diag | checker (default half)\n"
                 "  --region ID         region id (default 0)\n"
                 "\n"
-                "GAP B sweep knobs (applied to every authored texture row):\n"
+                "GAP B sweep knobs (applied to the appended class A/B texture rows):\n"
                 "  --variant N         BlendTextureVariant (int64, default 0)\n"
                 "  --vulcn-mask N      VULCNMask (default 0)\n"
                 "  --blend-vulcn N     BlendTextureVULCN (default 0)\n"
@@ -462,8 +631,14 @@ void PrintUsage(const char* argv0)
                 "  --season-mask N     SeasonMask (default 0x0FFF = all months)\n"
                 "  --draw-priority N   DrawPriority (default 0)\n"
                 "\n"
-                "  --out-lookup PATH    output LCLookup .bgl (default m2_lclookup.bgl)\n"
-                "                       — replaces FSX's global terrain-texture lookup\n"
+                "Lookup patch (the FSX-correct path):\n"
+                "  --lclookup-in PATH   real global lclookup.bgl to patch (REQUIRED to emit\n"
+                "                       the lookup; omit to write only the land-class raster)\n"
+                "  --out-lookup PATH    patched lookup output (default m2_lclookup.bgl)\n"
+                "                       — back up the original, then swap this in as global\n"
+                "  --roundtrip-check    read --lclookup-in, rewrite UNCHANGED to --out-lookup,\n"
+                "                       assert byte-for-byte identity, then exit (writer guard)\n"
+                "\n"
                 "  --out-landclass PATH output land-class .bgl (default m2_landclass.bgl)\n"
                 "                       — drops into a scenery area's scenery/ folder\n"
                 "  --no-verify         skip the read-back self-test\n",
@@ -641,6 +816,18 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             }
             cfg.draw_priority = std::atoi(value.c_str());
         }
+        else if (a == "--lclookup-in")
+        {
+            if (!need("--lclookup-in"))
+            {
+                return false;
+            }
+            cfg.lclookup_in = value;
+        }
+        else if (a == "--roundtrip-check")
+        {
+            cfg.roundtrip_check = true;
+        }
         else if (a == "--out-lookup")
         {
             if (!need("--out-lookup"))
@@ -727,26 +914,53 @@ int main(int argc, char** argv)
         cfg.qmid_high = static_cast<uint32_t>(packed >> 32);
     }
 
-    CBglTerrainTextureLookup lookup;
-    int row_a = 0;
-    int row_b = 0;
-    BuildLookup(cfg, lookup, row_a, row_b);
-
-    if (!WriteLookupBgl(cfg, lookup))
+    // Diagnostic short-circuit: prove the writer round-trips the real file
+    // byte-for-byte, then exit (writes nothing else).
+    if (cfg.roundtrip_check)
     {
-        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_lookup.string().c_str());
-        return 1;
+        if (cfg.lclookup_in.empty())
+        {
+            std::fprintf(stderr, "--roundtrip-check requires --lclookup-in <file>.\n");
+            return 1;
+        }
+        if (!RoundTripCheck(cfg))
+        {
+            std::fprintf(stderr, "m2_testgen: round-trip check FAILED (writer is not byte-faithful)\n");
+            return 2;
+        }
+        std::printf("m2_testgen: round-trip check PASS — %s rewritten byte-for-byte to %s\n",
+            cfg.lclookup_in.string().c_str(), cfg.out_lookup.string().c_str());
+        return 0;
     }
+
+    // Land-class raster override is always written (it IS a valid scenery layer).
     if (!WriteLandClassBgl(cfg))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_landclass.string().c_str());
         return 1;
     }
-
-    std::printf("m2_testgen: wrote %s  (LCLookup 0x6F  -> replaces FSX's global lookup)\n",
-        cfg.out_lookup.string().c_str());
     std::printf("m2_testgen: wrote %s  (TerrainLandClass 0x68 -> scenery-layer override)\n",
         cfg.out_landclass.string().c_str());
+
+    // The lookup is only producible by patching the real global file.
+    int records_patched = 0;
+    int region_repoints = 0;
+    if (!cfg.lclookup_in.empty())
+    {
+        if (!PatchLookupBgl(cfg, records_patched, region_repoints))
+        {
+            return 1;
+        }
+        std::printf("m2_testgen: wrote %s  (patched global LCLookup 0x6F -> swap in as global)\n",
+            cfg.out_lookup.string().c_str());
+        std::printf("  patched %d record(s), repointed %d region entr(ies) for classes %d/%d\n", records_patched,
+            region_repoints, cfg.class_a, cfg.class_b);
+    }
+    else
+    {
+        std::printf("m2_testgen: lclookup NOT written — pass --lclookup-in <real global lclookup.bgl> to patch it.\n");
+        std::printf("  (FSX ignores a per-scenery-area 0x6F, so there is no safe from-scratch global lookup.)\n");
+    }
     std::printf(
         "  QMID: low=0x%08X high=0x%08X%s\n", cfg.qmid_low, cfg.qmid_high, cfg.qmid_explicit ? " (explicit)" : "");
     if (!cfg.qmid_explicit)
@@ -758,17 +972,19 @@ int main(int argc, char** argv)
     }
     std::printf("  land classes: A=%d B=%d  raster=%dx%d  region=%d\n", cfg.class_a, cfg.class_b, cfg.raster,
         cfg.raster, cfg.region);
-    std::printf("  texture rows: A->row%d B->row%d  variant=%lld vulcnMask=%d blendMask=%d\n", row_a, row_b,
-        static_cast<long long>(cfg.variant), cfg.vulcn_mask, cfg.blend_mask);
+    std::printf("  swept knobs: variant=%lld vulcnMask=%d blendMask=%d\n", static_cast<long long>(cfg.variant),
+        cfg.vulcn_mask, cfg.blend_mask);
 
-    if (cfg.verify)
+    // Self-test only applies to the patched lookup (the land-class raster is a
+    // straight authored write).
+    if (cfg.verify && !cfg.lclookup_in.empty())
     {
-        if (!Verify(cfg, row_a, row_b))
+        if (!VerifyPatched(cfg))
         {
             std::fprintf(stderr, "m2_testgen: self-test FAILED\n");
             return 2;
         }
-        std::printf("  self-test: PASS (read back via CBglFile + AsTerrainTextureLookup)\n");
+        std::printf("  self-test: PASS (patched lookup read back via CBglFile + AsTerrainTextureLookup)\n");
     }
     return 0;
 }

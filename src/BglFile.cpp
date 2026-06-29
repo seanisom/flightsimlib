@@ -986,9 +986,35 @@ namespace flightsimlib
 
         auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
         {
+            // Mirror ReadAllLayers' packed direct-QMID tile-pointer handling.
+            // Terrain rasters (TRQ1/RCS1) and LCLookup (0x6F) store the packed
+            // 16/20-byte form: QmidLow, QmidHigh, [RecordCount only in the
+            // 20-byte form], StreamOffset, SizeBytes. The 16-byte form does NOT
+            // store RecordCount (it is synthesized as 1 on read), so writing the
+            // generic SBglTilePointer (which puts RecordCount in the second
+            // slot) would corrupt the QmidHigh slot and lose byte-fidelity.
+            const auto type = CBglLayer::GetType();
+            const bool uses_packed_tile_pointer = CBglLayer::IsTrq1BglLayer(type) ||
+                CBglLayer::IsRcs1BglLayer(type) || type == EBglLayerType::TerrainTextureLookup;
+            const auto entry_size = (m_layer_pointer->TileCount > 0)
+                ? (m_layer_pointer->SizeBytes / m_layer_pointer->TileCount)
+                : 0u;
+
             for (const auto& pointer : m_pointers)
             {
-                pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
+                if (uses_packed_tile_pointer && (entry_size == 16 || entry_size == 20))
+                {
+                    out << pointer->QmidLow << pointer->QmidHigh;
+                    if (entry_size == 20)
+                    {
+                        out << pointer->RecordCount;
+                    }
+                    out << pointer->StreamOffset << pointer->SizeBytes;
+                }
+                else
+                {
+                    pointer->WriteBinary(out, m_layer_pointer->HasQmidHigh);
+                }
                 if (!out)
                 {
                     return false;
@@ -2322,25 +2348,21 @@ namespace flightsimlib
             m_header.Version = Version();
             m_header.FileMagic = FileMagic();
             m_header.HeaderSize = HeaderSize();
-            m_header.FileTime = 0; // TODO FILETIME library
+            // FileTime (compile FILETIME) is not recomputed by the library yet
+            // (TODO). Preserve whatever was read so a read-modify-write round
+            // trips byte-for-byte; for a freshly authored file m_header is
+            // value-initialized, so this stays 0 as before.
             m_header.QmidMagic = QmidMagic();
             m_header.LayerCount = static_cast<uint32_t>(m_layers.size());
             return ComputeHeaderQmids();
         }
 
-        // TODO Build Qmid Algorithm
-        bool CBglFile::ComputeHeaderQmids()
-        {
-            m_header.PackedQMIDParent0 = 0;
-            m_header.PackedQMIDParent1 = 0;
-            m_header.PackedQMIDParent2 = 0;
-            m_header.PackedQMIDParent3 = 0;
-            m_header.PackedQMIDParent4 = 0;
-            m_header.PackedQMIDParent5 = 0;
-            m_header.PackedQMIDParent6 = 0;
-            m_header.PackedQMIDParent7 = 0;
-            return true;
-        }
+        // TODO Build Qmid Algorithm. Until the parent-QMID computation is
+        // implemented, preserve the values read from the file (rather than
+        // zeroing them) so a read-modify-write round trips byte-for-byte. A
+        // freshly authored CBglFile has these value-initialized to 0, so the
+        // authored-from-scratch path is unchanged.
+        bool CBglFile::ComputeHeaderQmids() { return true; }
 
     } // namespace io
 
