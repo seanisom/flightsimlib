@@ -27,15 +27,25 @@
 //
 // M2 LCLookup + land-class test .bgl generator (LANDCLASS_SYNTHESIS.md §7 M2).
 //
-// Authors a loadable .bgl over a chosen QMID containing:
-//   1. A TerrainTextureLookup (LCLookup, 0x6F) record mapping land classes to
-//      texture-lookup rows, with the GAP B knobs (BlendTextureVariant, the
-//      *Mask refs) exposed as CLI flags so the maintainer can SWEEP them.
-//   2. A TerrainLandClass (0x68) raster painted with a clean A/B class boundary
-//      (half / diagonal / checker) so the in-sim land-class transition — the
-//      dithered 1-bit-mask blend of GDC2006 §7.1 / Fig 10 — is directly
-//      observable, and so it can be cross-referenced against the numbered
-//      textures from m2_texgen.
+// Authors TWO single-layer .bgl files over a chosen QMID:
+//   1. <out-lookup>    a TerrainTextureLookup (LCLookup, 0x6F) record mapping
+//      land classes to texture-lookup rows, with the GAP B knobs
+//      (BlendTextureVariant, the *Mask refs) exposed as CLI flags so the
+//      maintainer can SWEEP them.
+//   2. <out-landclass> a TerrainLandClass (0x68) raster painted with a clean
+//      A/B class boundary (half / diagonal / checker) so the in-sim land-class
+//      transition — the dithered 1-bit-mask blend of GDC2006 §7.1 / Fig 10 — is
+//      directly observable, and so it can be cross-referenced against the
+//      numbered textures from m2_texgen.
+//
+// Why two files instead of one 2-layer .bgl: FSX's terrain engine only honors
+// LCLookup (0x6F) from its single GLOBAL lookup file — a per-scenery-area 0x6F
+// is legal by BGL structure but is ignored by the terrain engine (this differs
+// from MS Flight (2012), where the lookup can be overridden per layer). The
+// land-class raster (0x68), by contrast, IS overridable from a scenery-layer
+// .bgl. So for the M2 experiment the LCLookup file must REPLACE the global
+// default lookup, while the land-class file drops into an active scenery area's
+// scenery/ folder. Both records carry the same QMID.
 //
 // This is M2 *prep*: it produces the experiment input. The actual fly / observe
 // / write-down-the-rule step happens on local FSX (see the M2 protocol in
@@ -92,7 +102,8 @@ enum class Layout
 
 struct Config
 {
-    std::filesystem::path out = "m2_lclookup.bgl";
+    std::filesystem::path out_lookup = "m2_lclookup.bgl";
+    std::filesystem::path out_landclass = "m2_landclass.bgl";
 
     // Target QMID. Either supplied directly, or derived from lat/lon/level.
     bool qmid_explicit = false;
@@ -246,47 +257,24 @@ void BuildLookup(const Config& cfg, CBglTerrainTextureLookup& lookup, int& row_a
     }
 }
 
-bool WriteBgl(const Config& cfg, CBglTerrainTextureLookup& lookup)
+// Truncate/create the file so the (non-truncating) BinaryFileStream ctor opens
+// it empty. Returns false on failure.
+bool TruncateCreate(const std::filesystem::path& path)
 {
-    {
-        std::ofstream create(cfg.out, std::ios::binary | std::ios::trunc);
-        if (!create)
-        {
-            return false;
-        }
-    }
+    std::ofstream create(path, std::ios::binary | std::ios::trunc);
+    return static_cast<bool>(create);
+}
 
-    BinaryFileStream out(cfg.out);
-    if (!out)
-    {
-        return false;
-    }
-
-    const uint32_t qmid_low = cfg.qmid_low;
-    const uint32_t qmid_high = cfg.qmid_high;
-
-    constexpr int kNumLayers = 2;
-    const int after_layer_table = kHeaderSize + kLayerPointerSize * kNumLayers;
-
-    const int tile_ptr_a = after_layer_table;
-    const int record_a = tile_ptr_a + kTilePointerSize;
-    const int record_a_size = lookup.CalculateSize();
-
-    const int tile_ptr_b = record_a + record_a_size;
-    const int record_b = tile_ptr_b + kTilePointerSize;
-    const int class_cols = cfg.raster;
-    const int class_rows = cfg.raster;
-    const int class_payload = class_cols * class_rows;
-    const int record_b_size = kTrq1HeaderSize + class_payload;
-
-    // --- Header ---
+// Write the fixed 0x38 file header for a single-layer DirectQmid BGL.
+void WriteHeader(BinaryFileStream& out, int layer_count)
+{
     SBglHeader header{};
     header.Version = 0x0201;
     header.FileMagic = 0x1992;
     header.HeaderSize = kHeaderSize;
     header.FileTime = 0;
     header.QmidMagic = 0x08051803;
-    header.LayerCount = kNumLayers;
+    header.LayerCount = layer_count;
     header.PackedQMIDParent0 = 0;
     header.PackedQMIDParent1 = 0;
     header.PackedQMIDParent2 = 0;
@@ -296,38 +284,80 @@ bool WriteBgl(const Config& cfg, CBglTerrainTextureLookup& lookup)
     header.PackedQMIDParent6 = 0;
     header.PackedQMIDParent7 = 0;
     SBglHeader::WriteBinary(out, header);
+}
 
-    // --- Layer pointer table ---
-    SBglLayerPointer layer_a{};
-    layer_a.Type = EBglLayerType::TerrainTextureLookup;
-    layer_a.DataClass = static_cast<uint16_t>(EBglLayerClass::DirectQmid);
-    layer_a.HasQmidHigh = 1;
-    layer_a.TileCount = 1;
-    layer_a.StreamOffset = static_cast<uint32_t>(tile_ptr_a);
-    layer_a.SizeBytes = kTilePointerSize;
-    layer_a.WriteBinary(out);
+// Write a single DirectQmid layer pointer for one tile at StreamOffset.
+void WriteSingleTileLayer(BinaryFileStream& out, EBglLayerType type, int tile_ptr)
+{
+    SBglLayerPointer layer{};
+    layer.Type = type;
+    layer.DataClass = static_cast<uint16_t>(EBglLayerClass::DirectQmid);
+    layer.HasQmidHigh = 1;
+    layer.TileCount = 1;
+    layer.StreamOffset = static_cast<uint32_t>(tile_ptr);
+    layer.SizeBytes = kTilePointerSize;
+    layer.WriteBinary(out);
+}
 
-    SBglLayerPointer layer_b{};
-    layer_b.Type = EBglLayerType::TerrainLandClass;
-    layer_b.DataClass = static_cast<uint16_t>(EBglLayerClass::DirectQmid);
-    layer_b.HasQmidHigh = 1;
-    layer_b.TileCount = 1;
-    layer_b.StreamOffset = static_cast<uint32_t>(tile_ptr_b);
-    layer_b.SizeBytes = kTilePointerSize;
-    layer_b.WriteBinary(out);
+// File 1: the LCLookup (0x6F) record on its own. This is the file that REPLACES
+// FSX's single global terrain-texture-lookup — a per-scenery-area 0x6F is not
+// honored by the terrain engine (see the header comment).
+bool WriteLookupBgl(const Config& cfg, CBglTerrainTextureLookup& lookup)
+{
+    if (!TruncateCreate(cfg.out_lookup))
+    {
+        return false;
+    }
+    BinaryFileStream out(cfg.out_lookup);
+    if (!out)
+    {
+        return false;
+    }
 
-    // --- Layer A: LCLookup tile pointer + record ---
-    out << qmid_low << qmid_high << static_cast<uint32_t>(record_a) << static_cast<uint32_t>(record_a_size);
+    const int tile_ptr = kHeaderSize + kLayerPointerSize * 1;
+    const int record = tile_ptr + kTilePointerSize;
+    const int record_size = lookup.CalculateSize();
+
+    WriteHeader(out, 1);
+    WriteSingleTileLayer(out, EBglLayerType::TerrainTextureLookup, tile_ptr);
+
+    out << cfg.qmid_low << cfg.qmid_high << static_cast<uint32_t>(record) << static_cast<uint32_t>(record_size);
     lookup.WriteBinary(out);
 
-    // --- Layer B: TerrainLandClass tile pointer + uncompressed TRQ1 raster ---
-    out << qmid_low << qmid_high << static_cast<uint32_t>(record_b) << static_cast<uint32_t>(record_b_size);
+    return static_cast<bool>(out);
+}
+
+// File 2: the TerrainLandClass (0x68) raster on its own. This is the file that
+// drops into an active scenery area's scenery/ folder as a land-class override.
+bool WriteLandClassBgl(const Config& cfg)
+{
+    if (!TruncateCreate(cfg.out_landclass))
+    {
+        return false;
+    }
+    BinaryFileStream out(cfg.out_landclass);
+    if (!out)
+    {
+        return false;
+    }
+
+    const int tile_ptr = kHeaderSize + kLayerPointerSize * 1;
+    const int record = tile_ptr + kTilePointerSize;
+    const int class_cols = cfg.raster;
+    const int class_rows = cfg.raster;
+    const int class_payload = class_cols * class_rows;
+    const int record_size = kTrq1HeaderSize + class_payload;
+
+    WriteHeader(out, 1);
+    WriteSingleTileLayer(out, EBglLayerType::TerrainLandClass, tile_ptr);
+
+    out << cfg.qmid_low << cfg.qmid_high << static_cast<uint32_t>(record) << static_cast<uint32_t>(record_size);
     out << kTrq1Magic;                                                    // Version
-    out << static_cast<uint32_t>(record_b_size);                          // Size
+    out << static_cast<uint32_t>(record_size);                            // Size
     out << static_cast<uint16_t>(ERasterDataType::LandClass);             // DataType
     out << static_cast<uint8_t>(ERasterCompressionType::None);            // CompressionTypeData
     out << static_cast<uint8_t>(ERasterCompressionType::None);            // CompressionTypeMask
-    out << qmid_low << qmid_high;                                         // QmidLow / QmidHigh
+    out << cfg.qmid_low << cfg.qmid_high;                                 // QmidLow / QmidHigh
     out << static_cast<uint32_t>(0);                                      // Variations
     out << static_cast<uint16_t>(class_cols) << static_cast<uint16_t>(0); // Cols + padding
     out << static_cast<uint16_t>(class_rows) << static_cast<uint16_t>(0); // Rows + padding
@@ -358,7 +388,7 @@ bool Verify(const Config& cfg, int row_a, int row_b)
         }
     };
 
-    CBglFile bgl(cfg.out.wstring());
+    CBglFile bgl(cfg.out_lookup.wstring());
     check(bgl.Read(), "CBglFile::Read");
 
     auto* layer = bgl.GetDirectQmidLayer(EBglLayerType::TerrainTextureLookup);
@@ -432,7 +462,10 @@ void PrintUsage(const char* argv0)
                 "  --season-mask N     SeasonMask (default 0x0FFF = all months)\n"
                 "  --draw-priority N   DrawPriority (default 0)\n"
                 "\n"
-                "  --out PATH          output .bgl (default m2_lclookup.bgl)\n"
+                "  --out-lookup PATH    output LCLookup .bgl (default m2_lclookup.bgl)\n"
+                "                       — replaces FSX's global terrain-texture lookup\n"
+                "  --out-landclass PATH output land-class .bgl (default m2_landclass.bgl)\n"
+                "                       — drops into a scenery area's scenery/ folder\n"
                 "  --no-verify         skip the read-back self-test\n",
         argv0);
 }
@@ -608,13 +641,21 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             }
             cfg.draw_priority = std::atoi(value.c_str());
         }
-        else if (a == "--out")
+        else if (a == "--out-lookup")
         {
-            if (!need("--out"))
+            if (!need("--out-lookup"))
             {
                 return false;
             }
-            cfg.out = value;
+            cfg.out_lookup = value;
+        }
+        else if (a == "--out-landclass")
+        {
+            if (!need("--out-landclass"))
+            {
+                return false;
+            }
+            cfg.out_landclass = value;
         }
         else if (a == "--no-verify")
         {
@@ -691,13 +732,21 @@ int main(int argc, char** argv)
     int row_b = 0;
     BuildLookup(cfg, lookup, row_a, row_b);
 
-    if (!WriteBgl(cfg, lookup))
+    if (!WriteLookupBgl(cfg, lookup))
     {
-        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out.string().c_str());
+        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_lookup.string().c_str());
+        return 1;
+    }
+    if (!WriteLandClassBgl(cfg))
+    {
+        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_landclass.string().c_str());
         return 1;
     }
 
-    std::printf("m2_testgen: wrote %s\n", cfg.out.string().c_str());
+    std::printf("m2_testgen: wrote %s  (LCLookup 0x6F  -> replaces FSX's global lookup)\n",
+        cfg.out_lookup.string().c_str());
+    std::printf("m2_testgen: wrote %s  (TerrainLandClass 0x68 -> scenery-layer override)\n",
+        cfg.out_landclass.string().c_str());
     std::printf(
         "  QMID: low=0x%08X high=0x%08X%s\n", cfg.qmid_low, cfg.qmid_high, cfg.qmid_explicit ? " (explicit)" : "");
     if (!cfg.qmid_explicit)
