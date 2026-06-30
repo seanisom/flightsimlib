@@ -30,12 +30,16 @@
 // Produces the M2 experiment inputs as TWO files, matching how FSX's terrain
 // engine actually consumes these layers:
 //
-//   1. <out-landclass> (always) — a TerrainLandClass (0x68) raster painted with
-//      a clean A/B class boundary (half / diagonal / checker) so the in-sim
-//      land-class transition — the dithered 1-bit-mask blend of GDC2006 §7.1 /
-//      Fig 10 — is directly observable. The raster (0x68) IS overridable from a
-//      scenery-layer .bgl, so this drops into an active scenery area's scenery/
-//      folder at high priority.
+//   1. <out-landclass> (always) — a TerrainLandClass (0x68) raster painted at
+//      SAMPLE RESOLUTION by a --scenario (uniform | corners2 | corners3 |
+//      corners4 | dualset) or an explicit --grid file. A blend "corner" is a
+//      2x2 neighborhood of ~1 km land-class samples (samples sit on cell
+//      corners), so the corner* scenarios lay out the corner configurations
+//      that drive the dithered 1-bit-mask blend of GDC2006 §7.1 / Fig 10. The
+//      tool prints a layout map (config -> sample coords -> approximate
+//      lat/lon) so in-sim observations can be correlated. The raster (0x68) IS
+//      overridable from a scenery-layer .bgl, so this drops into an active
+//      scenery area's scenery/ folder at high priority.
 //
 //   2. <out-lookup> (only with --lclookup-in) — a PATCHED copy of the real
 //      global lclookup. FSX's terrain engine only ever consults its single
@@ -64,6 +68,7 @@
 #include "BinaryStream.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -95,11 +100,17 @@ constexpr int kTilePointerSize = 16; // packed direct-QMID form (no RecordCount)
 constexpr int kTrq1HeaderSize = 40;
 constexpr uint32_t kTrq1Magic = 0x31515254; // 'TRQ1'
 
-enum class Layout
+// Sample-resolution land-class layouts. A blend "corner" is a 2x2 neighborhood
+// of ~1 km land-class samples; the corner* scenarios lay out corner configs as
+// spaced 2x2-sample blocks so each blend config can be read off in-sim.
+enum class Scenario
 {
-    Half,     // left half class A, right half class B (one clean vertical seam)
-    Diagonal, // lower-left A, upper-right B (one diagonal seam)
-    Checker,  // alternating A/B cells (maximises boundary length)
+    Uniform,  // one class over the whole tile (GAP 4: tilepattern geo-indexing)
+    Corners2, // all 14 two-class corner configs (GAP 2: corner -> mask tile + invert)
+    Corners3, // representative 3-class corners (GAP 3: layering / winner / order)
+    Corners4, // representative 4-class corners (GAP 3)
+    DualSet,  // two large fields of two classes side by side (GAP 5: per-set independence)
+    Grid,     // explicit class-id grid from --grid <file>
 };
 
 struct Config
@@ -126,10 +137,20 @@ struct Config
     int level = 11;
 
     // Land-class raster.
-    int raster = 64; // raster is raster x raster cells
+    int raster = 64; // built-in scenarios paint a raster x raster sample grid
     int class_a = 1;
     int class_b = 2;
-    Layout layout = Layout::Half;
+    int class_c = 3; // used by corners3 / corners4
+    int class_d = 4; // used by corners4
+    Scenario scenario = Scenario::Corners2;
+    std::filesystem::path grid_file; // --grid: explicit class-id grid (Scenario::Grid)
+
+    // --inspect: read-only decode of --lclookup-in. Prints, for --region and a
+    // set of class ids, each class's resolved texture-row index + that row's raw
+    // fields (so the active ground-set / blend-mask refs can be picked). Writes
+    // nothing and exits.
+    bool inspect = false;
+    std::vector<int> inspect_classes; // --classes for --inspect (default A,B)
 
     // GAP B sweep knobs (applied to every authored texture row).
     int64_t variant = 0;
@@ -183,22 +204,289 @@ void TileBounds(
     lat_s = 90.0 - ((tile_y + 1) / span) * 180.0;
 }
 
-uint8_t ClassAtCell(const Config& cfg, int col, int row)
+// A painted land-class raster: row-major class ids, cols x rows. Row 0 is the
+// north edge of the tile (matching the equirect bounds print).
+struct Raster
 {
-    const bool a_or_b = [&]() -> bool
+    int cols = 0;
+    int rows = 0;
+    std::vector<uint8_t> cells;
+
+    void Resize(int c, int r, uint8_t fill)
     {
-        switch (cfg.layout)
+        cols = c;
+        rows = r;
+        cells.assign(static_cast<size_t>(c) * r, fill);
+    }
+    void Set(int col, int row, uint8_t v)
+    {
+        if (col >= 0 && row >= 0 && col < cols && row < rows)
         {
-        case Layout::Half:
-            return col < cfg.raster / 2;
-        case Layout::Diagonal:
-            return (col + row) < cfg.raster;
-        case Layout::Checker:
-            return ((col / 4) + (row / 4)) % 2 == 0;
+            cells[static_cast<size_t>(row) * cols + col] = v;
         }
+    }
+    uint8_t Get(int col, int row) const { return cells[static_cast<size_t>(row) * cols + col]; }
+};
+
+// One labeled footprint in the painted raster (a 2x2 corner block, or a larger
+// field) for the printed layout map.
+struct LayoutEntry
+{
+    std::string label;
+    int col = 0; // top-left sample
+    int row = 0;
+    int w = 1;
+    int h = 1;
+};
+
+// Names of the four samples of a 2x2 corner neighborhood (bit order TL,TR,BL,BR).
+std::string CornerSetLabel(int b_mask)
+{
+    static const char* kNames[4] = {"TL", "TR", "BL", "BR"};
+    std::string s;
+    for (int i = 0; i < 4; ++i)
+    {
+        if (b_mask & (1 << i))
+        {
+            if (!s.empty())
+            {
+                s += "+";
+            }
+            s += kNames[i];
+        }
+    }
+    return s.empty() ? "none" : s;
+}
+
+std::string BlockLabel(int tl, int tr, int bl, int br)
+{
+    return "TL=" + std::to_string(tl) + " TR=" + std::to_string(tr) + " BL=" + std::to_string(bl) +
+        " BR=" + std::to_string(br);
+}
+
+// Lay out a list of 2x2 corner blocks (each = {TL,TR,BL,BR} class ids) on a
+// pre-filled background, evenly spaced with margins so each config is isolated.
+// Returns false if the raster is too small to give every block a margin.
+bool PlaceCornerBlocks(Raster& r, const std::vector<std::array<int, 4>>& blocks,
+    const std::vector<std::string>& labels, std::vector<LayoutEntry>& entries)
+{
+    const int n = static_cast<int>(blocks.size());
+    const int gcols = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n))));
+    const int grows = (n + gcols - 1) / gcols;
+    const int cellw = r.cols / gcols;
+    const int cellh = r.rows / grows;
+    if (cellw < 4 || cellh < 4)
+    {
+        return false; // need room for a 2x2 block plus a margin on every side
+    }
+    for (int i = 0; i < n; ++i)
+    {
+        const int gx = i % gcols;
+        const int gy = i / gcols;
+        const int c0 = gx * cellw + cellw / 2 - 1;
+        const int r0 = gy * cellh + cellh / 2 - 1;
+        r.Set(c0, r0, static_cast<uint8_t>(blocks[i][0]));         // TL
+        r.Set(c0 + 1, r0, static_cast<uint8_t>(blocks[i][1]));     // TR
+        r.Set(c0, r0 + 1, static_cast<uint8_t>(blocks[i][2]));     // BL
+        r.Set(c0 + 1, r0 + 1, static_cast<uint8_t>(blocks[i][3])); // BR
+        entries.push_back({labels[i], c0, r0, 2, 2});
+    }
+    return true;
+}
+
+// Read an explicit class-id grid (whitespace/comma separated, one raster row per
+// line). All rows must have the same column count; values must be 0..255.
+bool ReadGrid(const std::filesystem::path& path, Raster& r, std::string& err)
+{
+    std::ifstream in(path);
+    if (!in)
+    {
+        err = "could not open --grid file " + path.string();
+        return false;
+    }
+    std::vector<std::vector<int>> grid;
+    std::string line;
+    while (std::getline(in, line))
+    {
+        std::vector<int> rowvals;
+        std::string tok;
+        for (char ch : line)
+        {
+            if (ch == ',' || ch == ' ' || ch == '\t' || ch == '\r')
+            {
+                if (!tok.empty())
+                {
+                    rowvals.push_back(std::atoi(tok.c_str()));
+                    tok.clear();
+                }
+            }
+            else
+            {
+                tok += ch;
+            }
+        }
+        if (!tok.empty())
+        {
+            rowvals.push_back(std::atoi(tok.c_str()));
+        }
+        if (!rowvals.empty())
+        {
+            grid.push_back(std::move(rowvals));
+        }
+    }
+    if (grid.empty())
+    {
+        err = "--grid file is empty";
+        return false;
+    }
+    const size_t cols = grid.front().size();
+    for (const auto& row : grid)
+    {
+        if (row.size() != cols)
+        {
+            err = "--grid rows have inconsistent column counts";
+            return false;
+        }
+        for (int v : row)
+        {
+            if (v < 0 || v > 255)
+            {
+                err = "--grid class ids must be 0..255";
+                return false;
+            }
+        }
+    }
+    r.Resize(static_cast<int>(cols), static_cast<int>(grid.size()), 0);
+    for (int row = 0; row < r.rows; ++row)
+    {
+        for (int col = 0; col < r.cols; ++col)
+        {
+            r.Set(col, row, static_cast<uint8_t>(grid[row][col]));
+        }
+    }
+    return true;
+}
+
+// Build the land-class raster for the configured scenario and fill `entries`
+// with the printed layout map. Returns false (with `err`) on a bad config.
+bool BuildRaster(const Config& cfg, Raster& r, std::vector<LayoutEntry>& entries, std::string& err)
+{
+    if (cfg.scenario == Scenario::Grid)
+    {
+        if (cfg.grid_file.empty())
+        {
+            err = "--scenario grid requires --grid <file>";
+            return false;
+        }
+        if (!ReadGrid(cfg.grid_file, r, err))
+        {
+            return false;
+        }
+        entries.push_back({"grid " + std::to_string(r.cols) + "x" + std::to_string(r.rows), 0, 0, r.cols, r.rows});
         return true;
-    }();
-    return static_cast<uint8_t>(a_or_b ? cfg.class_a : cfg.class_b);
+    }
+
+    const int n = cfg.raster;
+    if (cfg.scenario == Scenario::Uniform)
+    {
+        r.Resize(n, n, static_cast<uint8_t>(cfg.class_a));
+        entries.push_back({"uniform class " + std::to_string(cfg.class_a), 0, 0, n, n});
+        return true;
+    }
+    if (cfg.scenario == Scenario::DualSet)
+    {
+        // Two large fields side by side; pick class_a / class_b so their ground
+        // sets have DIFFERENT variant counts to probe per-set independence.
+        r.Resize(n, n, static_cast<uint8_t>(cfg.class_a));
+        for (int row = 0; row < n; ++row)
+        {
+            for (int col = n / 2; col < n; ++col)
+            {
+                r.Set(col, row, static_cast<uint8_t>(cfg.class_b));
+            }
+        }
+        entries.push_back({"field A (left) class " + std::to_string(cfg.class_a), 0, 0, n / 2, n});
+        entries.push_back({"field B (right) class " + std::to_string(cfg.class_b), n / 2, 0, n - n / 2, n});
+        return true;
+    }
+
+    // corner scenarios: spaced 2x2 blocks on a class_a background.
+    r.Resize(n, n, static_cast<uint8_t>(cfg.class_a));
+    std::vector<std::array<int, 4>> blocks;
+    std::vector<std::string> labels;
+    if (cfg.scenario == Scenario::Corners2)
+    {
+        // all 14 two-class corner configs (skip mask 0 = all A and 15 = all B)
+        for (int mask = 1; mask <= 14; ++mask)
+        {
+            std::array<int, 4> b{};
+            for (int i = 0; i < 4; ++i)
+            {
+                b[i] = (mask & (1 << i)) ? cfg.class_b : cfg.class_a;
+            }
+            blocks.push_back(b);
+            labels.push_back("cfg " + std::to_string(mask) + " (B@" + CornerSetLabel(mask) + ") " +
+                BlockLabel(b[0], b[1], b[2], b[3]));
+        }
+    }
+    else if (cfg.scenario == Scenario::Corners3)
+    {
+        const int a = cfg.class_a, b = cfg.class_b, c = cfg.class_c;
+        const std::array<std::array<int, 4>, 4> reps = {{{a, b, c, a}, {b, c, a, b}, {c, a, b, c}, {a, b, b, c}}};
+        for (const auto& blk : reps)
+        {
+            blocks.push_back(blk);
+            labels.push_back("3-class " + BlockLabel(blk[0], blk[1], blk[2], blk[3]));
+        }
+    }
+    else // Corners4
+    {
+        const int a = cfg.class_a, b = cfg.class_b, c = cfg.class_c, d = cfg.class_d;
+        const std::array<std::array<int, 4>, 3> reps = {{{a, b, c, d}, {a, b, d, c}, {d, c, b, a}}};
+        for (const auto& blk : reps)
+        {
+            blocks.push_back(blk);
+            labels.push_back("4-class " + BlockLabel(blk[0], blk[1], blk[2], blk[3]));
+        }
+    }
+    if (!PlaceCornerBlocks(r, blocks, labels, entries))
+    {
+        err = "--raster too small for this scenario (increase --raster)";
+        return false;
+    }
+    return true;
+}
+
+// Print the layout map: each config -> sample coords -> approximate lat/lon
+// (reusing the equirect TileBounds estimate) so in-sim observations can be tied
+// back to specific corner configs. lat/lon is only available for a lat/lon or
+// derived QMID (not an explicit --qmid).
+void PrintLayoutMap(const Raster& r, const std::vector<LayoutEntry>& entries, bool have_bounds, double lat_n,
+    double lat_s, double lon_w, double lon_e)
+{
+    std::printf("  layout map (raster %dx%d, row 0 = north edge):\n", r.cols, r.rows);
+    for (const auto& e : entries)
+    {
+        std::printf("    %s\n", e.label.c_str());
+        if (e.w == 2 && e.h == 2)
+        {
+            std::printf("      samples: TL=(c%d,r%d) TR=(c%d,r%d) BL=(c%d,r%d) BR=(c%d,r%d)\n", e.col, e.row,
+                e.col + 1, e.row, e.col, e.row + 1, e.col + 1, e.row + 1);
+        }
+        else
+        {
+            std::printf(
+                "      samples: cols[%d..%d] rows[%d..%d]\n", e.col, e.col + e.w - 1, e.row, e.row + e.h - 1);
+        }
+        if (have_bounds)
+        {
+            const double cc = e.col + (e.w - 1) / 2.0;
+            const double cr = e.row + (e.h - 1) / 2.0;
+            const double lon = lon_w + (cc + 0.5) / r.cols * (lon_e - lon_w);
+            const double lat = lat_n - (cr + 0.5) / r.rows * (lat_n - lat_s);
+            std::printf("      center ~ lat %.5f lon %.5f\n", lat, lon);
+        }
+    }
 }
 
 // Build one texture-lookup row carrying the swept GAP B knobs for a land class.
@@ -421,7 +709,7 @@ bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoint
 
 // The TerrainLandClass (0x68) raster on its own. This is the file that drops
 // into an active scenery area's scenery/ folder as a land-class override.
-bool WriteLandClassBgl(const Config& cfg)
+bool WriteLandClassBgl(const Config& cfg, const Raster& raster)
 {
     EnsureParentDir(cfg.out_landclass);
     if (!TruncateCreate(cfg.out_landclass))
@@ -436,8 +724,8 @@ bool WriteLandClassBgl(const Config& cfg)
 
     const int tile_ptr = kHeaderSize + kLayerPointerSize * 1;
     const int record = tile_ptr + kTilePointerSize;
-    const int class_cols = cfg.raster;
-    const int class_rows = cfg.raster;
+    const int class_cols = raster.cols;
+    const int class_rows = raster.rows;
     const int class_payload = class_cols * class_rows;
     const int record_size = kTrq1HeaderSize + class_payload;
 
@@ -460,7 +748,7 @@ bool WriteLandClassBgl(const Config& cfg)
     {
         for (int col = 0; col < class_cols; ++col)
         {
-            out << ClassAtCell(cfg, col, row);
+            out << raster.Get(col, row);
         }
     }
 
@@ -600,6 +888,89 @@ bool VerifyPatched(const Config& cfg)
     return failures == 0;
 }
 
+// --inspect (read-only): decode --lclookup-in and print, for --region and each
+// requested class id, the resolved texture-row index (GetRegionLandClassTexture)
+// and that row's raw fields (GetTextureAt). This is how you pick test classes
+// and find the active ground-set / blend-mask refs. Writes nothing.
+bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
+{
+    CBglFile bgl(cfg.lclookup_in.wstring());
+    if (!bgl.Read())
+    {
+        std::fprintf(stderr, "FAIL: could not read %s\n", cfg.lclookup_in.string().c_str());
+        return false;
+    }
+    auto* layer = bgl.GetDirectQmidLayer(EBglLayerType::TerrainTextureLookup);
+    if (layer == nullptr)
+    {
+        std::fprintf(stderr, "FAIL: input has no TerrainTextureLookup (0x6F) layer\n");
+        return false;
+    }
+    const int qmid_count = layer->GetQmidCount();
+    if (qmid_count == 0)
+    {
+        std::fprintf(stderr, "FAIL: lookup has no QMID records\n");
+        return false;
+    }
+    // Inspect the first record; the global table's per-QMID records share the
+    // same region->texture structure, so record 0 is representative.
+    const auto* tile_ptr = layer->GetDataPointerAtIndex(0);
+    if (tile_ptr == nullptr)
+    {
+        std::fprintf(stderr, "FAIL: could not read first QMID record\n");
+        return false;
+    }
+    const CPackedQmid qmid{tile_ptr->QmidLow, tile_ptr->QmidHigh};
+    auto* data = layer->GetDataAtQmid(qmid, 0);
+    auto* lookup = data != nullptr ? data->AsTerrainTextureLookup() : nullptr;
+    if (lookup == nullptr)
+    {
+        std::fprintf(stderr, "FAIL: first record is not a TerrainTextureLookup\n");
+        return false;
+    }
+
+    std::printf("m2_testgen --inspect: %s\n", cfg.lclookup_in.string().c_str());
+    std::printf("  QMID records=%d  inspecting record 0 (qmidLow=0x%08X qmidHigh=0x%08X)\n", qmid_count,
+        tile_ptr->QmidLow, tile_ptr->QmidHigh);
+    std::printf("  textures=%d regions=%d landClasses=%d waterClasses=%d  (using region=%d)\n",
+        lookup->GetTextureCount(), lookup->GetRegionCount(), lookup->GetLandClassCount(),
+        lookup->GetWaterClassCount(), cfg.region);
+
+    if (cfg.region < 0 || cfg.region >= lookup->GetRegionCount())
+    {
+        std::fprintf(stderr, "FAIL: --region %d out of range [0..%d)\n", cfg.region, lookup->GetRegionCount());
+        return false;
+    }
+
+    for (int cls : classes)
+    {
+        std::printf("  class %d:\n", cls);
+        if (cls < 0 || cls >= lookup->GetLandClassCount())
+        {
+            std::printf("    (out of land-class range [0..%d))\n", lookup->GetLandClassCount());
+            continue;
+        }
+        const int row = lookup->GetRegionLandClassTexture(cfg.region, cls);
+        std::printf("    -> texture row %d\n", row);
+        const auto* e = (row >= 0 && row < lookup->GetTextureCount()) ? lookup->GetTextureAt(row) : nullptr;
+        if (e == nullptr)
+        {
+            std::printf("    (no texture row)\n");
+            continue;
+        }
+        // SeasonMask is conventionally displayed octal (see §6); show both.
+        const unsigned season = static_cast<unsigned>(static_cast<uint16_t>(e->SeasonMask));
+        std::printf("      VULCNNumber=%d VULCNRegion=%u VULCNMask=%u SeasonMask=0%o (0x%X)\n", e->VULCNNumber,
+            e->VULCNRegion, e->VULCNMask, season, season);
+        std::printf("      DrawPriority=%d  Blend{VULCN=%d Region=%u Mask=%u Variant=%lld}\n", e->DrawPriority,
+            e->BlendTextureVULCN, e->BlendTextureRegion, e->BlendTextureMask,
+            static_cast<long long>(e->BlendTextureVariant));
+        std::printf(
+            "      Autogen{VULCN=%d Region=%u Mask=%u}\n", e->AutogenVULCN, e->AutogenRegion, e->AutogenMask);
+    }
+    return true;
+}
+
 void PrintUsage(const char* argv0)
 {
     std::printf("Usage: %s [options]\n"
@@ -615,12 +986,30 @@ void PrintUsage(const char* argv0)
                 "  --lon DEG           longitude (default -122.3)\n"
                 "  --level N           QMID level (default 11)\n"
                 "\n"
-                "Land-class raster:\n"
-                "  --raster N          NxN cells (default 64)\n"
-                "  --class-a ID        first land-class id  (default 1)\n"
-                "  --class-b ID        second land-class id (default 2)\n"
-                "  --layout L          half | diag | checker (default half)\n"
+                "Land-class raster (painted at sample resolution; a blend corner = a 2x2\n"
+                "neighborhood of ~1 km samples). Prints a layout map (config -> sample coords\n"
+                "-> approximate lat/lon) so in-sim observations can be correlated:\n"
+                "  --scenario S        uniform | corners2 | corners3 | corners4 | dualset\n"
+                "                      (default corners2)\n"
+                "                        uniform  : one class over the tile (GAP 4 geo-indexing)\n"
+                "                        corners2 : all 14 two-class corner configs (GAP 2)\n"
+                "                        corners3 : representative 3-class corners (GAP 3)\n"
+                "                        corners4 : representative 4-class corners (GAP 3)\n"
+                "                        dualset  : two large fields side by side (GAP 5)\n"
+                "  --grid FILE         explicit class-id grid (whitespace/comma separated, one\n"
+                "                      raster row per line); overrides --scenario\n"
+                "  --raster N          built-in scenarios paint NxN samples (default 64)\n"
+                "  --class-a ID        class A (default 1)\n"
+                "  --class-b ID        class B (default 2)\n"
+                "  --class-c ID        class C, used by corners3/corners4 (default 3)\n"
+                "  --class-d ID        class D, used by corners4 (default 4)\n"
                 "  --region ID         region id (default 0)\n"
+                "\n"
+                "Inspect (read-only; decode the real lclookup and exit):\n"
+                "  --inspect           with --lclookup-in: for --region and --classes (default\n"
+                "                      A,B), print each class's resolved texture row + raw\n"
+                "                      fields (ground-set / blend-mask refs). Writes nothing.\n"
+                "  --classes LIST      comma-separated class ids for --inspect\n"
                 "\n"
                 "GAP B sweep knobs (applied to the appended class A/B texture rows):\n"
                 "  --variant N         BlendTextureVariant (int64, default 0)\n"
@@ -643,6 +1032,27 @@ void PrintUsage(const char* argv0)
                 "                       — drops into a scenery area's scenery/ folder\n"
                 "  --no-verify         skip the read-back self-test\n",
         argv0);
+}
+
+std::vector<int> ParseIntList(const std::string& s)
+{
+    std::vector<int> out;
+    size_t start = 0;
+    while (start <= s.size())
+    {
+        const size_t comma = s.find(',', start);
+        const std::string tok = s.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        if (!tok.empty())
+        {
+            out.push_back(std::atoi(tok.c_str()));
+        }
+        if (comma == std::string::npos)
+        {
+            break;
+        }
+        start = comma + 1;
+    }
+    return out;
 }
 
 bool ParseArgs(int argc, char** argv, Config& cfg)
@@ -728,29 +1138,74 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             }
             cfg.class_b = std::atoi(value.c_str());
         }
-        else if (a == "--layout")
+        else if (a == "--class-c")
         {
-            if (!need("--layout"))
+            if (!need("--class-c"))
             {
                 return false;
             }
-            if (value == "half")
+            cfg.class_c = std::atoi(value.c_str());
+        }
+        else if (a == "--class-d")
+        {
+            if (!need("--class-d"))
             {
-                cfg.layout = Layout::Half;
+                return false;
             }
-            else if (value == "diag")
+            cfg.class_d = std::atoi(value.c_str());
+        }
+        else if (a == "--scenario")
+        {
+            if (!need("--scenario"))
             {
-                cfg.layout = Layout::Diagonal;
+                return false;
             }
-            else if (value == "checker")
+            if (value == "uniform")
             {
-                cfg.layout = Layout::Checker;
+                cfg.scenario = Scenario::Uniform;
+            }
+            else if (value == "corners2")
+            {
+                cfg.scenario = Scenario::Corners2;
+            }
+            else if (value == "corners3")
+            {
+                cfg.scenario = Scenario::Corners3;
+            }
+            else if (value == "corners4")
+            {
+                cfg.scenario = Scenario::Corners4;
+            }
+            else if (value == "dualset")
+            {
+                cfg.scenario = Scenario::DualSet;
             }
             else
             {
-                std::fprintf(stderr, "Unknown layout: %s\n", value.c_str());
+                std::fprintf(stderr, "Unknown scenario: %s\n", value.c_str());
                 return false;
             }
+        }
+        else if (a == "--grid")
+        {
+            if (!need("--grid"))
+            {
+                return false;
+            }
+            cfg.grid_file = value;
+            cfg.scenario = Scenario::Grid;
+        }
+        else if (a == "--classes")
+        {
+            if (!need("--classes"))
+            {
+                return false;
+            }
+            cfg.inspect_classes = ParseIntList(value);
+        }
+        else if (a == "--inspect")
+        {
+            cfg.inspect = true;
         }
         else if (a == "--region")
         {
@@ -883,7 +1338,7 @@ int main(int argc, char** argv)
     // would otherwise silently wrap and produce a misleading test file.
     auto in_u8 = [](int v) { return v >= 0 && v <= 255; };
     auto in_i16 = [](int v) { return v >= -32768 && v <= 32767; };
-    if (!in_u8(cfg.class_a) || !in_u8(cfg.class_b))
+    if (!in_u8(cfg.class_a) || !in_u8(cfg.class_b) || !in_u8(cfg.class_c) || !in_u8(cfg.class_d))
     {
         std::fprintf(stderr, "Land-class ids must be 0..255 (written as uint8 raster samples).\n");
         return 1;
@@ -891,6 +1346,19 @@ int main(int argc, char** argv)
     if (cfg.class_a == cfg.class_b)
     {
         std::fprintf(stderr, "--class-a and --class-b must differ (they map to distinct texture rows).\n");
+        return 1;
+    }
+    if (cfg.scenario == Scenario::Corners3 &&
+        (cfg.class_a == cfg.class_c || cfg.class_b == cfg.class_c))
+    {
+        std::fprintf(stderr, "corners3 needs distinct --class-a/-b/-c (they are the 3 classes).\n");
+        return 1;
+    }
+    if (cfg.scenario == Scenario::Corners4 &&
+        (cfg.class_a == cfg.class_c || cfg.class_a == cfg.class_d || cfg.class_b == cfg.class_c ||
+            cfg.class_b == cfg.class_d || cfg.class_c == cfg.class_d))
+    {
+        std::fprintf(stderr, "corners4 needs distinct --class-a/-b/-c/-d (they are the 4 classes).\n");
         return 1;
     }
     if (!in_u8(cfg.region) || !in_u8(cfg.vulcn_mask) || !in_u8(cfg.blend_mask) || !in_u8(cfg.blend_region))
@@ -933,8 +1401,37 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    // Read-only short-circuit: decode the real lclookup and report the resolved
+    // ground-set / blend-mask refs for the chosen classes, then exit.
+    if (cfg.inspect)
+    {
+        if (cfg.lclookup_in.empty())
+        {
+            std::fprintf(stderr, "--inspect requires --lclookup-in <file>.\n");
+            return 1;
+        }
+        const std::vector<int> classes =
+            cfg.inspect_classes.empty() ? std::vector<int>{cfg.class_a, cfg.class_b} : cfg.inspect_classes;
+        if (!InspectLookup(cfg, classes))
+        {
+            std::fprintf(stderr, "m2_testgen: --inspect FAILED\n");
+            return 2;
+        }
+        return 0;
+    }
+
+    // Paint the land-class raster for the chosen scenario (or explicit grid).
+    Raster raster;
+    std::vector<LayoutEntry> entries;
+    std::string build_err;
+    if (!BuildRaster(cfg, raster, entries, build_err))
+    {
+        std::fprintf(stderr, "FAIL: %s\n", build_err.c_str());
+        return 1;
+    }
+
     // Land-class raster override is always written (it IS a valid scenery layer).
-    if (!WriteLandClassBgl(cfg))
+    if (!WriteLandClassBgl(cfg, raster))
     {
         std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_landclass.string().c_str());
         return 1;
@@ -963,17 +1460,39 @@ int main(int argc, char** argv)
     }
     std::printf(
         "  QMID: low=0x%08X high=0x%08X%s\n", cfg.qmid_low, cfg.qmid_high, cfg.qmid_explicit ? " (explicit)" : "");
-    if (!cfg.qmid_explicit)
+    const bool have_bounds = !cfg.qmid_explicit;
+    double lat_n = 0, lon_w = 0, lat_s = 0, lon_e = 0;
+    if (have_bounds)
     {
-        double lat_n, lon_w, lat_s, lon_e;
         TileBounds(tile_x, tile_y, cfg.level, lat_n, lon_w, lat_s, lon_e);
         std::printf("  tile=(%u,%u) level=%d  ~bounds: lat[%.4f..%.4f] lon[%.4f..%.4f] (equirect estimate)\n", tile_x,
             tile_y, cfg.level, lat_s, lat_n, lon_w, lon_e);
     }
-    std::printf("  land classes: A=%d B=%d  raster=%dx%d  region=%d\n", cfg.class_a, cfg.class_b, cfg.raster,
-        cfg.raster, cfg.region);
+    auto scenario_name = [](Scenario s) -> const char*
+    {
+        switch (s)
+        {
+        case Scenario::Uniform:
+            return "uniform";
+        case Scenario::Corners2:
+            return "corners2";
+        case Scenario::Corners3:
+            return "corners3";
+        case Scenario::Corners4:
+            return "corners4";
+        case Scenario::DualSet:
+            return "dualset";
+        case Scenario::Grid:
+            return "grid";
+        }
+        return "?";
+    };
+    std::printf("  scenario: %s  classes A=%d B=%d C=%d D=%d  raster=%dx%d  region=%d\n",
+        scenario_name(cfg.scenario), cfg.class_a, cfg.class_b, cfg.class_c, cfg.class_d, raster.cols, raster.rows,
+        cfg.region);
     std::printf("  swept knobs: variant=%lld vulcnMask=%d blendMask=%d\n", static_cast<long long>(cfg.variant),
         cfg.vulcn_mask, cfg.blend_mask);
+    PrintLayoutMap(raster, entries, have_bounds, lat_n, lat_s, lon_w, lon_e);
 
     // Self-test only applies to the patched lookup (the land-class raster is a
     // straight authored write).

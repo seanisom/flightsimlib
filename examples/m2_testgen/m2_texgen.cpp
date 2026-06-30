@@ -27,24 +27,39 @@
 //
 // M2 synthetic land-class texture generator (LANDCLASS_SYNTHESIS.md §7 M2).
 //
-// Emits a family of "numbered / colored" placeholder land-class texture tiles
-// where the identity (land-class id, region, variant index) is BAKED INTO THE
-// PIXELS as readable text plus a deterministic per-identity background color.
-// The point is M2: load these into FSX over a known area (paired with the
-// m2_testgen .bgl), fly, screenshot, and read off *which* texture appears
-// *where* and *how the variants tile / dither at class boundaries* — i.e. the
-// GAP B blend / `BlendTextureVariant` rule that unblocks M3.
+// Emits the two FSX-named texture families that the M2 reverse-engineering
+// experiment loads into the sim to pin down the (now-understood) blend /
+// variation mechanism — see LANDCLASS_SYNTHESIS.md §2.1 / §6 / §7.1. Both
+// families are uncompressed 24-bit BMP (no external image dependency); convert
+// to the sim's terrain-texture format (DDS) with the SDK's imagetool, then
+// install (destinations differ — see below).
 //
-// Output is uncompressed 24-bit BMP (no external image dependency); convert to
-// the sim's terrain-texture format (e.g. DDS) with the sim's imagetool as a
-// protocol step (see LANDCLASS_SYNTHESIS.md M2 protocol — the exact terrain
-// texture directory + filename convention is an FSX-install detail filled in
-// there, not baked in here). Filenames are descriptive:
-//   lc{class}_r{region}_v{variant}.bmp
+// Selected by --mode {ground|mask|both} (default both):
+//
+//   GROUND family ({set:03d}{region}2{season}{v}.bmp, v=1..N, 1-based):
+//     The per-variant ground tiles for a land-class "set". Each tile bakes its
+//     variant number large + altitude-legible, on a background painted with
+//     Holger's 16-color tilepattern legend color for index (v-1). That ties the
+//     ON-GROUND color to the per-cell variant color a tilepattern{N}.bmp index
+//     map selects in-sim, so you can read which variant landed where.
+//     (NOTE: 0-based legend color vs 1-based filename variant — confirm the off
+//     -by-one in-sim.)  Install: scenery package texture/.
+//
+//   MASK family ({set:03d}{region}2m{v}1.bmp, v=1..K, default K=7):
+//     The 900-series blend masks: ONE BMP per variant, each an 8-tile vertical
+//     atlas (8 stacked square tiles). The 8 tiles are the 8 corner configs
+//     (TR+BL, TL+BR, left column, bottom row, BR, BL, TL, TR); these 8 + their
+//     inversion cover the 14 two-class corner configs. Each tile is a valid
+//     1-bit coverage (covered region = black) rendered as a STOCHASTIC dithered
+//     stipple (not a solid block) to mimic the soft 1-bit transition, with a
+//     small v+corner-index label. (NOTE: the "m{v}1" suffix is the best guess
+//     for the per-variant atlas filename — treat as parameterized / confirm in
+//     -sim.)  Install: root Scenery\World\texture.
 //
 // Returns 0 on success, 1 on any I/O failure.
 //
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -117,22 +132,6 @@ struct Image
     }
 };
 
-// Deterministic, well-spread background color from the (class, region, variant)
-// identity so adjacent variants are visually distinct in-sim (this is what
-// makes the variant tiling / dither pattern legible).
-Rgb IdentityColor(int land_class, int region, int variant)
-{
-    uint32_t h = 2166136261u; // FNV-1a over the identity triple
-    for (int v : {land_class, region, variant})
-    {
-        h ^= static_cast<uint32_t>(v);
-        h *= 16777619u;
-    }
-    // Bias toward mid-tones so baked text stays legible at either contrast.
-    auto chan = [](uint32_t x) -> uint8_t { return static_cast<uint8_t>(64 + (x % 160)); };
-    return {chan(h), chan(h >> 8), chan(h >> 16)};
-}
-
 // Black or white, whichever contrasts better with bg (Rec. 601 luma).
 Rgb ContrastInk(Rgb bg)
 {
@@ -176,6 +175,16 @@ void DrawText(Image& img, const std::string& text, int ox, int oy, int scale, Rg
         }
         x += (5 + 1) * scale; // 5px glyph + 1px gap
     }
+}
+
+// Pixel advance / height of a string drawn at `scale` (5px glyph + 1px gap).
+int TextWidth(const std::string& text, int scale)
+{
+    return static_cast<int>(text.size()) * (5 + 1) * scale;
+}
+int TextHeight(int scale)
+{
+    return 7 * scale;
 }
 
 bool WriteBmp24(const std::filesystem::path& path, const Image& img)
@@ -239,10 +248,49 @@ bool WriteBmp24(const std::filesystem::path& path, const Image& img)
     return static_cast<bool>(out);
 }
 
-// One placeholder texture for a (class, region, variant) identity.
-bool WriteTexture(const std::filesystem::path& dir, int land_class, int region, int variant, int size)
+// ---- M2 texture families ---------------------------------------------------
+
+// Holger's FSX Land Class Table 16-color legend (tilepattern{N}.bmp cell color
+// == variant index). Index 0..15 -> the color the in-sim index map paints for
+// that variant. We bake the same color into the matching ground variant tile so
+// the on-ground color ties back to the tilepattern color.
+constexpr Rgb kLegend[16] = {
+    {0, 0, 0},       // 0  black
+    {220, 0, 0},     // 1  red
+    {235, 220, 0},   // 2  yellow
+    {120, 220, 110}, // 3  lt green
+    {120, 190, 235}, // 4  lt blue
+    {0, 60, 200},    // 5  blue
+    {235, 130, 175}, // 6  pink
+    {80, 0, 90},     // 7  dk purple
+    {175, 130, 85},  // 8  lt brown
+    {0, 110, 40},    // 9  dk green
+    {0, 140, 130},   // 10 blue-green
+    {0, 30, 110},    // 11 dk blue
+    {130, 0, 150},   // 12 purple
+    {200, 235, 190}, // 13 pale green
+    {200, 225, 245}, // 14 pale blue
+    {200, 160, 235}, // 15 lt purple
+};
+
+// "%03d" set number prefix (e.g. 900 -> "900", 5 -> "005").
+std::string SetPrefix(int set)
 {
-    const Rgb bg = IdentityColor(land_class, region, variant);
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%03d", set);
+    return std::string(buf);
+}
+
+// One ground variant tile: big legible variant number on the legend color for
+// (variant-1), 1px border, small set caption. Filename:
+//   {set:03d}{region}2{season}{v}.bmp   (e.g. 900b2su1.bmp)
+bool WriteGroundTexture(
+    const std::filesystem::path& dir, int set, char region, const std::string& season, int variant, int size)
+{
+    // 0-based legend color for a 1-based filename variant. The off-by-one is the
+    // working assumption; confirm in-sim (see header note).
+    const int color_index = (variant - 1) % 16;
+    const Rgb bg = kLegend[color_index < 0 ? 0 : color_index];
     const Rgb ink = ContrastInk(bg);
     Image img(size, size, bg);
 
@@ -255,69 +303,183 @@ bool WriteTexture(const std::filesystem::path& dir, int land_class, int region, 
         img.Set(size - 1, i, ink);
     }
 
-    // Baked identity, large and centered-ish: "C<class>" / "R<region>" /
-    // "V<variant>" stacked so it's readable from altitude.
-    const int scale = size >= 256 ? 6 : (size >= 128 ? 3 : 2);
-    const int line_h = (7 + 2) * scale;
-    int y = size / 2 - line_h * 3 / 2;
-    const int x = size / 2 - 4 * (5 + 1) * scale / 2;
-    DrawText(img, "C" + std::to_string(land_class), x, y, scale, ink);
-    y += line_h;
-    DrawText(img, "R" + std::to_string(region), x, y, scale, ink);
-    y += line_h;
-    DrawText(img, "V" + std::to_string(variant), x, y, scale, ink);
+    // Big centered variant number (altitude-legible). Size it to fill the tile.
+    const std::string num = std::to_string(variant);
+    const int chars = static_cast<int>(num.size());
+    int scale = static_cast<int>((0.70 * size) / (chars * 6));
+    const int by_height = static_cast<int>((0.55 * size) / 7);
+    if (scale > by_height)
+    {
+        scale = by_height;
+    }
+    if (scale < 2)
+    {
+        scale = 2;
+    }
+    const int tx = (size - TextWidth(num, scale)) / 2;
+    const int ty = (size - TextHeight(scale)) / 2;
+    DrawText(img, num, tx, ty, scale, ink);
+
+    // Small set caption top-left (region/season live in the filename).
+    const int sscale = size >= 128 ? 2 : 1;
+    DrawText(img, std::to_string(set), 3, 3, sscale, ink);
 
     const std::string name =
-        "lc" + std::to_string(land_class) + "_r" + std::to_string(region) + "_v" + std::to_string(variant) + ".bmp";
+        SetPrefix(set) + std::string(1, region) + "2" + season + std::to_string(variant) + ".bmp";
+    return WriteBmp24(dir / name, img);
+}
+
+// The 8 corner configs of a 2x2 sample neighborhood, in the atlas tile order
+// (TR+BL, TL+BR, left column, bottom row, BR, BL, TL, TR). Covered corners get
+// stochastic dithered black coverage; these 8 + inversion cover the 14
+// two-class configs.
+struct CornerConfig
+{
+    const char* name;
+    bool tl, tr, bl, br;
+};
+
+constexpr CornerConfig kMaskTiles[8] = {
+    {"TR+BL", false, true, true, false},
+    {"TL+BR", true, false, false, true},
+    {"leftcol", true, false, true, false},   // TL + BL
+    {"bottomrow", false, false, true, true},  // BL + BR
+    {"BR", false, false, false, true},
+    {"BL", false, false, true, false},
+    {"TL", true, false, false, false},
+    {"TR", false, true, false, false},
+};
+
+// Per-pixel stochastic dither threshold in [0,1). Mixing variant + tile makes
+// each variant's mask noise distinct (the per-variant mask set is the point).
+double DitherThreshold(int x, int y, int variant, int tile)
+{
+    uint32_t h = static_cast<uint32_t>(x) * 73856093u ^ static_cast<uint32_t>(y) * 19349663u ^
+        static_cast<uint32_t>(variant) * 83492791u ^ static_cast<uint32_t>(tile) * 2654435761u;
+    h ^= h >> 13;
+    h *= 0x85ebca6bu;
+    h ^= h >> 16;
+    return (h & 0xFFFFu) / 65536.0;
+}
+
+// One per-variant 8-corner mask atlas (8 stacked square tiles), dithered 1-bit
+// coverage (covered = black). Filename: {set:03d}{region}2m{v}1.bmp.
+bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int variant, int size)
+{
+    constexpr int kTiles = 8;
+    Image img(size, size * kTiles, Rgb{255, 255, 255});
+
+    for (int t = 0; t < kTiles; ++t)
+    {
+        const CornerConfig& cc = kMaskTiles[t];
+        const int y0 = t * size;
+        long covered = 0;
+        for (int y = 0; y < size; ++y)
+        {
+            const double v = (y + 0.5) / size;
+            for (int x = 0; x < size; ++x)
+            {
+                const double u = (x + 0.5) / size;
+                double cov = 0.0;
+                if (cc.tl)
+                {
+                    cov += (1 - u) * (1 - v);
+                }
+                if (cc.tr)
+                {
+                    cov += u * (1 - v);
+                }
+                if (cc.bl)
+                {
+                    cov += (1 - u) * v;
+                }
+                if (cc.br)
+                {
+                    cov += u * v;
+                }
+                if (cov > DitherThreshold(x, y, variant, t))
+                {
+                    img.Set(x, y0 + y, Rgb{0, 0, 0});
+                    ++covered;
+                }
+            }
+        }
+
+        // Small v+corner label in a TILE CORNER, drawn in the minority color
+        // over the majority-color background so it reads without perturbing the
+        // coverage much. Pick a corner whose background is the majority color.
+        const double frac = static_cast<double>(covered) / (static_cast<double>(size) * size);
+        const bool minority_black = frac < 0.5;
+        const Rgb ink = minority_black ? Rgb{0, 0, 0} : Rgb{255, 255, 255};
+        const bool want_covered = !minority_black; // majority-color corner
+        const bool covers[4] = {cc.tl, cc.tr, cc.bl, cc.br}; // TL,TR,BL,BR
+        int corner = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            if (covers[i] == want_covered)
+            {
+                corner = i;
+                break;
+            }
+        }
+        const int lscale = size >= 64 ? std::max(1, size / 64) : 1;
+        const std::string label = "V" + std::to_string(variant) + " " + std::to_string(t);
+        const int lw = TextWidth(label, lscale);
+        const int lh = TextHeight(lscale);
+        const int margin = 3;
+        const int lx = (corner == 1 || corner == 3) ? (size - lw - margin) : margin;
+        const int ly = (corner == 2 || corner == 3) ? (y0 + size - lh - margin) : (y0 + margin);
+        DrawText(img, label, lx, ly, lscale, ink);
+    }
+
+    const std::string name = SetPrefix(set) + std::string(1, region) + "2m" + std::to_string(variant) + "1.bmp";
     return WriteBmp24(dir / name, img);
 }
 
 void PrintUsage(const char* argv0)
 {
-    std::printf("Usage: %s [--out DIR] [--size N] [--classes A,B,...] [--regions R,...] [--variants K]\n"
-                "\n"
-                "Generates numbered/colored placeholder land-class textures for the M2\n"
-                "reverse-engineering experiment (LANDCLASS_SYNTHESIS.md M2). Each tile bakes\n"
-                "its (land-class, region, variant) identity into the pixels.\n"
-                "\n"
-                "  --out DIR        output directory (default: ./m2_textures)\n"
-                "  --size N         square tile size in px (default: 256)\n"
-                "  --classes LIST   comma-separated land-class ids (default: 1,2)\n"
-                "  --regions LIST   comma-separated region ids (default: 0)\n"
-                "  --variants K     variant count per (class,region), 0..K-1 (default: 4)\n",
+    std::printf(
+        "Usage: %s [--mode ground|mask|both] [options]\n"
+        "\n"
+        "Generates the M2 FSX-named land-class texture families (LANDCLASS_SYNTHESIS.md\n"
+        "§7 M2). Output is 24-bit BMP; convert to DDS with the SDK imagetool, then\n"
+        "install: GROUND -> scenery package texture/ ; MASKS -> root Scenery\\World\\texture.\n"
+        "\n"
+        "  --mode M          ground | mask | both (default both)\n"
+        "  --out DIR         output directory (default: ./m2_textures)\n"
+        "  --size N          square tile size in px (default: 256)\n"
+        "  --region C        single region letter, both families (default: b)\n"
+        "\n"
+        "GROUND family  {set:03d}{region}2{season}{v}.bmp  (v=1..N, 1-based):\n"
+        "  --set N           ground set number (default 900)\n"
+        "  --season S        su | sp | fa | wi | hw (default su)\n"
+        "  --variants N      variant count, 1..16 (legend size) (default 7)\n"
+        "                    bg color = Holger legend index (v-1); 0-based-color vs\n"
+        "                    1-based-filename indexing is TO BE CONFIRMED in-sim.\n"
+        "\n"
+        "MASK family  {set:03d}{region}2m{v}1.bmp  (v=1..K, one 8-corner atlas each):\n"
+        "  --mask-set N      mask set number (default 900; new 903 or override 900-902)\n"
+        "  --mask-variants K variant count (default 7)\n"
+        "                    each BMP is an 8-tile vertical atlas (TR+BL, TL+BR, left\n"
+        "                    column, bottom row, BR, BL, TL, TR); 8 tiles + inversion\n"
+        "                    cover the 14 two-class corner configs. The \"m{v}1\" suffix\n"
+        "                    is a best guess — treat as parameterized / confirm in-sim.\n",
         argv0);
-}
-
-std::vector<int> ParseIntList(const std::string& s)
-{
-    std::vector<int> out;
-    size_t start = 0;
-    while (start <= s.size())
-    {
-        size_t comma = s.find(',', start);
-        std::string tok = s.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
-        if (!tok.empty())
-        {
-            out.push_back(std::atoi(tok.c_str()));
-        }
-        if (comma == std::string::npos)
-        {
-            break;
-        }
-        start = comma + 1;
-    }
-    return out;
 }
 
 } // namespace
 
 int main(int argc, char** argv)
 {
+    std::string mode = "both";
     std::filesystem::path out_dir = "m2_textures";
     int size = 256;
-    std::vector<int> classes = {1, 2};
-    std::vector<int> regions = {0};
-    int variants = 4;
+    char region = 'b';
+    int set = 900;
+    std::string season = "su";
+    int variants = 7;
+    int mask_set = 900;
+    int mask_variants = 7;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -327,9 +489,6 @@ int main(int argc, char** argv)
         // missing value or a following option instead of silently parsing "".
         auto need = [&](const char* opt) -> bool
         {
-            // Reject a missing value or a following long option (--foo). A
-            // single leading '-' is allowed so a negative list element reaches
-            // the explicit non-negative validation with a clearer message.
             if (i + 1 >= argc || (argv[i + 1][0] == '-' && argv[i + 1][1] == '-'))
             {
                 std::fprintf(stderr, "Option %s requires a value.\n", opt);
@@ -338,7 +497,15 @@ int main(int argc, char** argv)
             value = argv[++i];
             return true;
         };
-        if (arg == "--out")
+        if (arg == "--mode")
+        {
+            if (!need("--mode"))
+            {
+                return 1;
+            }
+            mode = value;
+        }
+        else if (arg == "--out")
         {
             if (!need("--out"))
             {
@@ -354,21 +521,29 @@ int main(int argc, char** argv)
             }
             size = std::atoi(value.c_str());
         }
-        else if (arg == "--classes")
+        else if (arg == "--region")
         {
-            if (!need("--classes"))
+            if (!need("--region"))
             {
                 return 1;
             }
-            classes = ParseIntList(value);
+            region = value.empty() ? '\0' : value[0];
         }
-        else if (arg == "--regions")
+        else if (arg == "--set")
         {
-            if (!need("--regions"))
+            if (!need("--set"))
             {
                 return 1;
             }
-            regions = ParseIntList(value);
+            set = std::atoi(value.c_str());
+        }
+        else if (arg == "--season")
+        {
+            if (!need("--season"))
+            {
+                return 1;
+            }
+            season = value;
         }
         else if (arg == "--variants")
         {
@@ -377,6 +552,22 @@ int main(int argc, char** argv)
                 return 1;
             }
             variants = std::atoi(value.c_str());
+        }
+        else if (arg == "--mask-set")
+        {
+            if (!need("--mask-set"))
+            {
+                return 1;
+            }
+            mask_set = std::atoi(value.c_str());
+        }
+        else if (arg == "--mask-variants")
+        {
+            if (!need("--mask-variants"))
+            {
+                return 1;
+            }
+            mask_variants = std::atoi(value.c_str());
         }
         else if (arg == "-h" || arg == "--help")
         {
@@ -391,29 +582,40 @@ int main(int argc, char** argv)
         }
     }
 
-    if (size < 16 || classes.empty() || regions.empty() || variants < 1)
+    const bool do_ground = (mode == "ground" || mode == "both");
+    const bool do_mask = (mode == "mask" || mode == "both");
+    if (!do_ground && !do_mask)
     {
-        std::fprintf(stderr, "Invalid parameters (size >= 16, non-empty --classes/--regions, --variants >= 1).\n");
+        std::fprintf(stderr, "--mode must be ground | mask | both (got '%s').\n", mode.c_str());
         return 1;
     }
-
-    // Land-class / region ids are non-negative (and the baked label font has no
-    // '-' glyph, so a negative would render misleadingly). Reject up front.
-    for (int v : classes)
+    if (size < 16)
     {
-        if (v < 0)
+        std::fprintf(stderr, "--size must be >= 16.\n");
+        return 1;
+    }
+    if (region < 'a' || region > 'z')
+    {
+        std::fprintf(stderr, "--region must be a single lowercase letter a..z.\n");
+        return 1;
+    }
+    if (do_ground)
+    {
+        if (variants < 1 || variants > 16)
         {
-            std::fprintf(stderr, "Land-class ids must be non-negative (got %d).\n", v);
+            std::fprintf(stderr, "--variants must be 1..16 (the 16-color legend size).\n");
+            return 1;
+        }
+        if (season != "su" && season != "sp" && season != "fa" && season != "wi" && season != "hw")
+        {
+            std::fprintf(stderr, "--season must be one of su sp fa wi hw (got '%s').\n", season.c_str());
             return 1;
         }
     }
-    for (int v : regions)
+    if (do_mask && mask_variants < 1)
     {
-        if (v < 0)
-        {
-            std::fprintf(stderr, "Region ids must be non-negative (got %d).\n", v);
-            return 1;
-        }
+        std::fprintf(stderr, "--mask-variants must be >= 1.\n");
+        return 1;
     }
 
     std::error_code ec;
@@ -425,23 +627,40 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    int written = 0;
-    for (int land_class : classes)
+    int ground_written = 0;
+    int mask_written = 0;
+
+    if (do_ground)
     {
-        for (int region : regions)
+        for (int v = 1; v <= variants; ++v)
         {
-            for (int variant = 0; variant < variants; ++variant)
+            if (!WriteGroundTexture(out_dir, set, region, season, v, size))
             {
-                if (!WriteTexture(out_dir, land_class, region, variant, size))
-                {
-                    std::fprintf(stderr, "FAIL: could not write texture lc%d_r%d_v%d\n", land_class, region, variant);
-                    return 1;
-                }
-                ++written;
+                std::fprintf(stderr, "FAIL: could not write ground texture set=%d v=%d\n", set, v);
+                return 1;
             }
+            ++ground_written;
         }
+        std::printf("m2_texgen: wrote %d ground tile(s) %s%c2%s{1..%d}.bmp -> scenery package texture/\n",
+            ground_written, SetPrefix(set).c_str(), region, season.c_str(), variants);
     }
 
-    std::printf("m2_texgen: wrote %d texture(s) to %s\n", written, out_dir.string().c_str());
+    if (do_mask)
+    {
+        for (int v = 1; v <= mask_variants; ++v)
+        {
+            if (!WriteMaskAtlas(out_dir, mask_set, region, v, size))
+            {
+                std::fprintf(stderr, "FAIL: could not write mask atlas set=%d v=%d\n", mask_set, v);
+                return 1;
+            }
+            ++mask_written;
+        }
+        std::printf("m2_texgen: wrote %d mask atlas(es) %s%c2m{1..%d}1.bmp (8-corner) -> Scenery\\World\\texture\n",
+            mask_written, SetPrefix(mask_set).c_str(), region, mask_variants);
+    }
+
+    std::printf("m2_texgen: %d file(s) in %s  (convert BMP->DDS with the SDK imagetool before install)\n",
+        ground_written + mask_written, out_dir.string().c_str());
     return 0;
 }
