@@ -47,15 +47,16 @@
 //
 //   MASK family ({set:03d}{region}2m1{v}.bmp, v=1..K, default K=7):
 //     The 900-series M-tiles (blend masks): ONE BMP per variant, each an 8-panel
-//     vertical atlas (8 stacked square sub-panels). Per Holger, the sub-panel
-//     FSX picks is driven by the same-class BLOCK topology around a cell, not by
-//     the raw 2x2 corner config: panels 1,2 = the class touches one corner;
-//     3,4 = a straight edge of a same-class block; 5-8 = a convex corner of a
-//     same-class block. Each panel bakes a matching coverage shape as a
-//     STOCHASTIC dithered 1-bit stipple (covered = black) with a "V{v} {index}"
-//     label. (NOTE: the "m1{v}" suffix matches Holger's real m11/m12/... series,
-//     but the exact panel<->orientation mapping and the black/white polarity are
-//     still confirm-in-sim.)  Install: root Scenery\World\texture.
+//     vertical atlas (128x1024 in the real 900 series = 8 x 128^2). The sub-panel
+//     FSX uses is selected directly by the cell's 2x2 corner config (four QMID15
+//     corner samples), decoded from the real 900b2m21 atlas: 1 = TR+BL diagonal,
+//     2 = TL+BR diagonal, 3 = vertical edge, 4 = horizontal edge, 5..8 = single
+//     corner BR/BL/TR/TL. Each placeholder panel bakes a geometric approximation
+//     of that coverage as a STOCHASTIC dithered 1-bit stipple (covered = black)
+//     with a "V{v} {index}" label. (NOTE: the "m1{v}" file-name suffix is a best
+//     guess — real files show 031b2m11 and 900b2m21, i.e. a two-digit suffix that
+//     needs a directory listing to decode. The panel-3/4 black/white polarity is
+//     also confirm-in-sim.)  Install: root Scenery\World\texture.
 //
 // Returns 0 on success, 1 on any I/O failure.
 //
@@ -330,27 +331,32 @@ bool WriteGroundTexture(
     return WriteBmp24(dir / name, img);
 }
 
-// The 8 M-tile sub-panels, top (index 1) to bottom (index 8), per Holger
-// Sandmann's description of how FSX chooses which sub-panel to use for a cell
-// (LANDCLASS_SYNTHESIS.md §7.2). Selection is driven by the SAME-CLASS block
-// topology around the cell, not by "which of the 4 corner samples are B":
-//   1,2  : the same class only touches ONE corner (corner-touch)   [retain WHITE]
-//   3,4  : the class forms a straight EDGE of a same-class block    [retain B/W by adjacency]
-//   5..8 : the class forms a convex CORNER of a same-class block    [retain BLACK]
-// Each generated sub-panel bakes a DISTINCT coverage shape matching that
-// semantic (dithered 1-bit stipple at the transition, like the real 900-series)
-// so the in-sim choice can be read off. The exact index<->orientation mapping
-// and the black/white polarity are still confirm-in-sim (§7.2 unknowns).
+// The 8 M-tile sub-panels, top (index 1) to bottom (index 8). Decoded from the
+// REAL 900b2m21 atlas (128x1024 = 8 x 128^2): the sub-panel is selected directly
+// by the cell's 2x2 corner configuration (four QMID15 corner samples), and the
+// black (coverage) sits in these quadrants (LANDCLASS_SYNTHESIS.md §7.2.3):
+//   1 : TR+BL  (anti-diagonal / checkerboard touch)   [FSX retains WHITE]
+//   2 : TL+BR  (main diagonal / checkerboard touch)    [FSX retains WHITE]
+//   3 : TL+BL  (vertical edge; left/right by polarity) [retain B/W by adjacency]
+//   4 : TL+TR  (horizontal edge; top/bottom by polarity)
+//   5 : BR     (single corner)                         [retain BLACK]
+//   6 : BL     (single corner)
+//   7 : TR     (single corner)
+//   8 : TL     (single corner)
+// These placeholder tiles bake geometric approximations of that black
+// distribution (dithered 1-bit at the boundary) so the in-sim panel choice can
+// be read off; the real atlas coverage is organic/fractal. The retain-black/white
+// polarity direction for panels 3/4 is still confirm-in-sim.
 enum MaskShape
 {
-    ShTouchTL,  // 1: small corner triangle (one-corner touch)
-    ShTouchBR,  // 2: opposite-corner triangle
-    ShEdgeV,    // 3: straight vertical edge (block to the left)
-    ShEdgeH,    // 4: straight horizontal edge (block above)
-    ShCornerNE, // 5: convex corner, block toward top-right
-    ShCornerNW, // 6: convex corner, block toward top-left
-    ShCornerSE, // 7: convex corner, block toward bottom-right
-    ShCornerSW, // 8: convex corner, block toward bottom-left
+    ShDiagAnti, // 1: TR + BL
+    ShDiagMain, // 2: TL + BR
+    ShEdgeLeft, // 3: TL + BL (left column)
+    ShEdgeTop,  // 4: TL + TR (top row)
+    ShCornerBR, // 5: BR
+    ShCornerBL, // 6: BL
+    ShCornerTR, // 7: TR
+    ShCornerTL, // 8: TL
 };
 
 struct MaskSubPanel
@@ -360,39 +366,43 @@ struct MaskSubPanel
 };
 
 constexpr MaskSubPanel kSubPanels[8] = {
-    {ShTouchTL, "1"},
-    {ShTouchBR, "2"},
-    {ShEdgeV, "3"},
-    {ShEdgeH, "4"},
-    {ShCornerNE, "5"},
-    {ShCornerNW, "6"},
-    {ShCornerSE, "7"},
-    {ShCornerSW, "8"},
+    {ShDiagAnti, "1"},
+    {ShDiagMain, "2"},
+    {ShEdgeLeft, "3"},
+    {ShEdgeTop, "4"},
+    {ShCornerBR, "5"},
+    {ShCornerBL, "6"},
+    {ShCornerTR, "7"},
+    {ShCornerTL, "8"},
 };
 
 // Signed "inside" distance for a sub-panel shape at (u,v) in [0,1] (u right, v
-// down): positive inside the covered region, ~0 at the boundary. A band around
-// the boundary is dithered so each sub-panel keeps the stochastic M-tile stipple.
+// down): positive inside the covered (black) region, ~0 at the boundary. A band
+// around the boundary is dithered so each sub-panel keeps the M-tile stipple.
 double ShapeSignedDistance(MaskShape shape, double u, double v)
 {
+    const double d_tl = std::min(0.5 - u, 0.5 - v);
+    const double d_tr = std::min(u - 0.5, 0.5 - v);
+    const double d_bl = std::min(0.5 - u, v - 0.5);
+    const double d_br = std::min(u - 0.5, v - 0.5);
     switch (shape)
     {
-    case ShTouchTL:
-        return 0.45 - (u + v);
-    case ShTouchBR:
-        return (u + v) - 1.55;
-    case ShEdgeV:
+    case ShDiagAnti:
+        return std::max(d_tr, d_bl);
+    case ShDiagMain:
+        return std::max(d_tl, d_br);
+    case ShEdgeLeft:
         return 0.5 - u;
-    case ShEdgeH:
+    case ShEdgeTop:
         return 0.5 - v;
-    case ShCornerNE:
-        return std::min(u - 0.5, 0.5 - v);
-    case ShCornerNW:
-        return std::min(0.5 - u, 0.5 - v);
-    case ShCornerSE:
-        return std::min(u - 0.5, v - 0.5);
-    case ShCornerSW:
-        return std::min(0.5 - u, v - 0.5);
+    case ShCornerBR:
+        return d_br;
+    case ShCornerBL:
+        return d_bl;
+    case ShCornerTR:
+        return d_tr;
+    case ShCornerTL:
+        return d_tl;
     }
     return -1.0;
 }
