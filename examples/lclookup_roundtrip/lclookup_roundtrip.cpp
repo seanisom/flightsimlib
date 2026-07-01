@@ -64,7 +64,7 @@ using flightsimlib::io::ERasterDataType;
 using flightsimlib::io::IBglTerrainTextureLookup;
 using flightsimlib::io::SBglHeader;
 using flightsimlib::io::SBglLayerPointer;
-using flightsimlib::io::SBglTextureLookupEntry;
+using flightsimlib::io::SBglTextureSet;
 
 namespace
 {
@@ -103,16 +103,16 @@ void BuildExpected(CBglTerrainTextureLookup& lookup)
     lookup.ClearTextures();
     for (int i = 0; i < 4; ++i)
     {
-        SBglTextureLookupEntry entry{};
-        entry.VULCNNumber = static_cast<int16_t>(100 + i);
-        entry.VULCNRegion = static_cast<uint8_t>(i);
-        entry.VULCNMask = static_cast<uint8_t>(i * 2);
+        SBglTextureSet entry{};
+        entry.TextureVULCN = static_cast<int16_t>(100 + i);
+        entry.TextureRegion = static_cast<uint8_t>(i);
+        entry.TextureVariation = static_cast<uint8_t>(i * 2);
         entry.SeasonMask = static_cast<int16_t>(0x0FFF);
         entry.DrawPriority = static_cast<int16_t>(10 - i);
-        entry.BlendTextureVULCN = static_cast<int16_t>(200 + i);
-        entry.BlendTextureRegion = static_cast<uint8_t>(i + 1);
-        entry.BlendTextureMask = static_cast<uint8_t>(i + 3);
-        entry.BlendTextureVariant = static_cast<int64_t>(0x1122334455667700LL + i);
+        entry.MaskVULCN = static_cast<int16_t>(200 + i);
+        entry.MaskRegion = static_cast<uint8_t>(i + 1);
+        entry.MaskVariation = static_cast<uint8_t>(i + 3);
+        entry.MaskTextureVariations = static_cast<int64_t>(0x1122334455667700LL + i);
         entry.AutogenVULCN = static_cast<int16_t>(300 + i);
         entry.AutogenRegion = static_cast<uint8_t>(i + 5);
         entry.AutogenMask = static_cast<uint8_t>(i + 7);
@@ -288,15 +288,15 @@ void Verify(const std::filesystem::path& path, const CBglTerrainTextureLookup& e
         {
             continue;
         }
-        Check(a->VULCNNumber == b->VULCNNumber, "texture VULCNNumber");
-        Check(a->VULCNRegion == b->VULCNRegion, "texture VULCNRegion");
-        Check(a->VULCNMask == b->VULCNMask, "texture VULCNMask");
+        Check(a->TextureVULCN == b->TextureVULCN, "texture TextureVULCN");
+        Check(a->TextureRegion == b->TextureRegion, "texture TextureRegion");
+        Check(a->TextureVariation == b->TextureVariation, "texture TextureVariation");
         Check(a->SeasonMask == b->SeasonMask, "texture SeasonMask");
         Check(a->DrawPriority == b->DrawPriority, "texture DrawPriority");
-        Check(a->BlendTextureVULCN == b->BlendTextureVULCN, "texture BlendTextureVULCN");
-        Check(a->BlendTextureRegion == b->BlendTextureRegion, "texture BlendTextureRegion");
-        Check(a->BlendTextureMask == b->BlendTextureMask, "texture BlendTextureMask");
-        Check(a->BlendTextureVariant == b->BlendTextureVariant, "texture BlendTextureVariant");
+        Check(a->MaskVULCN == b->MaskVULCN, "texture MaskVULCN");
+        Check(a->MaskRegion == b->MaskRegion, "texture MaskRegion");
+        Check(a->MaskVariation == b->MaskVariation, "texture MaskVariation");
+        Check(a->MaskTextureVariations == b->MaskTextureVariations, "texture MaskTextureVariations");
         Check(a->AutogenVULCN == b->AutogenVULCN, "texture AutogenVULCN");
         Check(a->AutogenRegion == b->AutogenRegion, "texture AutogenRegion");
         Check(a->AutogenMask == b->AutogenMask, "texture AutogenMask");

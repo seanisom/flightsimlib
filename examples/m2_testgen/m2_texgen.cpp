@@ -45,16 +45,17 @@
 //     (NOTE: 0-based legend color vs 1-based filename variant — confirm the off
 //     -by-one in-sim.)  Install: scenery package texture/.
 //
-//   MASK family ({set:03d}{region}2m{v}1.bmp, v=1..K, default K=7):
-//     The 900-series blend masks: ONE BMP per variant, each an 8-tile vertical
-//     atlas (8 stacked square tiles). The 8 tiles are the 8 corner configs
-//     (TR+BL, TL+BR, left column, bottom row, BR, BL, TL, TR); these 8 + their
-//     inversion cover the 14 two-class corner configs. Each tile is a valid
-//     1-bit coverage (covered region = black) rendered as a STOCHASTIC dithered
-//     stipple (not a solid block) to mimic the soft 1-bit transition, with a
-//     small v+corner-index label. (NOTE: the "m{v}1" suffix is the best guess
-//     for the per-variant atlas filename — treat as parameterized / confirm in
-//     -sim.)  Install: root Scenery\World\texture.
+//   MASK family ({set:03d}{region}2m1{v}.bmp, v=1..K, default K=7):
+//     The 900-series M-tiles (blend masks): ONE BMP per variant, each an 8-panel
+//     vertical atlas (8 stacked square sub-panels). Per Holger, the sub-panel
+//     FSX picks is driven by the same-class BLOCK topology around a cell, not by
+//     the raw 2x2 corner config: panels 1,2 = the class touches one corner;
+//     3,4 = a straight edge of a same-class block; 5-8 = a convex corner of a
+//     same-class block. Each panel bakes a matching coverage shape as a
+//     STOCHASTIC dithered 1-bit stipple (covered = black) with a "V{v} {index}"
+//     label. (NOTE: the "m1{v}" suffix matches Holger's real m11/m12/... series,
+//     but the exact panel<->orientation mapping and the black/white polarity are
+//     still confirm-in-sim.)  Install: root Scenery\World\texture.
 //
 // Returns 0 on success, 1 on any I/O failure.
 //
@@ -329,49 +330,97 @@ bool WriteGroundTexture(
     return WriteBmp24(dir / name, img);
 }
 
-// The 8 corner configs of a 2x2 sample neighborhood, in the atlas tile order
-// (TR+BL, TL+BR, left column, bottom row, BR, BL, TL, TR). Covered corners get
-// stochastic dithered black coverage; these 8 + inversion cover the 14
-// two-class configs.
-struct CornerConfig
+// The 8 M-tile sub-panels, top (index 1) to bottom (index 8), per Holger
+// Sandmann's description of how FSX chooses which sub-panel to use for a cell
+// (LANDCLASS_SYNTHESIS.md §7.2). Selection is driven by the SAME-CLASS block
+// topology around the cell, not by "which of the 4 corner samples are B":
+//   1,2  : the same class only touches ONE corner (corner-touch)   [retain WHITE]
+//   3,4  : the class forms a straight EDGE of a same-class block    [retain B/W by adjacency]
+//   5..8 : the class forms a convex CORNER of a same-class block    [retain BLACK]
+// Each generated sub-panel bakes a DISTINCT coverage shape matching that
+// semantic (dithered 1-bit stipple at the transition, like the real 900-series)
+// so the in-sim choice can be read off. The exact index<->orientation mapping
+// and the black/white polarity are still confirm-in-sim (§7.2 unknowns).
+enum MaskShape
 {
-    const char* name;
-    bool tl, tr, bl, br;
+    ShTouchTL,  // 1: small corner triangle (one-corner touch)
+    ShTouchBR,  // 2: opposite-corner triangle
+    ShEdgeV,    // 3: straight vertical edge (block to the left)
+    ShEdgeH,    // 4: straight horizontal edge (block above)
+    ShCornerNE, // 5: convex corner, block toward top-right
+    ShCornerNW, // 6: convex corner, block toward top-left
+    ShCornerSE, // 7: convex corner, block toward bottom-right
+    ShCornerSW, // 8: convex corner, block toward bottom-left
 };
 
-constexpr CornerConfig kMaskTiles[8] = {
-    {"TR+BL", false, true, true, false},
-    {"TL+BR", true, false, false, true},
-    {"leftcol", true, false, true, false},   // TL + BL
-    {"bottomrow", false, false, true, true},  // BL + BR
-    {"BR", false, false, false, true},
-    {"BL", false, false, true, false},
-    {"TL", true, false, false, false},
-    {"TR", false, true, false, false},
+struct MaskSubPanel
+{
+    MaskShape shape;
+    const char* tag; // short label (index only; glyph set is digits/V/space)
 };
 
-// Per-pixel stochastic dither threshold in [0,1). Mixing variant + tile makes
+constexpr MaskSubPanel kSubPanels[8] = {
+    {ShTouchTL, "1"},
+    {ShTouchBR, "2"},
+    {ShEdgeV, "3"},
+    {ShEdgeH, "4"},
+    {ShCornerNE, "5"},
+    {ShCornerNW, "6"},
+    {ShCornerSE, "7"},
+    {ShCornerSW, "8"},
+};
+
+// Signed "inside" distance for a sub-panel shape at (u,v) in [0,1] (u right, v
+// down): positive inside the covered region, ~0 at the boundary. A band around
+// the boundary is dithered so each sub-panel keeps the stochastic M-tile stipple.
+double ShapeSignedDistance(MaskShape shape, double u, double v)
+{
+    switch (shape)
+    {
+    case ShTouchTL:
+        return 0.45 - (u + v);
+    case ShTouchBR:
+        return (u + v) - 1.55;
+    case ShEdgeV:
+        return 0.5 - u;
+    case ShEdgeH:
+        return 0.5 - v;
+    case ShCornerNE:
+        return std::min(u - 0.5, 0.5 - v);
+    case ShCornerNW:
+        return std::min(0.5 - u, 0.5 - v);
+    case ShCornerSE:
+        return std::min(u - 0.5, v - 0.5);
+    case ShCornerSW:
+        return std::min(0.5 - u, v - 0.5);
+    }
+    return -1.0;
+}
+
+// Per-pixel stochastic dither threshold in [0,1). Mixing variant + panel makes
 // each variant's mask noise distinct (the per-variant mask set is the point).
-double DitherThreshold(int x, int y, int variant, int tile)
+double DitherThreshold(int x, int y, int variant, int panel)
 {
     uint32_t h = static_cast<uint32_t>(x) * 73856093u ^ static_cast<uint32_t>(y) * 19349663u ^
-        static_cast<uint32_t>(variant) * 83492791u ^ static_cast<uint32_t>(tile) * 2654435761u;
+        static_cast<uint32_t>(variant) * 83492791u ^ static_cast<uint32_t>(panel) * 2654435761u;
     h ^= h >> 13;
     h *= 0x85ebca6bu;
     h ^= h >> 16;
     return (h & 0xFFFFu) / 65536.0;
 }
 
-// One per-variant 8-corner mask atlas (8 stacked square tiles), dithered 1-bit
-// coverage (covered = black). Filename: {set:03d}{region}2m{v}1.bmp.
+// One per-variant 8-sub-panel M-tile atlas (8 stacked square panels), dithered
+// 1-bit coverage (covered = black). Filename: {set:03d}{region}2m1{v}.bmp
+// (matching Holger's m11/m12/... series; the variant is the LAST digit).
 bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int variant, int size)
 {
-    constexpr int kTiles = 8;
-    Image img(size, size * kTiles, Rgb{255, 255, 255});
+    constexpr int kPanels = 8;
+    constexpr double kBand = 0.22; // width of the dithered transition band
+    Image img(size, size * kPanels, Rgb{255, 255, 255});
 
-    for (int t = 0; t < kTiles; ++t)
+    for (int t = 0; t < kPanels; ++t)
     {
-        const CornerConfig& cc = kMaskTiles[t];
+        const MaskShape shape = kSubPanels[t].shape;
         const int y0 = t * size;
         long covered = 0;
         for (int y = 0; y < size; ++y)
@@ -380,23 +429,8 @@ bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int 
             for (int x = 0; x < size; ++x)
             {
                 const double u = (x + 0.5) / size;
-                double cov = 0.0;
-                if (cc.tl)
-                {
-                    cov += (1 - u) * (1 - v);
-                }
-                if (cc.tr)
-                {
-                    cov += u * (1 - v);
-                }
-                if (cc.bl)
-                {
-                    cov += (1 - u) * v;
-                }
-                if (cc.br)
-                {
-                    cov += u * v;
-                }
+                const double d = ShapeSignedDistance(shape, u, v);
+                const double cov = std::min(1.0, std::max(0.0, 0.5 + d / kBand));
                 if (cov > DitherThreshold(x, y, variant, t))
                 {
                     img.Set(x, y0 + y, Rgb{0, 0, 0});
@@ -405,25 +439,27 @@ bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int 
             }
         }
 
-        // Small v+corner label in a TILE CORNER, drawn in the minority color
-        // over the majority-color background so it reads without perturbing the
-        // coverage much. Pick a corner whose background is the majority color.
+        // Label = "V{variant} {index}" in a corner, drawn in the minority color
+        // over a majority-color corner so it reads without perturbing coverage.
         const double frac = static_cast<double>(covered) / (static_cast<double>(size) * size);
         const bool minority_black = frac < 0.5;
         const Rgb ink = minority_black ? Rgb{0, 0, 0} : Rgb{255, 255, 255};
-        const bool want_covered = !minority_black; // majority-color corner
-        const bool covers[4] = {cc.tl, cc.tr, cc.bl, cc.br}; // TL,TR,BL,BR
+        const bool want_covered = !minority_black;
+        // Sample the 4 corners' coverage to find one matching the majority color.
+        const double cu[4] = {0.06, 0.94, 0.06, 0.94}; // TL,TR,BL,BR
+        const double cv[4] = {0.06, 0.06, 0.94, 0.94};
         int corner = 0;
         for (int i = 0; i < 4; ++i)
         {
-            if (covers[i] == want_covered)
+            const bool cov_here = ShapeSignedDistance(shape, cu[i], cv[i]) > 0.0;
+            if (cov_here == want_covered)
             {
                 corner = i;
                 break;
             }
         }
         const int lscale = size >= 64 ? std::max(1, size / 64) : 1;
-        const std::string label = "V" + std::to_string(variant) + " " + std::to_string(t);
+        const std::string label = "V" + std::to_string(variant) + " " + kSubPanels[t].tag;
         const int lw = TextWidth(label, lscale);
         const int lh = TextHeight(lscale);
         const int margin = 3;
@@ -432,7 +468,7 @@ bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int 
         DrawText(img, label, lx, ly, lscale, ink);
     }
 
-    const std::string name = SetPrefix(set) + std::string(1, region) + "2m" + std::to_string(variant) + "1.bmp";
+    const std::string name = SetPrefix(set) + std::string(1, region) + "2m1" + std::to_string(variant) + ".bmp";
     return WriteBmp24(dir / name, img);
 }
 
@@ -457,13 +493,13 @@ void PrintUsage(const char* argv0)
         "                    bg color = Holger legend index (v-1); 0-based-color vs\n"
         "                    1-based-filename indexing is TO BE CONFIRMED in-sim.\n"
         "\n"
-        "MASK family  {set:03d}{region}2m{v}1.bmp  (v=1..K, one 8-corner atlas each):\n"
+        "MASK family  {set:03d}{region}2m1{v}.bmp  (v=1..K, one 8-sub-panel atlas each):\n"
         "  --mask-set N      mask set number (default 900; new 903 or override 900-902)\n"
         "  --mask-variants K variant count (default 7)\n"
-        "                    each BMP is an 8-tile vertical atlas (TR+BL, TL+BR, left\n"
-        "                    column, bottom row, BR, BL, TL, TR); 8 tiles + inversion\n"
-        "                    cover the 14 two-class corner configs. The \"m{v}1\" suffix\n"
-        "                    is a best guess — treat as parameterized / confirm in-sim.\n",
+        "                    each BMP is an 8-panel vertical atlas; the panels are the\n"
+        "                    M-tile sub-panels (1,2 corner-touch; 3,4 block edge; 5-8\n"
+        "                    convex block corner). The \"m1{v}\" suffix matches Holger's\n"
+        "                    m11/m12/... series; panel<->orientation confirm in-sim.\n",
         argv0);
 }
 
@@ -656,7 +692,7 @@ int main(int argc, char** argv)
             }
             ++mask_written;
         }
-        std::printf("m2_texgen: wrote %d mask atlas(es) %s%c2m{1..%d}1.bmp (8-corner) -> Scenery\\World\\texture\n",
+        std::printf("m2_texgen: wrote %d M-tile atlas(es) %s%c2m1{1..%d}.bmp (8 sub-panels) -> Scenery\\World\\texture\n",
             mask_written, SetPrefix(mask_set).c_str(), region, mask_variants);
     }
 

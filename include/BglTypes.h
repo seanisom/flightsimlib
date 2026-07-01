@@ -191,22 +191,34 @@ public:
 	virtual ~IBglTerrainIndex() = default;
 };
 
-// One row of the LCLookup (TerrainTextureLookup, layer 0x6F) texture block.
-// 24 bytes on disk (see CBglTerrainTextureLookup::ReadBinary), but stored here
-// unpacked so callers don't depend on the packed layout. `Index` is implicit
-// (the row's position in the texture block).
-struct SBglTextureLookupEntry
+// One row of the LCLookup (TerrainTextureLookup, layer 0x6F) "texture set"
+// block. 24 bytes on disk (see CBglTerrainTextureLookup::ReadBinary), but
+// stored here unpacked so callers don't depend on the packed layout. `Index`
+// is implicit (the row's position in the block).
+//
+// A row is a *texture set*: it names BOTH a ground texture family and a blend
+// (M-tile) mask family, and describes how each is varied per cell. The
+// (VULCN, Region, Variation) triples are consumed ONLY to build on-disk texture
+// file names via the FSX naming convention (LANDCLASS_SYNTHESIS.md §6.1):
+//   ground: {TextureVULCN:03d}{region}2{season}{variant}.bmp
+//   mask:   {MaskVULCN:03d}{region}2m1{variant}.bmp
+// where `region` letter = 'a' + Region (Holger: regions are coded A=0..Z=25) and
+// `Variation` is the TilePattern{Variation}.bmp scheme number that maps each
+// QMID15 cell to a per-cell variant index (0..15, the 16-color legend). The
+// separate land-class -> texture-set mapping lives in the region block (see the
+// region getters below); this struct is only the set definition.
+struct SBglTextureSet
 {
-	int16_t VULCNNumber = 0;       // FSX land-class id ("VULCN" numbering)
-	uint8_t VULCNRegion = 0;       // region qualifier
-	uint8_t VULCNMask = 0;         // mask qualifier
-	int16_t SeasonMask = 0;        // seasons this row covers (displayed octal)
-	int16_t DrawPriority = 0;      // §2 step-2 stencil / compositing order
-	int16_t BlendTextureVULCN = 0; // blend-texture land-class ref
-	uint8_t BlendTextureRegion = 0;
-	uint8_t BlendTextureMask = 0;
-	int64_t BlendTextureVariant = 0; // variation selector (GAP B core)
-	int16_t AutogenVULCN = 0;        // autogen ref (out of scope for imagery)
+	int16_t TextureVULCN = 0;     // ground land-class id / set number ("VULCN" numbering)
+	uint8_t TextureRegion = 0;    // ground region qualifier — used ONLY to name the ground texture (letter = 'a'+value)
+	uint8_t TextureVariation = 0; // ground TilePattern{n}.bmp scheme selecting the per-cell variant
+	int16_t SeasonMask = 0;       // seasons this row covers (displayed octal)
+	int16_t DrawPriority = 0;     // blend arbitration / step-2 compositing order (higher wins; §6.1)
+	int16_t MaskVULCN = 0;        // M-tile mask set id (e.g. 900-series) selecting the mask texture
+	uint8_t MaskRegion = 0;       // mask region qualifier — used ONLY to name the mask texture (letter = 'a'+value)
+	uint8_t MaskVariation = 0;    // mask TilePattern{n}.bmp scheme selecting the per-cell mask variant
+	int64_t MaskTextureVariations = 0; // packed 16x 4-bit variant override; OVERRIDES the tilepattern (GAP B; §7.2)
+	int16_t AutogenVULCN = 0;          // autogen ref (out of scope for imagery)
 	uint8_t AutogenRegion = 0;
 	uint8_t AutogenMask = 0;
 };
@@ -231,8 +243,8 @@ public:
 	virtual auto GetLandClassCount() const -> int = 0;
 	virtual auto GetWaterClassCount() const -> int = 0;
 
-	// Texture block row by implicit index, or nullptr if out of range.
-	virtual auto GetTextureAt(int index) const -> const SBglTextureLookupEntry* = 0;
+	// Texture-set block row by implicit index, or nullptr if out of range.
+	virtual auto GetTextureAt(int index) const -> const SBglTextureSet* = 0;
 
 	// Region block: per region, the texture-block index a given land / water
 	// class resolves to. Returns -1 for out-of-range indices.
@@ -250,7 +262,7 @@ public:
 	// AddTexture / ClearTextures.
 	virtual auto ResizeTables(int num_regions, int num_land_classes, int num_water_classes) -> void = 0;
 	virtual auto ClearTextures() -> void = 0;
-	virtual auto AddTexture(const SBglTextureLookupEntry& entry) -> void = 0;
+	virtual auto AddTexture(const SBglTextureSet& entry) -> void = 0;
 	virtual auto SetRegionLandClassTexture(int region, int land_class, int32_t texture_index) -> void = 0;
 	virtual auto SetRegionWaterClassTexture(int region, int water_class, int32_t texture_index) -> void = 0;
 	virtual auto SetSlopeLookup(int land_class, int slope_band, uint8_t value) -> void = 0;

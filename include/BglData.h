@@ -3653,7 +3653,7 @@ public:
     auto GetRegionCount() const -> int override;
     auto GetLandClassCount() const -> int override;
     auto GetWaterClassCount() const -> int override;
-    auto GetTextureAt(int index) const -> const SBglTextureLookupEntry* override;
+    auto GetTextureAt(int index) const -> const SBglTextureSet* override;
     auto GetRegionLandClassTexture(int region, int land_class) const -> int32_t override;
     auto GetRegionWaterClassTexture(int region, int water_class) const -> int32_t override;
     auto GetSlopeLookup(int land_class, int slope_band) const -> uint8_t override;
@@ -3662,7 +3662,7 @@ public:
     auto SetHeaderMagic(int32_t value) -> void override;
     auto ResizeTables(int num_regions, int num_land_classes, int num_water_classes) -> void override;
     auto ClearTextures() -> void override;
-    auto AddTexture(const SBglTextureLookupEntry& entry) -> void override;
+    auto AddTexture(const SBglTextureSet& entry) -> void override;
     auto SetRegionLandClassTexture(int region, int land_class, int32_t texture_index) -> void override;
     auto SetRegionWaterClassTexture(int region, int water_class, int32_t texture_index) -> void override;
     auto SetSlopeLookup(int land_class, int slope_band, uint8_t value) -> void override;
@@ -3677,7 +3677,7 @@ private:
     int32_t m_header_magic = 0;
     int32_t m_num_land_classes = 0;
     int32_t m_num_water_classes = 0;
-    std::vector<SBglTextureLookupEntry> m_textures;
+    std::vector<SBglTextureSet> m_textures;
     // [region][land_class] / [region][water_class] texture-block indices.
     std::vector<std::vector<int32_t>> m_region_land_textures;
     std::vector<std::vector<int32_t>> m_region_water_textures;

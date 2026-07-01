@@ -32,7 +32,7 @@
 //
 //   1. <out-landclass> (always) — a TerrainLandClass (0x68) raster painted at
 //      SAMPLE RESOLUTION by a --scenario (uniform | corners2 | corners3 |
-//      corners4 | dualset) or an explicit --grid file. A blend "corner" is a
+//      corners4 | blocks | dualset) or an explicit --grid file. A blend "corner" is a
 //      2x2 neighborhood of ~1 km land-class samples (samples sit on cell
 //      corners), so the corner* scenarios lay out the corner configurations
 //      that drive the dithered 1-bit-mask blend of GDC2006 §7.1 / Fig 10. The
@@ -89,7 +89,7 @@ using flightsimlib::io::ERasterDataType;
 using flightsimlib::io::IBglTerrainTextureLookup;
 using flightsimlib::io::SBglHeader;
 using flightsimlib::io::SBglLayerPointer;
-using flightsimlib::io::SBglTextureLookupEntry;
+using flightsimlib::io::SBglTextureSet;
 
 namespace
 {
@@ -106,9 +106,10 @@ constexpr uint32_t kTrq1Magic = 0x31515254; // 'TRQ1'
 enum class Scenario
 {
     Uniform,  // one class over the whole tile (GAP 4: tilepattern geo-indexing)
-    Corners2, // all 14 two-class corner configs (GAP 2: corner -> mask tile + invert)
-    Corners3, // representative 3-class corners (GAP 3: layering / winner / order)
-    Corners4, // representative 4-class corners (GAP 3)
+    Corners2, // all 14 two-class corner configs (GAP 2/3: draw-priority arbitration)
+    Corners3, // representative 3-class corners (GAP 3: top-2 priorities blended)
+    Corners4, // representative 4-class corners (GAP 3: top-3 priorities blended)
+    Blocks,   // class-B shapes on a class-A field (GAP 2: M-tile sub-panel topology)
     DualSet,  // two large fields of two classes side by side (GAP 5: per-set independence)
     Grid,     // explicit class-id grid from --grid <file>
 };
@@ -152,13 +153,15 @@ struct Config
     bool inspect = false;
     std::vector<int> inspect_classes; // --classes for --inspect (default A,B)
 
-    // GAP B sweep knobs (applied to every authored texture row).
-    int64_t variant = 0;
-    int blend_vulcn = 0;
-    int blend_region = 0;
-    int blend_mask = 0;
-    int vulcn_mask = 0;
-    int season_mask = 0x0FFF; // all 12 months by default
+    // GAP B sweep knobs (applied to the appended texture-set rows). Names track
+    // the corrected SBglTextureSet fields (LANDCLASS_SYNTHESIS.md §6): the ground
+    // set number = the painted class id (--class-a/-b); TextureRegion = --region.
+    int texture_variation = 0;         // TextureVariation: ground TilePattern{n} scheme
+    int mask_vulcn = 0;                // MaskVULCN: M-tile mask set (e.g. 900)
+    int mask_region = 0;               // MaskRegion: region qualifier for the mask name
+    int mask_variation = 0;            // MaskVariation: mask TilePattern{n} scheme
+    int64_t mask_texture_variations = 0; // MaskTextureVariations: packed 16x4-bit variant override
+    int season_mask = 0x0FFF;          // all 12 months by default
     int draw_priority = 0;
 
     int region = 0; // region id painted/used for this test
@@ -409,6 +412,44 @@ bool BuildRaster(const Config& cfg, Raster& r, std::vector<LayoutEntry>& entries
         entries.push_back({"field B (right) class " + std::to_string(cfg.class_b), n / 2, 0, n - n / 2, n});
         return true;
     }
+    if (cfg.scenario == Scenario::Blocks)
+    {
+        // Holger's M-tile SUB-PANEL is chosen by the same-class BLOCK topology
+        // (isolated corner-touch / straight edge / convex corner / concave
+        // corner) — which the spaced 2x2 corner scenarios cannot produce. Paint
+        // class_b shapes on a class_a field so every topology appears at once,
+        // and read off in-sim which of the 8 M-tile sub-panels each uses.
+        r.Resize(n, n, static_cast<uint8_t>(cfg.class_a));
+        const uint8_t b = static_cast<uint8_t>(cfg.class_b);
+        auto fill_rect = [&](int c0, int r0, int w, int h)
+        {
+            for (int rr = r0; rr < r0 + h; ++rr)
+            {
+                for (int cc = c0; cc < c0 + w; ++cc)
+                {
+                    r.Set(cc, rr, b);
+                }
+            }
+        };
+        // 1) solid rectangle: interior (no blend) + 4 straight edges + 4 convex corners.
+        const int rw = std::max(4, n / 4);
+        const int rh = std::max(4, n / 5);
+        fill_rect(n / 8, n / 8, rw, rh);
+        entries.push_back({"rect (edges + convex block-corners)", n / 8, n / 8, rw, rh});
+        // 2) isolated single cell (class_b surrounded by class_a on all sides).
+        r.Set(n * 3 / 4, n / 6, b);
+        entries.push_back({"isolated 1x1 cell", n * 3 / 4, n / 6, 1, 1});
+        // 3) diagonal pair: two cells touching at ONE corner only (corner-touch config).
+        r.Set(n * 3 / 4, n / 2, b);
+        r.Set(n * 3 / 4 + 1, n / 2 + 1, b);
+        entries.push_back({"diagonal pair (corner-touch)", n * 3 / 4, n / 2, 2, 2});
+        // 4) plus/cross: yields concave block-corners at the inner armpits.
+        const int arm = std::max(1, n / 16);
+        fill_rect(n / 4 + arm, n * 5 / 8, arm, 3 * arm);
+        fill_rect(n / 4, n * 5 / 8 + arm, 3 * arm, arm);
+        entries.push_back({"plus/cross (concave block-corners)", n / 4, n * 5 / 8, 3 * arm, 3 * arm});
+        return true;
+    }
 
     // corner scenarios: spaced 2x2 blocks on a class_a background.
     r.Resize(n, n, static_cast<uint8_t>(cfg.class_a));
@@ -489,20 +530,23 @@ void PrintLayoutMap(const Raster& r, const std::vector<LayoutEntry>& entries, bo
     }
 }
 
-// Build one texture-lookup row carrying the swept GAP B knobs for a land class.
+// Build one texture-set row carrying the swept GAP B knobs for a land class.
 // Appended to each patched record; the region table is then repointed at it.
-SBglTextureLookupEntry MakeTextureRow(const Config& cfg, int vulcn)
+// `vulcn` (the painted class id) becomes TextureVULCN, so the ground set number
+// == the class id and the generated ground tiles are named to match (author
+// them with `m2_texgen --set <class id>`).
+SBglTextureSet MakeTextureRow(const Config& cfg, int vulcn)
 {
-    SBglTextureLookupEntry e{};
-    e.VULCNNumber = static_cast<int16_t>(vulcn);
-    e.VULCNRegion = static_cast<uint8_t>(cfg.region);
-    e.VULCNMask = static_cast<uint8_t>(cfg.vulcn_mask);
+    SBglTextureSet e{};
+    e.TextureVULCN = static_cast<int16_t>(vulcn);
+    e.TextureRegion = static_cast<uint8_t>(cfg.region);
+    e.TextureVariation = static_cast<uint8_t>(cfg.texture_variation);
     e.SeasonMask = static_cast<int16_t>(cfg.season_mask);
     e.DrawPriority = static_cast<int16_t>(cfg.draw_priority);
-    e.BlendTextureVULCN = static_cast<int16_t>(cfg.blend_vulcn);
-    e.BlendTextureRegion = static_cast<uint8_t>(cfg.blend_region);
-    e.BlendTextureMask = static_cast<uint8_t>(cfg.blend_mask);
-    e.BlendTextureVariant = cfg.variant;
+    e.MaskVULCN = static_cast<int16_t>(cfg.mask_vulcn);
+    e.MaskRegion = static_cast<uint8_t>(cfg.mask_region);
+    e.MaskVariation = static_cast<uint8_t>(cfg.mask_variation);
+    e.MaskTextureVariations = cfg.mask_texture_variations;
     e.AutogenVULCN = 0;
     e.AutogenRegion = 0;
     e.AutogenMask = 0;
@@ -813,9 +857,12 @@ bool VerifyPatched(const Config& cfg)
 
     const auto* a = (row_a >= 0 && row_a < texture_count) ? read->GetTextureAt(row_a) : nullptr;
     const auto* b = (row_b >= 0 && row_b < texture_count) ? read->GetTextureAt(row_b) : nullptr;
-    check(a != nullptr && a->BlendTextureVariant == cfg.variant, "class A row carries swept variant");
-    check(a != nullptr && a->VULCNMask == static_cast<uint8_t>(cfg.vulcn_mask), "class A row carries swept vulcn-mask");
-    check(b != nullptr && b->BlendTextureVariant == cfg.variant, "class B row carries swept variant");
+    check(a != nullptr && a->MaskTextureVariations == cfg.mask_texture_variations,
+        "class A row carries swept mask-variations");
+    check(a != nullptr && a->TextureVariation == static_cast<uint8_t>(cfg.texture_variation),
+        "class A row carries swept texture-variation");
+    check(b != nullptr && b->MaskTextureVariations == cfg.mask_texture_variations,
+        "class B row carries swept mask-variations");
 
     // No-data-loss cross-check vs. the original input: Write() is not
     // byte-preserving (it re-emits padding tighter than the source compiler), so
@@ -860,11 +907,11 @@ bool VerifyPatched(const Config& cfg)
             check(false, "original texture row present after patch");
             continue;
         }
-        const bool same = op->VULCNNumber == np->VULCNNumber && op->VULCNRegion == np->VULCNRegion &&
-            op->VULCNMask == np->VULCNMask && op->SeasonMask == np->SeasonMask &&
-            op->DrawPriority == np->DrawPriority && op->BlendTextureVULCN == np->BlendTextureVULCN &&
-            op->BlendTextureRegion == np->BlendTextureRegion && op->BlendTextureMask == np->BlendTextureMask &&
-            op->BlendTextureVariant == np->BlendTextureVariant && op->AutogenVULCN == np->AutogenVULCN &&
+        const bool same = op->TextureVULCN == np->TextureVULCN && op->TextureRegion == np->TextureRegion &&
+            op->TextureVariation == np->TextureVariation && op->SeasonMask == np->SeasonMask &&
+            op->DrawPriority == np->DrawPriority && op->MaskVULCN == np->MaskVULCN &&
+            op->MaskRegion == np->MaskRegion && op->MaskVariation == np->MaskVariation &&
+            op->MaskTextureVariations == np->MaskTextureVariations && op->AutogenVULCN == np->AutogenVULCN &&
             op->AutogenRegion == np->AutogenRegion && op->AutogenMask == np->AutogenMask;
         check(same, "original texture row preserved byte-for-byte");
     }
@@ -888,10 +935,36 @@ bool VerifyPatched(const Config& cfg)
     return failures == 0;
 }
 
+// FSX region qualifier -> texture-name letter. Holger: regions are coded
+// A=0..Z=25, and terrain texture names use the lowercase letter.
+char RegionLetter(uint8_t region) { return static_cast<char>('a' + (region % 26)); }
+
+// Decode the packed 16 x 4-bit MaskTextureVariations into its per-slot variant
+// indices (nibble 0 = least-significant). The default global lclookup stores
+// 0x1111111111111111 for many ag/urban classes, which FORCES variant 1
+// everywhere ("blocked" — no proper M-tile blend); a real ramp such as class
+// 1's 0x1111111176543211 selects varied mask tiles. See LANDCLASS_SYNTHESIS §7.2.
+std::string FormatVariantNibbles(int64_t packed)
+{
+    const uint64_t u = static_cast<uint64_t>(packed);
+    std::string s = "[";
+    for (int i = 0; i < 16; ++i)
+    {
+        if (i != 0)
+        {
+            s += ' ';
+        }
+        s += std::to_string(static_cast<unsigned>((u >> (i * 4)) & 0xFu));
+    }
+    s += "]";
+    return s;
+}
+
 // --inspect (read-only): decode --lclookup-in and print, for --region and each
-// requested class id, the resolved texture-row index (GetRegionLandClassTexture)
-// and that row's raw fields (GetTextureAt). This is how you pick test classes
-// and find the active ground-set / blend-mask refs. Writes nothing.
+// requested class id, the resolved texture-set-row index (GetRegionLandClassTexture)
+// and that row's raw fields + the DERIVED ground/mask file-name stems. This is
+// how you pick test classes and find the active ground-set / M-tile-mask refs.
+// Writes nothing.
 bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
 {
     CBglFile bgl(cfg.lclookup_in.wstring());
@@ -960,11 +1033,20 @@ bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
         }
         // SeasonMask is conventionally displayed octal (see §6); show both.
         const unsigned season = static_cast<unsigned>(static_cast<uint16_t>(e->SeasonMask));
-        std::printf("      VULCNNumber=%d VULCNRegion=%u VULCNMask=%u SeasonMask=0%o (0x%X)\n", e->VULCNNumber,
-            e->VULCNRegion, e->VULCNMask, season, season);
-        std::printf("      DrawPriority=%d  Blend{VULCN=%d Region=%u Mask=%u Variant=%lld}\n", e->DrawPriority,
-            e->BlendTextureVULCN, e->BlendTextureRegion, e->BlendTextureMask,
-            static_cast<long long>(e->BlendTextureVariant));
+        std::printf("      Texture{VULCN=%d Region=%u(=%c) Variation=%u}  SeasonMask=0%o (0x%X)\n", e->TextureVULCN,
+            e->TextureRegion, RegionLetter(e->TextureRegion), e->TextureVariation, season, season);
+        std::printf("      DrawPriority=%d  Mask{VULCN=%d Region=%u(=%c) Variation=%u}\n", e->DrawPriority,
+            e->MaskVULCN, e->MaskRegion, RegionLetter(e->MaskRegion), e->MaskVariation);
+        std::printf("      MaskTextureVariations=0x%016llX nibbles=%s\n",
+            static_cast<unsigned long long>(static_cast<uint64_t>(e->MaskTextureVariations)),
+            FormatVariantNibbles(e->MaskTextureVariations).c_str());
+        // Derived file-name stems (field->filename lock, §6.1): ground carries a
+        // season + variant; mask is season-less with the "m1{v}" suffix (best
+        // guess from Holger's m11/m12 series — confirm in-sim).
+        std::printf("      ground ~ %03d%c2{season}{v}.bmp   via TilePattern%u.bmp\n", e->TextureVULCN,
+            RegionLetter(e->TextureRegion), e->TextureVariation);
+        std::printf("      mask   ~ %03d%c2m1{v}.bmp         via TilePattern%u.bmp (unless overridden above)\n",
+            e->MaskVULCN, RegionLetter(e->MaskRegion), e->MaskVariation);
         std::printf(
             "      Autogen{VULCN=%d Region=%u Mask=%u}\n", e->AutogenVULCN, e->AutogenRegion, e->AutogenMask);
     }
@@ -989,12 +1071,14 @@ void PrintUsage(const char* argv0)
                 "Land-class raster (painted at sample resolution; a blend corner = a 2x2\n"
                 "neighborhood of ~1 km samples). Prints a layout map (config -> sample coords\n"
                 "-> approximate lat/lon) so in-sim observations can be correlated:\n"
-                "  --scenario S        uniform | corners2 | corners3 | corners4 | dualset\n"
+                "  --scenario S        uniform | corners2 | corners3 | corners4 | blocks | dualset\n"
                 "                      (default corners2)\n"
                 "                        uniform  : one class over the tile (GAP 4 geo-indexing)\n"
-                "                        corners2 : all 14 two-class corner configs (GAP 2)\n"
-                "                        corners3 : representative 3-class corners (GAP 3)\n"
-                "                        corners4 : representative 4-class corners (GAP 3)\n"
+                "                        corners2 : all 14 two-class corner configs (GAP 2/3)\n"
+                "                        corners3 : 3-class corners; top-2 priorities blend (GAP 3)\n"
+                "                        corners4 : 4-class corners; top-3 priorities blend (GAP 3)\n"
+                "                        blocks   : class-B shapes on class-A; M-tile sub-panel\n"
+                "                                   topology (edge/convex/concave/isolated) (GAP 2)\n"
                 "                        dualset  : two large fields side by side (GAP 5)\n"
                 "  --grid FILE         explicit class-id grid (whitespace/comma separated, one\n"
                 "                      raster row per line); overrides --scenario\n"
@@ -1011,14 +1095,17 @@ void PrintUsage(const char* argv0)
                 "                      fields (ground-set / blend-mask refs). Writes nothing.\n"
                 "  --classes LIST      comma-separated class ids for --inspect\n"
                 "\n"
-                "GAP B sweep knobs (applied to the appended class A/B texture rows):\n"
-                "  --variant N         BlendTextureVariant (int64, default 0)\n"
-                "  --vulcn-mask N      VULCNMask (default 0)\n"
-                "  --blend-vulcn N     BlendTextureVULCN (default 0)\n"
-                "  --blend-region N    BlendTextureRegion (default 0)\n"
-                "  --blend-mask N      BlendTextureMask (default 0)\n"
-                "  --season-mask N     SeasonMask (default 0x0FFF = all months)\n"
-                "  --draw-priority N   DrawPriority (default 0)\n"
+                "GAP B sweep knobs (applied to the appended class A/B texture-set rows;\n"
+                "the ground set number = the painted class id, TextureRegion = --region):\n"
+                "  --texture-variation N  TextureVariation: ground TilePattern{n}.bmp scheme (default 0)\n"
+                "  --mask-vulcn N         MaskVULCN: M-tile mask set, e.g. 900 (default 0)\n"
+                "  --mask-region N        MaskRegion: region qualifier for the mask name (default 0)\n"
+                "  --mask-variation N     MaskVariation: mask TilePattern{n}.bmp scheme (default 0)\n"
+                "  --mask-variations N    MaskTextureVariations: packed 16x4-bit variant override,\n"
+                "                         int64 (default 0). 0x1111111111111111 = force variant 1\n"
+                "                         (FSX 'blocked' no-blend default); a ramp unblocks it.\n"
+                "  --season-mask N        SeasonMask (default 0x0FFF = all months)\n"
+                "  --draw-priority N      DrawPriority: blend arbitration order, higher wins (default 0)\n"
                 "\n"
                 "Lookup patch (the FSX-correct path):\n"
                 "  --lclookup-in PATH   real global lclookup.bgl to patch (REQUIRED to emit\n"
@@ -1176,6 +1263,10 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             {
                 cfg.scenario = Scenario::Corners4;
             }
+            else if (value == "blocks")
+            {
+                cfg.scenario = Scenario::Blocks;
+            }
             else if (value == "dualset")
             {
                 cfg.scenario = Scenario::DualSet;
@@ -1215,45 +1306,45 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             }
             cfg.region = std::atoi(value.c_str());
         }
-        else if (a == "--variant")
+        else if (a == "--mask-variations")
         {
-            if (!need("--variant"))
+            if (!need("--mask-variations"))
             {
                 return false;
             }
-            cfg.variant = static_cast<int64_t>(std::strtoll(value.c_str(), nullptr, 0));
+            cfg.mask_texture_variations = static_cast<int64_t>(std::strtoll(value.c_str(), nullptr, 0));
         }
-        else if (a == "--vulcn-mask")
+        else if (a == "--texture-variation")
         {
-            if (!need("--vulcn-mask"))
+            if (!need("--texture-variation"))
             {
                 return false;
             }
-            cfg.vulcn_mask = std::atoi(value.c_str());
+            cfg.texture_variation = std::atoi(value.c_str());
         }
-        else if (a == "--blend-vulcn")
+        else if (a == "--mask-vulcn")
         {
-            if (!need("--blend-vulcn"))
+            if (!need("--mask-vulcn"))
             {
                 return false;
             }
-            cfg.blend_vulcn = std::atoi(value.c_str());
+            cfg.mask_vulcn = std::atoi(value.c_str());
         }
-        else if (a == "--blend-region")
+        else if (a == "--mask-region")
         {
-            if (!need("--blend-region"))
+            if (!need("--mask-region"))
             {
                 return false;
             }
-            cfg.blend_region = std::atoi(value.c_str());
+            cfg.mask_region = std::atoi(value.c_str());
         }
-        else if (a == "--blend-mask")
+        else if (a == "--mask-variation")
         {
-            if (!need("--blend-mask"))
+            if (!need("--mask-variation"))
             {
                 return false;
             }
-            cfg.blend_mask = std::atoi(value.c_str());
+            cfg.mask_variation = std::atoi(value.c_str());
         }
         else if (a == "--season-mask")
         {
@@ -1361,14 +1452,14 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "corners4 needs distinct --class-a/-b/-c/-d (they are the 4 classes).\n");
         return 1;
     }
-    if (!in_u8(cfg.region) || !in_u8(cfg.vulcn_mask) || !in_u8(cfg.blend_mask) || !in_u8(cfg.blend_region))
+    if (!in_u8(cfg.region) || !in_u8(cfg.texture_variation) || !in_u8(cfg.mask_variation) || !in_u8(cfg.mask_region))
     {
-        std::fprintf(stderr, "--region / --vulcn-mask / --blend-mask / --blend-region must be 0..255.\n");
+        std::fprintf(stderr, "--region / --texture-variation / --mask-variation / --mask-region must be 0..255.\n");
         return 1;
     }
-    if (!in_i16(cfg.blend_vulcn) || !in_i16(cfg.season_mask) || !in_i16(cfg.draw_priority))
+    if (!in_i16(cfg.mask_vulcn) || !in_i16(cfg.season_mask) || !in_i16(cfg.draw_priority))
     {
-        std::fprintf(stderr, "--blend-vulcn / --season-mask / --draw-priority must fit int16 (-32768..32767).\n");
+        std::fprintf(stderr, "--mask-vulcn / --season-mask / --draw-priority must fit int16 (-32768..32767).\n");
         return 1;
     }
 
@@ -1480,6 +1571,8 @@ int main(int argc, char** argv)
             return "corners3";
         case Scenario::Corners4:
             return "corners4";
+        case Scenario::Blocks:
+            return "blocks";
         case Scenario::DualSet:
             return "dualset";
         case Scenario::Grid:
@@ -1490,8 +1583,9 @@ int main(int argc, char** argv)
     std::printf("  scenario: %s  classes A=%d B=%d C=%d D=%d  raster=%dx%d  region=%d\n",
         scenario_name(cfg.scenario), cfg.class_a, cfg.class_b, cfg.class_c, cfg.class_d, raster.cols, raster.rows,
         cfg.region);
-    std::printf("  swept knobs: variant=%lld vulcnMask=%d blendMask=%d\n", static_cast<long long>(cfg.variant),
-        cfg.vulcn_mask, cfg.blend_mask);
+    std::printf("  swept knobs: textureVariation=%d mask{vulcn=%d region=%d variation=%d} maskVariations=0x%llX\n",
+        cfg.texture_variation, cfg.mask_vulcn, cfg.mask_region, cfg.mask_variation,
+        static_cast<unsigned long long>(static_cast<uint64_t>(cfg.mask_texture_variations)));
     PrintLayoutMap(raster, entries, have_bounds, lat_n, lat_s, lon_w, lon_e);
 
     // Self-test only applies to the patched lookup (the land-class raster is a

@@ -8332,10 +8332,10 @@ void flightsimlib::io::CBglTerrainTextureLookup::ReadBinary(BinaryFileStream& in
     in.SetPosition(base + offset_texture_block);
     for (int32_t i = 0; i < num_textures; ++i)
     {
-        SBglTextureLookupEntry entry{};
-        in >> entry.VULCNNumber >> entry.VULCNRegion >> entry.VULCNMask >> entry.SeasonMask >> entry.DrawPriority >>
-            entry.BlendTextureVULCN >> entry.BlendTextureRegion >> entry.BlendTextureMask >> entry.BlendTextureVariant >>
-            entry.AutogenVULCN >> entry.AutogenRegion >> entry.AutogenMask;
+        SBglTextureSet entry{};
+        in >> entry.TextureVULCN >> entry.TextureRegion >> entry.TextureVariation >> entry.SeasonMask >>
+            entry.DrawPriority >> entry.MaskVULCN >> entry.MaskRegion >> entry.MaskVariation >>
+            entry.MaskTextureVariations >> entry.AutogenVULCN >> entry.AutogenRegion >> entry.AutogenMask;
         m_textures.push_back(entry);
     }
 
@@ -8443,9 +8443,9 @@ void flightsimlib::io::CBglTerrainTextureLookup::WriteBinary(BinaryFileStream& o
     // --- Texture block ---
     for (const auto& entry : m_textures)
     {
-        out << entry.VULCNNumber << entry.VULCNRegion << entry.VULCNMask << entry.SeasonMask << entry.DrawPriority
-            << entry.BlendTextureVULCN << entry.BlendTextureRegion << entry.BlendTextureMask << entry.BlendTextureVariant
-            << entry.AutogenVULCN << entry.AutogenRegion << entry.AutogenMask;
+        out << entry.TextureVULCN << entry.TextureRegion << entry.TextureVariation << entry.SeasonMask
+            << entry.DrawPriority << entry.MaskVULCN << entry.MaskRegion << entry.MaskVariation
+            << entry.MaskTextureVariations << entry.AutogenVULCN << entry.AutogenRegion << entry.AutogenMask;
     }
     write_pad(texture_block_size - num_textures * s_texture_entry_size);
 
@@ -8547,7 +8547,7 @@ auto flightsimlib::io::CBglTerrainTextureLookup::GetLandClassCount() const -> in
 
 auto flightsimlib::io::CBglTerrainTextureLookup::GetWaterClassCount() const -> int { return m_num_water_classes; }
 
-auto flightsimlib::io::CBglTerrainTextureLookup::GetTextureAt(int index) const -> const SBglTextureLookupEntry*
+auto flightsimlib::io::CBglTerrainTextureLookup::GetTextureAt(int index) const -> const SBglTextureSet*
 {
     if (index < 0 || static_cast<size_t>(index) >= m_textures.size())
     {
@@ -8621,7 +8621,7 @@ auto flightsimlib::io::CBglTerrainTextureLookup::ResizeTables(
 
 auto flightsimlib::io::CBglTerrainTextureLookup::ClearTextures() -> void { m_textures.clear(); }
 
-auto flightsimlib::io::CBglTerrainTextureLookup::AddTexture(const SBglTextureLookupEntry& entry) -> void
+auto flightsimlib::io::CBglTerrainTextureLookup::AddTexture(const SBglTextureSet& entry) -> void
 {
     m_textures.push_back(entry);
 }
