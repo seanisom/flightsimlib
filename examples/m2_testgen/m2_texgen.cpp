@@ -36,7 +36,8 @@
 //
 // Selected by --mode {ground|mask|both} (default both):
 //
-//   GROUND family ({set:03d}{region}2{season}{v}.bmp, v=1..N, 1-based):
+//   GROUND family ({set:03d}{region}2{season}{v}.bmp, v=1..N; v is a single HEX
+//   digit, e.g. ...fa9 -> ...faa):
 //     The per-variant ground tiles for a land-class "set". Each tile bakes its
 //     variant number large + altitude-legible, on a background painted with
 //     Holger's 16-color tilepattern legend color for index (v-1). That ties the
@@ -45,18 +46,21 @@
 //     (NOTE: 0-based legend color vs 1-based filename variant — confirm the off
 //     -by-one in-sim.)  Install: scenery package texture/.
 //
-//   MASK family ({set:03d}{region}2m1{v}.bmp, v=1..K, default K=7):
-//     The 900-series M-tiles (blend masks): ONE BMP per variant, each an 8-panel
-//     vertical atlas (128x1024 in the real 900 series = 8 x 128^2). The sub-panel
-//     FSX uses is selected directly by the cell's 2x2 corner config (four QMID15
-//     corner samples), decoded from the real 900b2m21 atlas: 1 = TR+BL diagonal,
-//     2 = TL+BR diagonal, 3 = vertical edge, 4 = horizontal edge, 5..8 = single
+//   MASK family (v=1..K, default K=7). The two-digit suffix order DIFFERS by
+//   family (a genuine FSX quirk): generic 900-series = {set}{region}2m{V}1.bmp
+//   (variation first, e.g. 900b2m21), set-specific = {set}{region}2m1{V}.bmp
+//   (constant 1 first, e.g. 031b2m11):
+//     The M-tiles (blend masks): ONE BMP per variant, each an 8-panel vertical
+//     atlas (1024x8192 in the real 900 series = 8 x 1024^2; set-specific masks
+//     are narrower/anisotropic, e.g. 031 = 32x2048). The sub-panel FSX uses is
+//     selected directly by the cell's 2x2 corner config (four QMID15 corner
+//     samples), decoded from the real 900b2m21 atlas: 1 = TR+BL diagonal, 2 =
+//     TL+BR diagonal, 3 = vertical edge, 4 = horizontal edge, 5..8 = single
 //     corner BR/BL/TR/TL. Each placeholder panel bakes a geometric approximation
 //     of that coverage as a STOCHASTIC dithered 1-bit stipple (covered = black)
-//     with a "V{v} {index}" label. (NOTE: the "m1{v}" file-name suffix is a best
-//     guess — real files show 031b2m11 and 900b2m21, i.e. a two-digit suffix that
-//     needs a directory listing to decode. The panel-3/4 black/white polarity is
-//     also confirm-in-sim.)  Install: root Scenery\World\texture.
+//     with a "V{v} {index}" label. (V comes from the row's MaskTextureVariations;
+//     set-specific masks are used iff those flags are non-trivial. The panel-3/4
+//     black/white polarity is confirm-in-sim.)  Install: root Scenery\World\texture.
 //
 // Returns 0 on success, 1 on any I/O failure.
 //
@@ -283,6 +287,14 @@ std::string SetPrefix(int set)
     return std::string(buf);
 }
 
+// FSX texture names use a single LOWERCASE HEX digit for the variant (e.g.
+// ...fa9.bmp -> ...faa.bmp for variant 9 -> 10; block schemes reach 16). The
+// 0- vs 1-based numbering is still confirm-in-sim.
+char VariantDigit(int v)
+{
+    return "0123456789abcdef"[v & 0xF];
+}
+
 // One ground variant tile: big legible variant number on the legend color for
 // (variant-1), 1px border, small set caption. Filename:
 //   {set:03d}{region}2{season}{v}.bmp   (e.g. 900b2su1.bmp)
@@ -327,7 +339,7 @@ bool WriteGroundTexture(
     DrawText(img, std::to_string(set), 3, 3, sscale, ink);
 
     const std::string name =
-        SetPrefix(set) + std::string(1, region) + "2" + season + std::to_string(variant) + ".bmp";
+        SetPrefix(set) + std::string(1, region) + "2" + season + std::string(1, VariantDigit(variant)) + ".bmp";
     return WriteBmp24(dir / name, img);
 }
 
@@ -478,7 +490,12 @@ bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int 
         DrawText(img, label, lx, ly, lscale, ink);
     }
 
-    const std::string name = SetPrefix(set) + std::string(1, region) + "2m1" + std::to_string(variant) + ".bmp";
+    // Two-digit suffix, order differs by family (a genuine FSX quirk): generic
+    // 900-series = m{V}1 (variation first), set-specific = m1{V} (constant 1
+    // first). V = the variation number.
+    const std::string vd(1, VariantDigit(variant));
+    const std::string suffix = (set >= 900) ? ("m" + vd + "1") : ("m1" + vd);
+    const std::string name = SetPrefix(set) + std::string(1, region) + "2" + suffix + ".bmp";
     return WriteBmp24(dir / name, img);
 }
 
@@ -503,13 +520,14 @@ void PrintUsage(const char* argv0)
         "                    bg color = Holger legend index (v-1); 0-based-color vs\n"
         "                    1-based-filename indexing is TO BE CONFIRMED in-sim.\n"
         "\n"
-        "MASK family  {set:03d}{region}2m1{v}.bmp  (v=1..K, one 8-sub-panel atlas each):\n"
-        "  --mask-set N      mask set number (default 900; new 903 or override 900-902)\n"
+        "MASK family  (v=1..K, one 8-sub-panel atlas each). Name suffix order differs by\n"
+        "family: 900-series {set}{region}2m{v}1.bmp ; set-specific {set}{region}2m1{v}.bmp:\n"
+        "  --mask-set N      mask set number (default 900; >=900 => generic 900-series\n"
+        "                    naming m{v}1, else set-specific naming m1{v})\n"
         "  --mask-variants K variant count (default 7)\n"
-        "                    each BMP is an 8-panel vertical atlas; the panels are the\n"
-        "                    M-tile sub-panels (1,2 corner-touch; 3,4 block edge; 5-8\n"
-        "                    convex block corner). The \"m1{v}\" suffix matches Holger's\n"
-        "                    m11/m12/... series; panel<->orientation confirm in-sim.\n",
+        "                    each BMP is an 8-panel vertical atlas; panels map to the\n"
+        "                    cell's 2x2 corner config (1,2 diagonal; 3,4 edge; 5-8\n"
+        "                    single corner), decoded from the real 900b2m21 atlas.\n",
         argv0);
 }
 
@@ -702,8 +720,9 @@ int main(int argc, char** argv)
             }
             ++mask_written;
         }
-        std::printf("m2_texgen: wrote %d M-tile atlas(es) %s%c2m1{1..%d}.bmp (8 sub-panels) -> Scenery\\World\\texture\n",
-            mask_written, SetPrefix(mask_set).c_str(), region, mask_variants);
+        const char* pat = (mask_set >= 900) ? "m{1..K}1" : "m1{1..K}";
+        std::printf("m2_texgen: wrote %d M-tile atlas(es) %s%c2%s.bmp (K=%d, 8 sub-panels) -> Scenery\\World\\texture\n",
+            mask_written, SetPrefix(mask_set).c_str(), region, pat, mask_variants);
     }
 
     std::printf("m2_texgen: %d file(s) in %s  (convert BMP->DDS with the SDK imagetool before install)\n",

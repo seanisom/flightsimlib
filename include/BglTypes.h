@@ -200,8 +200,9 @@ public:
 // (M-tile) mask family, and describes how each is varied per cell. The
 // (VULCN, Region, Variation) triples are consumed ONLY to build on-disk texture
 // file names via the FSX naming convention (LANDCLASS_SYNTHESIS.md §6.1):
-//   ground: {TextureVULCN:03d}{region}2{season}{variant}.bmp
-//   mask:   {MaskVULCN:03d}{region}2m1{variant}.bmp
+//   ground: {TextureVULCN:03d}{region}2{season}{variant}.bmp  (variant = 1 hex digit)
+//   mask:   generic 900-series {MaskVULCN:03d}{region}2m{V}1.bmp,
+//           set-specific       {MaskVULCN:03d}{region}2m1{V}.bmp  (V from MaskTextureVariations)
 // where `region` letter = 'a' + Region (Holger: regions are coded A=0..Z=25) and
 // `Variation` is the TilePattern{Variation}.bmp scheme number that maps each
 // QMID15 cell to a per-cell variant index (0..15, the 16-color legend). The

@@ -1040,13 +1040,16 @@ bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
         std::printf("      MaskTextureVariations=0x%016llX nibbles=%s\n",
             static_cast<unsigned long long>(static_cast<uint64_t>(e->MaskTextureVariations)),
             FormatVariantNibbles(e->MaskTextureVariations).c_str());
-        // Derived file-name stems (field->filename lock, §6.1): ground carries a
-        // season + variant; mask is season-less with the "m1{v}" suffix (best
-        // guess from Holger's m11/m12 series — confirm in-sim).
-        std::printf("      ground ~ %03d%c2{season}{v}.bmp   via TilePattern%u.bmp\n", e->TextureVULCN,
-            RegionLetter(e->TextureRegion), e->TextureVariation);
-        std::printf("      mask   ~ %03d%c2m1{v}.bmp         via TilePattern%u.bmp (unless overridden above)\n",
-            e->MaskVULCN, RegionLetter(e->MaskRegion), e->MaskVariation);
+        // Derived file-name stems (field->filename lock, §6.1/§7.2.6): ground
+        // carries a season + hex variant; mask is season-less and its two-digit
+        // suffix order differs by family (900-series m{V}1, set-specific m1{V});
+        // V comes from the MaskTextureVariations nibbles above.
+        std::printf("      ground ~ %03d%c2{season}{v}.bmp   (v = 1 hex digit) via TilePattern%u.bmp\n",
+            e->TextureVULCN, RegionLetter(e->TextureRegion), e->TextureVariation);
+        const char* mask_pat = (e->MaskVULCN >= 900) ? "m{V}1" : "m1{V}";
+        std::printf("      mask   ~ %03d%c2%s.bmp         (%s) via TilePattern%u.bmp\n", e->MaskVULCN,
+            RegionLetter(e->MaskRegion), mask_pat, (e->MaskVULCN >= 900 ? "900-series" : "set-specific"),
+            e->MaskVariation);
         std::printf(
             "      Autogen{VULCN=%d Region=%u Mask=%u}\n", e->AutogenVULCN, e->AutogenRegion, e->AutogenMask);
     }
