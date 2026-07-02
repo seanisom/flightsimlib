@@ -31,7 +31,8 @@
 // experiment loads into the sim to pin down the (now-understood) blend /
 // variation mechanism — see LANDCLASS_SYNTHESIS.md §2.1 / §6 / §7.1. Both
 // families are uncompressed 24-bit BMP (no external image dependency); convert
-// to the sim's terrain-texture format (DDS) with the SDK's imagetool, then
+// GROUND tiles to the FSX "FS70" terrain format (imagetool -terrain, NOT -dds;
+// see scripts/Convert-M2Textures.ps1 -Direction bmp2fs), then
 // install (destinations differ — see below).
 //
 // Selected by --mode {ground|mask|both} (default both):
@@ -505,7 +506,8 @@ void PrintUsage(const char* argv0)
         "Usage: %s [--mode ground|mask|both] [options]\n"
         "\n"
         "Generates the M2 FSX-named land-class texture families (LANDCLASS_SYNTHESIS.md\n"
-        "§7 M2). Output is 24-bit BMP; convert to DDS with the SDK imagetool, then\n"
+        "§7 M2). Output is 24-bit BMP; convert GROUND to the FSX FS70 terrain format\n"
+        "(imagetool -terrain, not -dds; Convert-M2Textures.ps1 -Direction bmp2fs), then\n"
         "install: GROUND -> scenery package texture/ ; MASKS -> root Scenery\\World\\texture.\n"
         "\n"
         "  --mode M          ground | mask | both (default both)\n"
@@ -725,7 +727,7 @@ int main(int argc, char** argv)
             mask_written, SetPrefix(mask_set).c_str(), region, pat, mask_variants);
     }
 
-    std::printf("m2_texgen: %d file(s) in %s  (convert BMP->DDS with the SDK imagetool before install)\n",
+    std::printf("m2_texgen: %d file(s) in %s  (convert GROUND to FS70 via imagetool -terrain before install)\n",
         ground_written + mask_written, out_dir.string().c_str());
     return 0;
 }

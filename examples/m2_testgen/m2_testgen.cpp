@@ -96,7 +96,9 @@ namespace
 
 constexpr int kHeaderSize = 0x38;
 constexpr int kLayerPointerSize = 20;
-constexpr int kTilePointerSize = 16; // packed direct-QMID form (no RecordCount)
+constexpr int kTilePointerSize = 16; // packed direct-QMID tile pointer (no RecordCount). Confirmed
+                                     // against `resample` output: both 0x6F LCLookup AND 0x68 terrain
+                                     // rasters use the 16-byte form (an earlier 20-byte guess was wrong).
 constexpr int kTrq1HeaderSize = 40;
 constexpr uint32_t kTrq1Magic = 0x31515254; // 'TRQ1'
 
@@ -595,7 +597,9 @@ void WriteHeader(BinaryFileStream& out, int layer_count)
 }
 
 // Write a single DirectQmid layer pointer for one tile at StreamOffset.
-void WriteSingleTileLayer(BinaryFileStream& out, EBglLayerType type, int tile_ptr)
+// `tile_ptr_size` is the on-disk size of the single tile pointer that follows
+// (16 for the packed 0x6F form, 20 for a full TRQ1 raster pointer).
+void WriteSingleTileLayer(BinaryFileStream& out, EBglLayerType type, int tile_ptr, int tile_ptr_size)
 {
     SBglLayerPointer layer{};
     layer.Type = type;
@@ -603,7 +607,7 @@ void WriteSingleTileLayer(BinaryFileStream& out, EBglLayerType type, int tile_pt
     layer.HasQmidHigh = 1;
     layer.TileCount = 1;
     layer.StreamOffset = static_cast<uint32_t>(tile_ptr);
-    layer.SizeBytes = kTilePointerSize;
+    layer.SizeBytes = static_cast<uint32_t>(tile_ptr_size);
     layer.WriteBinary(out);
 }
 
@@ -751,8 +755,22 @@ bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoint
     return true;
 }
 
-// The TerrainLandClass (0x68) raster on its own. This is the file that drops
-// into an active scenery area's scenery/ folder as a land-class override.
+// The TerrainLandClass (0x68) raster on its own.
+//
+// !!! NOT FSX-VALID — DO NOT USE THIS OUTPUT IN THE SIM. Use the SDK `resample`
+// tool instead (see LANDCLASS_SYNTHESIS.md §7.3). In-sim testing showed this
+// hand-rolled writer is missing several things FSX requires; it round-trips
+// through flightsimlib (lenient reader) but TMFViewer/FSX reject or corrupt it:
+//   1. No companion TerrainIndex (0x6E) section — FSX loads the file but shows
+//      no data and crashes without it (resample always emits 0x68 + 0x6E).
+//   2. QMID is a naive equirect estimate (wrong projection AND level) — it does
+//      not land on the intended cell. FSX QMID cells are ~3.75deg x 2.8125deg at
+//      level 7, not the 360/2^level equirect grid this tool assumes.
+//   3. The raster must FULLY cover its QMID cell (257x257, compressed). A
+//      partially-covered cell keeps a missing-data mask, and land class does not
+//      fill/blend missing data (unlike DEM/aerial) -> junk tiles in-sim.
+// This function is retained only as a minimal 0x68 example for flightsimlib
+// round-trip tests; the M2 experiment authors land class via `resample`.
 bool WriteLandClassBgl(const Config& cfg, const Raster& raster)
 {
     EnsureParentDir(cfg.out_landclass);
@@ -774,7 +792,7 @@ bool WriteLandClassBgl(const Config& cfg, const Raster& raster)
     const int record_size = kTrq1HeaderSize + class_payload;
 
     WriteHeader(out, 1);
-    WriteSingleTileLayer(out, EBglLayerType::TerrainLandClass, tile_ptr);
+    WriteSingleTileLayer(out, EBglLayerType::TerrainLandClass, tile_ptr, kTilePointerSize);
 
     out << cfg.qmid_low << cfg.qmid_high << static_cast<uint32_t>(record) << static_cast<uint32_t>(record_size);
     out << kTrq1Magic;                                                    // Version
