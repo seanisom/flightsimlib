@@ -33,9 +33,10 @@
 // tiles are 24-bit BMP (no external image dependency) and are converted to the
 // FSX "FS70" terrain format (imagetool -terrain, NOT -dds; see
 // scripts/Convert-M2Textures.ps1 -Direction bmp2fs). MASK atlases are 1-bit
-// monochrome BMP to match the REAL FSX mask format (in-sim inspection: default
-// 900b2m11.bmp is 1024x8192 bpp=1 BI_RGB + FS70 marker) — use --size 1024 for
-// exact real dims; the FS70 wrapper (if FSX requires it) is applied at install.
+// monochrome BMP — the real FSX masks are PLAIN STANDARD BMPs (default
+// 900b2m11.bmp: standard BITMAPINFOHEADER, bpp=1, BI_RGB, 1024x8192; it only
+// adds an ignored "FS70" chunk + appended 1-bit mips). Do NOT run masks through
+// imagetool -terrain (that DXT-compresses them). Use --size 1024 for real dims.
 //
 // Selected by --mode {ground|mask|both} (default both):
 //
@@ -253,11 +254,14 @@ bool WriteBmp24(const std::filesystem::path& path, const Image& img)
 }
 
 // Write a 1-bit monochrome BMP (bottom-up), 2-entry palette (0=black, 1=white).
-// A pixel is bit 0 (black) if it is dark in `img`, else bit 1 (white). This
-// matches the REAL FSX M-tile mask format (in-sim inspection: the default
-// 900b2m11.bmp is 1024x8192, bpp=1, BI_RGB, with an FS70 marker) — see
-// LANDCLASS_SYNTHESIS.md §7.1/§7.3. (The FS70 wrapper is added by the converter,
-// not here.)
+// A pixel is bit 0 (black) if it is dark in `img`, else bit 1 (white). This is a
+// PLAIN STANDARD BMP, which is what the real FSX M-tile masks are: a byte-level
+// read of the default 900b2m11.bmp shows a standard BITMAPINFOHEADER (biSize=40),
+// biBitCount=1, biCompression=0 (BI_RGB), 1024x8192 — it just additionally
+// carries a 20-byte "FS70" chunk between palette and pixels (bfOffBits=82) and an
+// appended 1-bit mip chain (biSizeImage counts them), both of which standard BMP
+// readers ignore. Ours omits those extras (bfOffBits=62, no mips); see
+// LANDCLASS_SYNTHESIS.md §7.1/§7.3.
 bool WriteBmp1Mono(const std::filesystem::path& path, const Image& img)
 {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
@@ -571,9 +575,11 @@ void PrintUsage(const char* argv0)
     std::printf("Usage: %s [--mode ground|mask|both] [options]\n"
                 "\n"
                 "Generates the M2 FSX-named land-class texture families (LANDCLASS_SYNTHESIS.md\n"
-                "§7 M2). Output is 24-bit BMP; convert GROUND to the FSX FS70 terrain format\n"
-                "(imagetool -terrain, not -dds; Convert-M2Textures.ps1 -Direction bmp2fs), then\n"
-                "install: GROUND -> scenery package texture/ ; MASKS -> root Scenery\\World\\texture.\n"
+                "§7 M2). GROUND tiles are 24-bit BMP -> convert to the FSX FS70 terrain format\n"
+                "(imagetool -terrain, not -dds; Convert-M2Textures.ps1 -Direction bmp2fs). MASK\n"
+                "atlases are 1-bit BMP (the real FSX mask format is a plain standard BMP) -> ship\n"
+                "as-is, do NOT run through imagetool. Install: GROUND -> scenery package texture/\n"
+                "(or overwrite the set in World\\texture); MASKS -> root Scenery\\World\\texture.\n"
                 "\n"
                 "  --mode M          ground | mask | both (default both)\n"
                 "  --out DIR         output directory (default: ./m2_textures)\n"
