@@ -29,11 +29,13 @@
 //
 // Emits the two FSX-named texture families that the M2 reverse-engineering
 // experiment loads into the sim to pin down the (now-understood) blend /
-// variation mechanism — see LANDCLASS_SYNTHESIS.md §2.1 / §6 / §7.1. Both
-// families are uncompressed 24-bit BMP (no external image dependency); convert
-// GROUND tiles to the FSX "FS70" terrain format (imagetool -terrain, NOT -dds;
-// see scripts/Convert-M2Textures.ps1 -Direction bmp2fs), then
-// install (destinations differ — see below).
+// variation mechanism — see LANDCLASS_SYNTHESIS.md §2.1 / §6 / §7.1. GROUND
+// tiles are 24-bit BMP (no external image dependency) and are converted to the
+// FSX "FS70" terrain format (imagetool -terrain, NOT -dds; see
+// scripts/Convert-M2Textures.ps1 -Direction bmp2fs). MASK atlases are 1-bit
+// monochrome BMP to match the REAL FSX mask format (in-sim inspection: default
+// 900b2m11.bmp is 1024x8192 bpp=1 BI_RGB + FS70 marker) — use --size 1024 for
+// exact real dims; the FS70 wrapper (if FSX requires it) is applied at install.
 //
 // Selected by --mode {ground|mask|both} (default both):
 //
@@ -47,10 +49,11 @@
 //     (NOTE: 0-based legend color vs 1-based filename variant — confirm the off
 //     -by-one in-sim.)  Install: scenery package texture/.
 //
-//   MASK family (v=1..K, default K=7). The two-digit suffix order DIFFERS by
-//   family (a genuine FSX quirk): generic 900-series = {set}{region}2m{V}1.bmp
-//   (variation first, e.g. 900b2m21), set-specific = {set}{region}2m1{V}.bmp
-//   (constant 1 first, e.g. 031b2m11):
+//   MASK family (v=1..K, default K=7). 1-BIT MONOCHROME BMP (matches the real
+//   FSX mask format). The two-digit suffix order DIFFERS by family (a genuine
+//   FSX quirk): generic 900-series = {set}{region}2m{V}1.bmp (variation first,
+//   e.g. 900b2m21), set-specific = {set}{region}2m1{V}.bmp (constant 1 first,
+//   e.g. 031b2m11):
 //     The M-tiles (blend masks): ONE BMP per variant, each an 8-panel vertical
 //     atlas (1024x8192 in the real 900 series = 8 x 1024^2; set-specific masks
 //     are narrower/anisotropic, e.g. 031 = 32x2048). The sub-panel FSX uses is
@@ -185,14 +188,8 @@ void DrawText(Image& img, const std::string& text, int ox, int oy, int scale, Rg
 }
 
 // Pixel advance / height of a string drawn at `scale` (5px glyph + 1px gap).
-int TextWidth(const std::string& text, int scale)
-{
-    return static_cast<int>(text.size()) * (5 + 1) * scale;
-}
-int TextHeight(int scale)
-{
-    return 7 * scale;
-}
+int TextWidth(const std::string& text, int scale) { return static_cast<int>(text.size()) * (5 + 1) * scale; }
+int TextHeight(int scale) { return 7 * scale; }
 
 bool WriteBmp24(const std::filesystem::path& path, const Image& img)
 {
@@ -255,6 +252,71 @@ bool WriteBmp24(const std::filesystem::path& path, const Image& img)
     return static_cast<bool>(out);
 }
 
+// Write a 1-bit monochrome BMP (bottom-up), 2-entry palette (0=black, 1=white).
+// A pixel is bit 0 (black) if it is dark in `img`, else bit 1 (white). This
+// matches the REAL FSX M-tile mask format (in-sim inspection: the default
+// 900b2m11.bmp is 1024x8192, bpp=1, BI_RGB, with an FS70 marker) — see
+// LANDCLASS_SYNTHESIS.md §7.1/§7.3. (The FS70 wrapper is added by the converter,
+// not here.)
+bool WriteBmp1Mono(const std::filesystem::path& path, const Image& img)
+{
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out)
+    {
+        return false;
+    }
+    const int row_stride = ((img.w + 31) / 32) * 4; // 1 bpp, padded to 4 bytes
+    const uint32_t pixel_bytes = static_cast<uint32_t>(row_stride) * img.h;
+    const uint32_t data_off = 14 + 40 + 8; // headers + 2-entry palette
+    const uint32_t file_size = data_off + pixel_bytes;
+
+    auto put_u16 = [&out](uint16_t v) { out.put(static_cast<char>(v & 0xFF)).put(static_cast<char>((v >> 8) & 0xFF)); };
+    auto put_u32 = [&out](uint32_t v)
+    {
+        out.put(static_cast<char>(v & 0xFF))
+            .put(static_cast<char>((v >> 8) & 0xFF))
+            .put(static_cast<char>((v >> 16) & 0xFF))
+            .put(static_cast<char>((v >> 24) & 0xFF));
+    };
+
+    out.put('B').put('M'); // BITMAPFILEHEADER
+    put_u32(file_size);
+    put_u16(0);
+    put_u16(0);
+    put_u32(data_off);
+    put_u32(40); // BITMAPINFOHEADER
+    put_u32(static_cast<uint32_t>(img.w));
+    put_u32(static_cast<uint32_t>(img.h)); // positive => bottom-up
+    put_u16(1);
+    put_u16(1); // 1 bpp
+    put_u32(0); // BI_RGB
+    put_u32(pixel_bytes);
+    put_u32(2835);
+    put_u32(2835);
+    put_u32(2); // biClrUsed
+    put_u32(2); // biClrImportant
+    // Palette: index 0 = black, index 1 = white (BGRA).
+    out.put(0).put(0).put(0).put(0);
+    out.put(static_cast<char>(255)).put(static_cast<char>(255)).put(static_cast<char>(255)).put(0);
+
+    std::vector<uint8_t> row(row_stride, 0);
+    for (int y = img.h - 1; y >= 0; --y) // bottom-up
+    {
+        std::fill(row.begin(), row.end(), static_cast<uint8_t>(0));
+        for (int x = 0; x < img.w; ++x)
+        {
+            const Rgb& c = img.px[static_cast<size_t>(y) * img.w + x];
+            const int luma = (299 * c.r + 587 * c.g + 114 * c.b) / 1000;
+            if (luma >= 128) // white => bit 1
+            {
+                row[x >> 3] |= static_cast<uint8_t>(0x80 >> (x & 7));
+            }
+        }
+        out.write(reinterpret_cast<const char*>(row.data()), row_stride);
+    }
+    return static_cast<bool>(out);
+}
+
 // ---- M2 texture families ---------------------------------------------------
 
 // Holger's FSX Land Class Table 16-color legend (tilepattern{N}.bmp cell color
@@ -291,21 +353,23 @@ std::string SetPrefix(int set)
 // FSX texture names use a single LOWERCASE HEX digit for the variant (e.g.
 // ...fa9.bmp -> ...faa.bmp for variant 9 -> 10; block schemes reach 16). The
 // 0- vs 1-based numbering is still confirm-in-sim.
-char VariantDigit(int v)
-{
-    return "0123456789abcdef"[v & 0xF];
-}
+char VariantDigit(int v) { return "0123456789abcdef"[v & 0xF]; }
 
 // One ground variant tile: big legible variant number on the legend color for
 // (variant-1), 1px border, small set caption. Filename:
 //   {set:03d}{region}2{season}{v}.bmp   (e.g. 900b2su1.bmp)
-bool WriteGroundTexture(
-    const std::filesystem::path& dir, int set, char region, const std::string& season, int variant, int size)
+bool WriteGroundTexture(const std::filesystem::path& dir, int set, char region, const std::string& season, int variant,
+    int size, bool color_by_set)
 {
-    // 0-based legend color for a 1-based filename variant. The off-by-one is the
-    // working assumption; confirm in-sim (see header note).
-    const int color_index = (variant - 1) % 16;
-    const Rgb bg = kLegend[color_index < 0 ? 0 : color_index];
+    // Background color: by VARIANT (legend[v-1]) ties on-ground color to the
+    // tilepattern cell color (geo-indexing test); by SET (legend[(set-1)%16])
+    // gives each land-class SET a single distinct color, so different classes are
+    // visually separable at a blend boundary (the M2 blend tests). The off-by-one
+    // (0-based legend color vs 1-based filename variant) is the working
+    // assumption; confirm in-sim (see header note).
+    const int raw_index = color_by_set ? (set - 1) : (variant - 1);
+    const int color_index = ((raw_index % 16) + 16) % 16;
+    const Rgb bg = kLegend[color_index];
     const Rgb ink = ContrastInk(bg);
     Image img(size, size, bg);
 
@@ -425,7 +489,7 @@ double ShapeSignedDistance(MaskShape shape, double u, double v)
 double DitherThreshold(int x, int y, int variant, int panel)
 {
     uint32_t h = static_cast<uint32_t>(x) * 73856093u ^ static_cast<uint32_t>(y) * 19349663u ^
-        static_cast<uint32_t>(variant) * 83492791u ^ static_cast<uint32_t>(panel) * 2654435761u;
+                 static_cast<uint32_t>(variant) * 83492791u ^ static_cast<uint32_t>(panel) * 2654435761u;
     h ^= h >> 13;
     h *= 0x85ebca6bu;
     h ^= h >> 16;
@@ -497,39 +561,44 @@ bool WriteMaskAtlas(const std::filesystem::path& dir, int set, char region, int 
     const std::string vd(1, VariantDigit(variant));
     const std::string suffix = (set >= 900) ? ("m" + vd + "1") : ("m1" + vd);
     const std::string name = SetPrefix(set) + std::string(1, region) + "2" + suffix + ".bmp";
-    return WriteBmp24(dir / name, img);
+    // Masks are 1-bit monochrome to match the real FSX format (bpp=1). Use
+    // --size 1024 for the exact real 1024x8192 atlas dimensions.
+    return WriteBmp1Mono(dir / name, img);
 }
 
 void PrintUsage(const char* argv0)
 {
-    std::printf(
-        "Usage: %s [--mode ground|mask|both] [options]\n"
-        "\n"
-        "Generates the M2 FSX-named land-class texture families (LANDCLASS_SYNTHESIS.md\n"
-        "§7 M2). Output is 24-bit BMP; convert GROUND to the FSX FS70 terrain format\n"
-        "(imagetool -terrain, not -dds; Convert-M2Textures.ps1 -Direction bmp2fs), then\n"
-        "install: GROUND -> scenery package texture/ ; MASKS -> root Scenery\\World\\texture.\n"
-        "\n"
-        "  --mode M          ground | mask | both (default both)\n"
-        "  --out DIR         output directory (default: ./m2_textures)\n"
-        "  --size N          square tile size in px (default: 256)\n"
-        "  --region C        single region letter, both families (default: b)\n"
-        "\n"
-        "GROUND family  {set:03d}{region}2{season}{v}.bmp  (v=1..N, 1-based):\n"
-        "  --set N           ground set number (default 900)\n"
-        "  --season S        su | sp | fa | wi | hw (default su)\n"
-        "  --variants N      variant count, 1..16 (legend size) (default 7)\n"
-        "                    bg color = Holger legend index (v-1); 0-based-color vs\n"
-        "                    1-based-filename indexing is TO BE CONFIRMED in-sim.\n"
-        "\n"
-        "MASK family  (v=1..K, one 8-sub-panel atlas each). Name suffix order differs by\n"
-        "family: 900-series {set}{region}2m{v}1.bmp ; set-specific {set}{region}2m1{v}.bmp:\n"
-        "  --mask-set N      mask set number (default 900; >=900 => generic 900-series\n"
-        "                    naming m{v}1, else set-specific naming m1{v})\n"
-        "  --mask-variants K variant count (default 7)\n"
-        "                    each BMP is an 8-panel vertical atlas; panels map to the\n"
-        "                    cell's 2x2 corner config (1,2 diagonal; 3,4 edge; 5-8\n"
-        "                    single corner), decoded from the real 900b2m21 atlas.\n",
+    std::printf("Usage: %s [--mode ground|mask|both] [options]\n"
+                "\n"
+                "Generates the M2 FSX-named land-class texture families (LANDCLASS_SYNTHESIS.md\n"
+                "§7 M2). Output is 24-bit BMP; convert GROUND to the FSX FS70 terrain format\n"
+                "(imagetool -terrain, not -dds; Convert-M2Textures.ps1 -Direction bmp2fs), then\n"
+                "install: GROUND -> scenery package texture/ ; MASKS -> root Scenery\\World\\texture.\n"
+                "\n"
+                "  --mode M          ground | mask | both (default both)\n"
+                "  --out DIR         output directory (default: ./m2_textures)\n"
+                "  --size N          square tile size in px (default: 256)\n"
+                "  --region C        single region letter, both families (default: b)\n"
+                "\n"
+                "GROUND family  {set:03d}{region}2{season}{v}.bmp  (v=1..N, 1-based):\n"
+                "  --set N           ground set number (default 900)\n"
+                "  --season S        su | sp | fa | wi | hw (default su)\n"
+                "  --variants N      variant count, 1..16 (legend size) (default 7)\n"
+                "                    bg color = Holger legend index (v-1); 0-based-color vs\n"
+                "                    1-based-filename indexing is TO BE CONFIRMED in-sim.\n"
+                "  --color-by K      ground bg color source: variant (default; ties on-ground\n"
+                "                    color to the tilepattern cell for the geo-indexing test)\n"
+                "                    or set (each land-class SET one distinct color, so classes\n"
+                "                    are separable at a blend boundary — the M2 blend tests)\n"
+                "\n"
+                "MASK family  (v=1..K, one 8-sub-panel atlas each). Name suffix order differs by\n"
+                "family: 900-series {set}{region}2m{v}1.bmp ; set-specific {set}{region}2m1{v}.bmp:\n"
+                "  --mask-set N      mask set number (default 900; >=900 => generic 900-series\n"
+                "                    naming m{v}1, else set-specific naming m1{v})\n"
+                "  --mask-variants K variant count (default 7)\n"
+                "                    each BMP is an 8-panel vertical atlas; panels map to the\n"
+                "                    cell's 2x2 corner config (1,2 diagonal; 3,4 edge; 5-8\n"
+                "                    single corner), decoded from the real 900b2m21 atlas.\n",
         argv0);
 }
 
@@ -546,6 +615,7 @@ int main(int argc, char** argv)
     int variants = 7;
     int mask_set = 900;
     int mask_variants = 7;
+    bool color_by_set = false; // ground bg color: false=by variant (geo test), true=by set (blend tests)
 
     for (int i = 1; i < argc; ++i)
     {
@@ -635,6 +705,26 @@ int main(int argc, char** argv)
             }
             mask_variants = std::atoi(value.c_str());
         }
+        else if (arg == "--color-by")
+        {
+            if (!need("--color-by"))
+            {
+                return 1;
+            }
+            if (value == "set")
+            {
+                color_by_set = true;
+            }
+            else if (value == "variant")
+            {
+                color_by_set = false;
+            }
+            else
+            {
+                std::fprintf(stderr, "--color-by must be variant | set (got '%s').\n", value.c_str());
+                return 1;
+            }
+        }
         else if (arg == "-h" || arg == "--help")
         {
             PrintUsage(argv[0]);
@@ -700,7 +790,7 @@ int main(int argc, char** argv)
     {
         for (int v = 1; v <= variants; ++v)
         {
-            if (!WriteGroundTexture(out_dir, set, region, season, v, size))
+            if (!WriteGroundTexture(out_dir, set, region, season, v, size, color_by_set))
             {
                 std::fprintf(stderr, "FAIL: could not write ground texture set=%d v=%d\n", set, v);
                 return 1;
@@ -723,7 +813,8 @@ int main(int argc, char** argv)
             ++mask_written;
         }
         const char* pat = (mask_set >= 900) ? "m{1..K}1" : "m1{1..K}";
-        std::printf("m2_texgen: wrote %d M-tile atlas(es) %s%c2%s.bmp (K=%d, 8 sub-panels) -> Scenery\\World\\texture\n",
+        std::printf(
+            "m2_texgen: wrote %d M-tile atlas(es) %s%c2%s.bmp (K=%d, 8 sub-panels) -> Scenery\\World\\texture\n",
             mask_written, SetPrefix(mask_set).c_str(), region, pat, mask_variants);
     }
 

@@ -148,6 +148,20 @@ struct Config
     Scenario scenario = Scenario::Corners2;
     std::filesystem::path grid_file; // --grid: explicit class-id grid (Scenario::Grid)
 
+    // --emit-resample-source: instead of the deprecated hand-rolled 0x68 writer,
+    // emit a 24-bit BMP (pixel = RGB(v,v,v) => land class v) + an INF over the
+    // EXACT target cell so the SDK `resample` builds an FSX-valid, fully-covered
+    // multi-class land-class tile (SizeMask=0). See LANDCLASS_SYNTHESIS.md §7.3.
+    bool emit_resample_source = false;
+    std::filesystem::path rs_out = "m2_resample"; // output root: <rs_out>/SourceData/<base>.bmp + <rs_out>/<base>.inf
+    std::string rs_base = "m2lc";                 // DestBaseFileName + source BMP stem
+    int rs_margin = 4;                            // overfill: pad the source by this many cells on each side
+    // Exact destination cell bounds (default = the Jenny Lake anchor, QMID 0x8304).
+    double dest_north = 45.0;
+    double dest_south = 42.1875;
+    double dest_west = -112.5;
+    double dest_east = -108.75;
+
     // --inspect: read-only decode of --lclookup-in. Prints, for --region and a
     // set of class ids, each class's resolved texture-row index + that row's raw
     // fields (so the active ground-set / blend-mask refs can be picked). Writes
@@ -158,13 +172,14 @@ struct Config
     // GAP B sweep knobs (applied to the appended texture-set rows). Names track
     // the corrected SBglTextureSet fields (LANDCLASS_SYNTHESIS.md §6): the ground
     // set number = the painted class id (--class-a/-b); TextureRegion = --region.
-    int texture_variation = 0;         // TextureVariation: ground TilePattern{n} scheme
-    int mask_vulcn = 0;                // MaskVULCN: M-tile mask set (e.g. 900)
-    int mask_region = 0;               // MaskRegion: region qualifier for the mask name
-    int mask_variation = 0;            // MaskVariation: mask TilePattern{n} scheme
+    int texture_variation = 0;           // TextureVariation: ground TilePattern{n} scheme
+    int mask_vulcn = 0;                  // MaskVULCN: M-tile mask set (e.g. 900)
+    int mask_region = 0;                 // MaskRegion: region qualifier for the mask name
+    int mask_variation = 0;              // MaskVariation: mask TilePattern{n} scheme
     int64_t mask_texture_variations = 0; // MaskTextureVariations: packed 16x4-bit variant override
-    int season_mask = 0x0FFF;          // all 12 months by default
-    int draw_priority = 0;
+    int season_mask = 0x0FFF;            // all 12 months by default
+    int draw_priority = 0;               // DrawPriority of the FIRST patched class...
+    int draw_priority_step = 10;         // ...each subsequent class gets +step (so later class wins arbitration)
 
     int region = 0; // region id painted/used for this test
 
@@ -266,14 +281,14 @@ std::string CornerSetLabel(int b_mask)
 std::string BlockLabel(int tl, int tr, int bl, int br)
 {
     return "TL=" + std::to_string(tl) + " TR=" + std::to_string(tr) + " BL=" + std::to_string(bl) +
-        " BR=" + std::to_string(br);
+           " BR=" + std::to_string(br);
 }
 
 // Lay out a list of 2x2 corner blocks (each = {TL,TR,BL,BR} class ids) on a
 // pre-filled background, evenly spaced with margins so each config is isolated.
 // Returns false if the raster is too small to give every block a margin.
-bool PlaceCornerBlocks(Raster& r, const std::vector<std::array<int, 4>>& blocks,
-    const std::vector<std::string>& labels, std::vector<LayoutEntry>& entries)
+bool PlaceCornerBlocks(Raster& r, const std::vector<std::array<int, 4>>& blocks, const std::vector<std::string>& labels,
+    std::vector<LayoutEntry>& entries)
 {
     const int n = static_cast<int>(blocks.size());
     const int gcols = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n))));
@@ -469,7 +484,7 @@ bool BuildRaster(const Config& cfg, Raster& r, std::vector<LayoutEntry>& entries
             }
             blocks.push_back(b);
             labels.push_back("cfg " + std::to_string(mask) + " (B@" + CornerSetLabel(mask) + ") " +
-                BlockLabel(b[0], b[1], b[2], b[3]));
+                             BlockLabel(b[0], b[1], b[2], b[3]));
         }
     }
     else if (cfg.scenario == Scenario::Corners3)
@@ -500,6 +515,40 @@ bool BuildRaster(const Config& cfg, Raster& r, std::vector<LayoutEntry>& entries
     return true;
 }
 
+// The ordered list of distinct land classes a scenario paints (this is what the
+// lookup patch repoints, in priority order — earlier = lower DrawPriority). For
+// Grid, collect distinct raster values in ascending order.
+std::vector<int> ScenarioClasses(const Config& cfg, const Raster& raster)
+{
+    switch (cfg.scenario)
+    {
+    case Scenario::Uniform:
+        return {cfg.class_a};
+    case Scenario::Corners3:
+        return {cfg.class_a, cfg.class_b, cfg.class_c};
+    case Scenario::Corners4:
+        return {cfg.class_a, cfg.class_b, cfg.class_c, cfg.class_d};
+    case Scenario::Grid:
+    {
+        std::vector<int> distinct;
+        for (uint8_t v : raster.cells)
+        {
+            if (std::find(distinct.begin(), distinct.end(), static_cast<int>(v)) == distinct.end())
+            {
+                distinct.push_back(static_cast<int>(v));
+            }
+        }
+        std::sort(distinct.begin(), distinct.end());
+        return distinct;
+    }
+    case Scenario::Corners2:
+    case Scenario::Blocks:
+    case Scenario::DualSet:
+    default:
+        return {cfg.class_a, cfg.class_b};
+    }
+}
+
 // Print the layout map: each config -> sample coords -> approximate lat/lon
 // (reusing the equirect TileBounds estimate) so in-sim observations can be tied
 // back to specific corner configs. lat/lon is only available for a lat/lon or
@@ -513,13 +562,12 @@ void PrintLayoutMap(const Raster& r, const std::vector<LayoutEntry>& entries, bo
         std::printf("    %s\n", e.label.c_str());
         if (e.w == 2 && e.h == 2)
         {
-            std::printf("      samples: TL=(c%d,r%d) TR=(c%d,r%d) BL=(c%d,r%d) BR=(c%d,r%d)\n", e.col, e.row,
-                e.col + 1, e.row, e.col, e.row + 1, e.col + 1, e.row + 1);
+            std::printf("      samples: TL=(c%d,r%d) TR=(c%d,r%d) BL=(c%d,r%d) BR=(c%d,r%d)\n", e.col, e.row, e.col + 1,
+                e.row, e.col, e.row + 1, e.col + 1, e.row + 1);
         }
         else
         {
-            std::printf(
-                "      samples: cols[%d..%d] rows[%d..%d]\n", e.col, e.col + e.w - 1, e.row, e.row + e.h - 1);
+            std::printf("      samples: cols[%d..%d] rows[%d..%d]\n", e.col, e.col + e.w - 1, e.row, e.row + e.h - 1);
         }
         if (have_bounds)
         {
@@ -537,14 +585,14 @@ void PrintLayoutMap(const Raster& r, const std::vector<LayoutEntry>& entries, bo
 // `vulcn` (the painted class id) becomes TextureVULCN, so the ground set number
 // == the class id and the generated ground tiles are named to match (author
 // them with `m2_texgen --set <class id>`).
-SBglTextureSet MakeTextureRow(const Config& cfg, int vulcn)
+SBglTextureSet MakeTextureRow(const Config& cfg, int vulcn, int draw_priority)
 {
     SBglTextureSet e{};
     e.TextureVULCN = static_cast<int16_t>(vulcn);
     e.TextureRegion = static_cast<uint8_t>(cfg.region);
     e.TextureVariation = static_cast<uint8_t>(cfg.texture_variation);
     e.SeasonMask = static_cast<int16_t>(cfg.season_mask);
-    e.DrawPriority = static_cast<int16_t>(cfg.draw_priority);
+    e.DrawPriority = static_cast<int16_t>(draw_priority);
     e.MaskVULCN = static_cast<int16_t>(cfg.mask_vulcn);
     e.MaskRegion = static_cast<uint8_t>(cfg.mask_region);
     e.MaskVariation = static_cast<uint8_t>(cfg.mask_variation);
@@ -668,7 +716,7 @@ bool RoundTripCheck(const Config& cfg)
 // each region table to those rows, then re-emit the complete file to out_lookup
 // (Rename before Write leaves the input file untouched). Reports how many
 // records were patched and how many region entries were repointed.
-bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoints)
+bool PatchLookupBgl(const Config& cfg, const std::vector<int>& classes, int& records_patched, int& region_repoints)
 {
     records_patched = 0;
     region_repoints = 0;
@@ -713,22 +761,36 @@ bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoint
 
             const int land_count = lookup->GetLandClassCount();
             const int region_count = lookup->GetRegionCount();
-            // Only patch records whose region table can address both classes.
-            if (cfg.class_a >= land_count || cfg.class_b >= land_count)
+            // Only patch records whose region table can address every class.
+            bool addressable = true;
+            for (int cls : classes)
+            {
+                if (cls < 0 || cls >= land_count)
+                {
+                    addressable = false;
+                    break;
+                }
+            }
+            if (!addressable)
             {
                 continue;
             }
 
-            const int row_a = lookup->GetTextureCount();
-            lookup->AddTexture(MakeTextureRow(cfg, cfg.class_a));
-            const int row_b = lookup->GetTextureCount();
-            lookup->AddTexture(MakeTextureRow(cfg, cfg.class_b));
-
-            for (int r = 0; r < region_count; ++r)
+            // Append one texture-set row per class (TextureVULCN = class id, so the
+            // ground set == the class id and our shipped tiles line up), giving each
+            // a DISTINCT DrawPriority (base + index*step) so the later class wins
+            // arbitration. Then repoint that class in every region table.
+            for (size_t k = 0; k < classes.size(); ++k)
             {
-                lookup->SetRegionLandClassTexture(r, cfg.class_a, row_a);
-                lookup->SetRegionLandClassTexture(r, cfg.class_b, row_b);
-                region_repoints += 2;
+                const int cls = classes[k];
+                const int prio = cfg.draw_priority + static_cast<int>(k) * cfg.draw_priority_step;
+                const int row = lookup->GetTextureCount();
+                lookup->AddTexture(MakeTextureRow(cfg, cls, prio));
+                for (int r = 0; r < region_count; ++r)
+                {
+                    lookup->SetRegionLandClassTexture(r, cls, row);
+                    ++region_repoints;
+                }
             }
             ++records_patched;
         }
@@ -736,10 +798,8 @@ bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoint
 
     if (records_patched == 0)
     {
-        std::fprintf(stderr,
-            "FAIL: no LCLookup record could address classes %d/%d "
-            "(input land-class count too small?). Nothing written.\n",
-            cfg.class_a, cfg.class_b);
+        std::fprintf(stderr, "FAIL: no LCLookup record could address every test class "
+                             "(input land-class count too small?). Nothing written.\n");
         return false;
     }
 
@@ -752,6 +812,157 @@ bool PatchLookupBgl(const Config& cfg, int& records_patched, int& region_repoint
         std::fprintf(stderr, "FAIL: could not write patched lclookup %s\n", cfg.out_lookup.string().c_str());
         return false;
     }
+    return true;
+}
+
+// Write a 24-bit uncompressed BMP (bottom-up) from `pixels` (row-major, row 0 =
+// north/top; each entry is a class id written as RGB(v,v,v)). Returns false on
+// I/O failure.
+bool WriteBmp24Gray(const std::filesystem::path& path, const std::vector<uint8_t>& pixels, int cols, int rows)
+{
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out)
+    {
+        return false;
+    }
+    const int row_stride = (cols * 3 + 3) & ~3; // padded to 4 bytes
+    const uint32_t pixel_bytes = static_cast<uint32_t>(row_stride) * rows;
+    const uint32_t file_size = 14 + 40 + pixel_bytes;
+
+    auto put_u16 = [&out](uint16_t v) { out.put(static_cast<char>(v & 0xFF)).put(static_cast<char>((v >> 8) & 0xFF)); };
+    auto put_u32 = [&out](uint32_t v)
+    {
+        out.put(static_cast<char>(v & 0xFF))
+            .put(static_cast<char>((v >> 8) & 0xFF))
+            .put(static_cast<char>((v >> 16) & 0xFF))
+            .put(static_cast<char>((v >> 24) & 0xFF));
+    };
+
+    out.put('B').put('M'); // BITMAPFILEHEADER
+    put_u32(file_size);
+    put_u16(0);
+    put_u16(0);
+    put_u32(14 + 40);
+    put_u32(40); // BITMAPINFOHEADER
+    put_u32(static_cast<uint32_t>(cols));
+    put_u32(static_cast<uint32_t>(rows)); // positive => bottom-up
+    put_u16(1);
+    put_u16(24);
+    put_u32(0); // BI_RGB
+    put_u32(pixel_bytes);
+    put_u32(2835);
+    put_u32(2835);
+    put_u32(0);
+    put_u32(0);
+
+    std::vector<char> row(row_stride, 0);
+    for (int y = rows - 1; y >= 0; --y) // bottom-up: emit south row first, north (row 0) last
+    {
+        for (int x = 0; x < cols; ++x)
+        {
+            const uint8_t v = pixels[static_cast<size_t>(y) * cols + x];
+            row[x * 3 + 0] = static_cast<char>(v); // B
+            row[x * 3 + 1] = static_cast<char>(v); // G
+            row[x * 3 + 2] = static_cast<char>(v); // R
+        }
+        for (int p = cols * 3; p < row_stride; ++p)
+        {
+            row[p] = 0;
+        }
+        out.write(row.data(), row_stride);
+    }
+    return static_cast<bool>(out);
+}
+
+// Emit the resample INPUT for a multi-class land-class tile: a 24-bit BMP whose
+// pixels encode class ids as RGB(v,v,v), plus a resample INF over the EXACT
+// destination cell. The scenario raster is edge-clamp padded by `rs_margin`
+// cells so the source OVERFILLS the cell (guaranteeing full coverage /
+// SizeMask=0) while the inner NxN maps 1:1 onto the cell. This is the
+// FSX-valid path (§7.3); it replaces the deprecated hand-rolled 0x68 writer.
+bool WriteResampleSource(const Config& cfg, const Raster& raster)
+{
+    const int n_cols = raster.cols;
+    const int n_rows = raster.rows;
+    const int m = cfg.rs_margin < 0 ? 0 : cfg.rs_margin;
+    const int pcols = n_cols + 2 * m;
+    const int prows = n_rows + 2 * m;
+
+    // Edge-clamp pad (row 0 = north). The clamped border continues the scenario's
+    // edge class outward so the overfill region carries a valid land class.
+    std::vector<uint8_t> padded(static_cast<size_t>(pcols) * prows, 0);
+    for (int r = 0; r < prows; ++r)
+    {
+        const int sr = std::min(std::max(r - m, 0), n_rows - 1);
+        for (int c = 0; c < pcols; ++c)
+        {
+            const int sc = std::min(std::max(c - m, 0), n_cols - 1);
+            padded[static_cast<size_t>(r) * pcols + c] = raster.Get(sc, sr);
+        }
+    }
+
+    const std::filesystem::path src_dir = cfg.rs_out / "SourceData";
+    const std::filesystem::path out_dir = cfg.rs_out / "Output";
+    std::error_code ec;
+    std::filesystem::create_directories(src_dir, ec);
+    std::filesystem::create_directories(out_dir, ec);
+
+    const std::filesystem::path bmp_path = src_dir / (cfg.rs_base + ".bmp");
+    if (!WriteBmp24Gray(bmp_path, padded, pcols, prows))
+    {
+        std::fprintf(stderr, "FAIL: could not write resample source BMP %s\n", bmp_path.string().c_str());
+        return false;
+    }
+
+    // Degrees per scenario cell (the inner NxN maps exactly onto the dest cell),
+    // then push the source NW corner out by the margin so it overfills.
+    const double dlon = (cfg.dest_east - cfg.dest_west) / n_cols;
+    const double dlat = (cfg.dest_north - cfg.dest_south) / n_rows;
+    const double ulx = cfg.dest_west - m * dlon;
+    const double uly = cfg.dest_north + m * dlat;
+
+    const std::filesystem::path inf_path = cfg.rs_out / (cfg.rs_base + ".inf");
+    std::ofstream inf(inf_path, std::ios::trunc);
+    if (!inf)
+    {
+        std::fprintf(stderr, "FAIL: could not write resample INF %s\n", inf_path.string().c_str());
+        return false;
+    }
+    inf.setf(std::ios::fixed);
+    inf.precision(10);
+    inf << "[Source]\n"
+        << "Type=BMP\n"
+        << "Layer=LandClass\n"
+        << "SamplingMethod=Point\n"
+        << "SourceDir=\"SourceData\"\n"
+        << "SourceFile=\"" << cfg.rs_base << ".bmp\"\n"
+        << "ULXMAP=" << ulx << "\n"
+        << "ULYMAP=" << uly << "\n"
+        << "XDIM=" << dlon << "\n"
+        << "YDIM=" << dlat << "\n"
+        << "[Destination]\n"
+        << "DestDir=\"Output\"\n"
+        << "DestBaseFileName=" << cfg.rs_base << "\n"
+        << "DestFileType=BGL\n"
+        << "UseSourceDimensions=0\n"
+        << "NorthLat=" << cfg.dest_north << "\n"
+        << "SouthLat=" << cfg.dest_south << "\n"
+        << "WestLon=" << cfg.dest_west << "\n"
+        << "EastLon=" << cfg.dest_east << "\n";
+    if (!inf)
+    {
+        std::fprintf(stderr, "FAIL: error writing resample INF %s\n", inf_path.string().c_str());
+        return false;
+    }
+
+    std::printf("m2_testgen: wrote resample source (FSX-valid multi-class land-class path):\n");
+    std::printf("  BMP:  %s  (%dx%d, RGB(v,v,v)=class v; inner %dx%d maps to cell, +%d-cell overfill)\n",
+        bmp_path.string().c_str(), pcols, prows, n_cols, n_rows, m);
+    std::printf("  INF:  %s  (dest cell N=%.4f S=%.4f W=%.4f E=%.4f)\n", inf_path.string().c_str(), cfg.dest_north,
+        cfg.dest_south, cfg.dest_west, cfg.dest_east);
+    std::printf("  NEXT: run  resample \"%s\"  then verify the Output\\%s.bgl decodes to TileCount=1, the\n",
+        inf_path.string().c_str(), cfg.rs_base.c_str());
+    std::printf("        intended QMID, and SizeMask=0 before installing (Install-M2Scenery.ps1).\n");
     return true;
 }
 
@@ -820,7 +1031,7 @@ bool WriteLandClassBgl(const Config& cfg, const Raster& raster)
 // Read the patched lclookup back through the M1 decoder and assert classes A/B
 // in the first record's region table now resolve to rows carrying the swept
 // knobs. Returns true on success.
-bool VerifyPatched(const Config& cfg)
+bool VerifyPatched(const Config& cfg, const std::vector<int>& classes)
 {
     int failures = 0;
     auto check = [&](bool ok, const char* msg)
@@ -868,19 +1079,23 @@ bool VerifyPatched(const Config& cfg)
     }
 
     const int texture_count = read->GetTextureCount();
-    const int row_a = read->GetRegionLandClassTexture(0, cfg.class_a);
-    const int row_b = read->GetRegionLandClassTexture(0, cfg.class_b);
-    check(row_a >= 0 && row_a < texture_count, "class A repoint in range");
-    check(row_b >= 0 && row_b < texture_count, "class B repoint in range");
-
-    const auto* a = (row_a >= 0 && row_a < texture_count) ? read->GetTextureAt(row_a) : nullptr;
-    const auto* b = (row_b >= 0 && row_b < texture_count) ? read->GetTextureAt(row_b) : nullptr;
-    check(a != nullptr && a->MaskTextureVariations == cfg.mask_texture_variations,
-        "class A row carries swept mask-variations");
-    check(a != nullptr && a->TextureVariation == static_cast<uint8_t>(cfg.texture_variation),
-        "class A row carries swept texture-variation");
-    check(b != nullptr && b->MaskTextureVariations == cfg.mask_texture_variations,
-        "class B row carries swept mask-variations");
+    // Every patched class must repoint to a row carrying the swept knobs + its
+    // assigned per-class DrawPriority (base + index*step).
+    for (size_t k = 0; k < classes.size(); ++k)
+    {
+        const int cls = classes[k];
+        const int expected_prio = cfg.draw_priority + static_cast<int>(k) * cfg.draw_priority_step;
+        const int row = read->GetRegionLandClassTexture(0, cls);
+        check(row >= 0 && row < texture_count, "class repoint in range");
+        const auto* e = (row >= 0 && row < texture_count) ? read->GetTextureAt(row) : nullptr;
+        check(e != nullptr && e->TextureVULCN == static_cast<int16_t>(cls), "class row TextureVULCN == class id");
+        check(e != nullptr && e->MaskTextureVariations == cfg.mask_texture_variations,
+            "class row carries swept mask-variations");
+        check(e != nullptr && e->TextureVariation == static_cast<uint8_t>(cfg.texture_variation),
+            "class row carries swept texture-variation");
+        check(e != nullptr && e->DrawPriority == static_cast<int16_t>(expected_prio),
+            "class row carries assigned per-class DrawPriority");
+    }
 
     // No-data-loss cross-check vs. the original input: Write() is not
     // byte-preserving (it re-emits padding tighter than the source compiler), so
@@ -910,7 +1125,8 @@ bool VerifyPatched(const Config& cfg)
     }
 
     const int orig_textures = oread->GetTextureCount();
-    check(texture_count == orig_textures + 2, "texture count grew by exactly 2 (rows appended)");
+    check(texture_count == orig_textures + static_cast<int>(classes.size()),
+        "texture count grew by exactly one row per patched class");
     check(read->GetRegionCount() == oread->GetRegionCount(), "region count preserved");
     check(read->GetLandClassCount() == oread->GetLandClassCount(), "land-class count preserved");
     check(read->GetWaterClassCount() == oread->GetWaterClassCount(), "water-class count preserved");
@@ -926,27 +1142,28 @@ bool VerifyPatched(const Config& cfg)
             continue;
         }
         const bool same = op->TextureVULCN == np->TextureVULCN && op->TextureRegion == np->TextureRegion &&
-            op->TextureVariation == np->TextureVariation && op->SeasonMask == np->SeasonMask &&
-            op->DrawPriority == np->DrawPriority && op->MaskVULCN == np->MaskVULCN &&
-            op->MaskRegion == np->MaskRegion && op->MaskVariation == np->MaskVariation &&
-            op->MaskTextureVariations == np->MaskTextureVariations && op->AutogenVULCN == np->AutogenVULCN &&
-            op->AutogenRegion == np->AutogenRegion && op->AutogenMask == np->AutogenMask;
+                          op->TextureVariation == np->TextureVariation && op->SeasonMask == np->SeasonMask &&
+                          op->DrawPriority == np->DrawPriority && op->MaskVULCN == np->MaskVULCN &&
+                          op->MaskRegion == np->MaskRegion && op->MaskVariation == np->MaskVariation &&
+                          op->MaskTextureVariations == np->MaskTextureVariations &&
+                          op->AutogenVULCN == np->AutogenVULCN && op->AutogenRegion == np->AutogenRegion &&
+                          op->AutogenMask == np->AutogenMask;
         check(same, "original texture row preserved byte-for-byte");
     }
 
-    // Region mappings for classes OTHER than A/B must be untouched.
+    // Region mappings for classes we did NOT patch must be untouched.
     const int land_count = read->GetLandClassCount();
     const int region_count = read->GetRegionCount();
     for (int r = 0; r < region_count; ++r)
     {
         for (int l = 0; l < land_count; ++l)
         {
-            if (l == cfg.class_a || l == cfg.class_b)
+            if (std::find(classes.begin(), classes.end(), l) != classes.end())
             {
                 continue;
             }
             check(read->GetRegionLandClassTexture(r, l) == oread->GetRegionLandClassTexture(r, l),
-                "non-A/B region land-class mapping preserved");
+                "non-patched region land-class mapping preserved");
         }
     }
 
@@ -1024,8 +1241,8 @@ bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
     std::printf("  QMID records=%d  inspecting record 0 (qmidLow=0x%08X qmidHigh=0x%08X)\n", qmid_count,
         tile_ptr->QmidLow, tile_ptr->QmidHigh);
     std::printf("  textures=%d regions=%d landClasses=%d waterClasses=%d  (using region=%d)\n",
-        lookup->GetTextureCount(), lookup->GetRegionCount(), lookup->GetLandClassCount(),
-        lookup->GetWaterClassCount(), cfg.region);
+        lookup->GetTextureCount(), lookup->GetRegionCount(), lookup->GetLandClassCount(), lookup->GetWaterClassCount(),
+        cfg.region);
 
     if (cfg.region < 0 || cfg.region >= lookup->GetRegionCount())
     {
@@ -1068,8 +1285,7 @@ bool InspectLookup(const Config& cfg, const std::vector<int>& classes)
         std::printf("      mask   ~ %03d%c2%s.bmp         (%s) via TilePattern%u.bmp\n", e->MaskVULCN,
             RegionLetter(e->MaskRegion), mask_pat, (e->MaskVULCN >= 900 ? "900-series" : "set-specific"),
             e->MaskVariation);
-        std::printf(
-            "      Autogen{VULCN=%d Region=%u Mask=%u}\n", e->AutogenVULCN, e->AutogenRegion, e->AutogenMask);
+        std::printf("      Autogen{VULCN=%d Region=%u Mask=%u}\n", e->AutogenVULCN, e->AutogenRegion, e->AutogenMask);
     }
     return true;
 }
@@ -1126,7 +1342,9 @@ void PrintUsage(const char* argv0)
                 "                         int64 (default 0). 0x1111111111111111 = force variant 1\n"
                 "                         (FSX 'blocked' no-blend default); a ramp unblocks it.\n"
                 "  --season-mask N        SeasonMask (default 0x0FFF = all months)\n"
-                "  --draw-priority N      DrawPriority: blend arbitration order, higher wins (default 0)\n"
+                "  --draw-priority N      DrawPriority of the FIRST patched class (default 0)\n"
+                "  --draw-priority-step N each further class gets +N (so the later class wins\n"
+                "                         arbitration); classes patched in A,B,C,D order (default 10)\n"
                 "\n"
                 "Lookup patch (the FSX-correct path):\n"
                 "  --lclookup-in PATH   real global lclookup.bgl to patch (REQUIRED to emit\n"
@@ -1136,8 +1354,19 @@ void PrintUsage(const char* argv0)
                 "  --roundtrip-check    read --lclookup-in, rewrite UNCHANGED to --out-lookup,\n"
                 "                       assert byte-for-byte identity, then exit (writer guard)\n"
                 "\n"
-                "  --out-landclass PATH output land-class .bgl (default m2_landclass.bgl)\n"
-                "                       — drops into a scenery area's scenery/ folder\n"
+                "Land-class raster output — the FSX-valid path is resample (§7.3):\n"
+                "  --emit-resample-source  write a 24-bit BMP (pixel RGB(v,v,v) = class v) +\n"
+                "                       an INF over the exact dest cell, so the SDK `resample`\n"
+                "                       builds a fully-covered multi-class tile (SizeMask=0).\n"
+                "                       This REPLACES the deprecated hand-rolled 0x68 writer.\n"
+                "  --rs-out DIR         output root: <DIR>/SourceData/<base>.bmp + <DIR>/<base>.inf\n"
+                "                       (+ empty Output/ for resample) (default m2_resample)\n"
+                "  --rs-base NAME       DestBaseFileName + source BMP stem (default m2lc)\n"
+                "  --rs-margin N        overfill the source by N cells each side (default 4)\n"
+                "  --north/--south/--west/--east DEG  exact dest cell bounds\n"
+                "                       (default = Jenny Lake QMID 0x8304: 45 / 42.1875 / -112.5 / -108.75)\n"
+                "  --out-landclass PATH legacy hand-rolled 0x68 output (default m2_landclass.bgl)\n"
+                "                       — NOT FSX-valid; used only without --emit-resample-source\n"
                 "  --no-verify         skip the read-back self-test\n",
         argv0);
 }
@@ -1383,6 +1612,14 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
             }
             cfg.draw_priority = std::atoi(value.c_str());
         }
+        else if (a == "--draw-priority-step")
+        {
+            if (!need("--draw-priority-step"))
+            {
+                return false;
+            }
+            cfg.draw_priority_step = std::atoi(value.c_str());
+        }
         else if (a == "--lclookup-in")
         {
             if (!need("--lclookup-in"))
@@ -1410,6 +1647,66 @@ bool ParseArgs(int argc, char** argv, Config& cfg)
                 return false;
             }
             cfg.out_landclass = value;
+        }
+        else if (a == "--emit-resample-source")
+        {
+            cfg.emit_resample_source = true;
+        }
+        else if (a == "--rs-out")
+        {
+            if (!need("--rs-out"))
+            {
+                return false;
+            }
+            cfg.rs_out = value;
+        }
+        else if (a == "--rs-base")
+        {
+            if (!need("--rs-base"))
+            {
+                return false;
+            }
+            cfg.rs_base = value;
+        }
+        else if (a == "--rs-margin")
+        {
+            if (!need("--rs-margin"))
+            {
+                return false;
+            }
+            cfg.rs_margin = std::atoi(value.c_str());
+        }
+        else if (a == "--north")
+        {
+            if (!need("--north"))
+            {
+                return false;
+            }
+            cfg.dest_north = std::atof(value.c_str());
+        }
+        else if (a == "--south")
+        {
+            if (!need("--south"))
+            {
+                return false;
+            }
+            cfg.dest_south = std::atof(value.c_str());
+        }
+        else if (a == "--west")
+        {
+            if (!need("--west"))
+            {
+                return false;
+            }
+            cfg.dest_west = std::atof(value.c_str());
+        }
+        else if (a == "--east")
+        {
+            if (!need("--east"))
+            {
+                return false;
+            }
+            cfg.dest_east = std::atof(value.c_str());
         }
         else if (a == "--no-verify")
         {
@@ -1460,8 +1757,7 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "--class-a and --class-b must differ (they map to distinct texture rows).\n");
         return 1;
     }
-    if (cfg.scenario == Scenario::Corners3 &&
-        (cfg.class_a == cfg.class_c || cfg.class_b == cfg.class_c))
+    if (cfg.scenario == Scenario::Corners3 && (cfg.class_a == cfg.class_c || cfg.class_b == cfg.class_c))
     {
         std::fprintf(stderr, "corners3 needs distinct --class-a/-b/-c (they are the 3 classes).\n");
         return 1;
@@ -1542,43 +1838,80 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Land-class raster override is always written (it IS a valid scenery layer).
-    if (!WriteLandClassBgl(cfg, raster))
+    if (cfg.emit_resample_source)
     {
-        std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_landclass.string().c_str());
-        return 1;
+        // FSX-valid multi-class land-class path: emit a resample BMP+INF instead
+        // of the deprecated hand-rolled 0x68 writer (see §7.3).
+        if (!WriteResampleSource(cfg, raster))
+        {
+            return 1;
+        }
     }
-    std::printf("m2_testgen: wrote %s  (TerrainLandClass 0x68 -> scenery-layer override)\n",
-        cfg.out_landclass.string().c_str());
+    else
+    {
+        // Legacy: the hand-rolled 0x68 raster (NOT FSX-valid — kept only as a
+        // flightsimlib round-trip example; see WriteLandClassBgl's comment).
+        if (!WriteLandClassBgl(cfg, raster))
+        {
+            std::fprintf(stderr, "FAIL: could not write %s\n", cfg.out_landclass.string().c_str());
+            return 1;
+        }
+        std::printf("m2_testgen: wrote %s  (TerrainLandClass 0x68 -> NOT FSX-valid; use --emit-resample-source)\n",
+            cfg.out_landclass.string().c_str());
+    }
 
     // The lookup is only producible by patching the real global file.
+    const std::vector<int> patch_classes = ScenarioClasses(cfg, raster);
     int records_patched = 0;
     int region_repoints = 0;
     if (!cfg.lclookup_in.empty())
     {
-        if (!PatchLookupBgl(cfg, records_patched, region_repoints))
+        if (!PatchLookupBgl(cfg, patch_classes, records_patched, region_repoints))
         {
             return 1;
         }
         std::printf("m2_testgen: wrote %s  (patched global LCLookup 0x6F -> swap in as global)\n",
             cfg.out_lookup.string().c_str());
-        std::printf("  patched %d record(s), repointed %d region entr(ies) for classes %d/%d\n", records_patched,
-            region_repoints, cfg.class_a, cfg.class_b);
+        std::string clslist;
+        for (size_t k = 0; k < patch_classes.size(); ++k)
+        {
+            const int prio = cfg.draw_priority + static_cast<int>(k) * cfg.draw_priority_step;
+            clslist += (k ? ", " : "") + std::to_string(patch_classes[k]) + "(prio " + std::to_string(prio) + ")";
+        }
+        std::printf("  patched %d record(s), repointed %d region entr(ies) for classes: %s\n", records_patched,
+            region_repoints, clslist.c_str());
     }
     else
     {
         std::printf("m2_testgen: lclookup NOT written — pass --lclookup-in <real global lclookup.bgl> to patch it.\n");
         std::printf("  (FSX ignores a per-scenery-area 0x6F, so there is no safe from-scratch global lookup.)\n");
     }
-    std::printf(
-        "  QMID: low=0x%08X high=0x%08X%s\n", cfg.qmid_low, cfg.qmid_high, cfg.qmid_explicit ? " (explicit)" : "");
-    const bool have_bounds = !cfg.qmid_explicit;
+    bool have_bounds = false;
     double lat_n = 0, lon_w = 0, lat_s = 0, lon_e = 0;
-    if (have_bounds)
+    if (cfg.emit_resample_source)
     {
-        TileBounds(tile_x, tile_y, cfg.level, lat_n, lon_w, lat_s, lon_e);
-        std::printf("  tile=(%u,%u) level=%d  ~bounds: lat[%.4f..%.4f] lon[%.4f..%.4f] (equirect estimate)\n", tile_x,
-            tile_y, cfg.level, lat_s, lat_n, lon_w, lon_e);
+        // The resample path drives geo entirely from the explicit dest cell
+        // bounds, so correlate the layout map against THOSE (not the equirect
+        // QMID estimate, which is unused here).
+        have_bounds = true;
+        lat_n = cfg.dest_north;
+        lat_s = cfg.dest_south;
+        lon_w = cfg.dest_west;
+        lon_e = cfg.dest_east;
+        std::printf("  dest cell: lat[%.4f..%.4f] lon[%.4f..%.4f] (exact; from --north/south/west/east)\n", lat_s,
+            lat_n, lon_w, lon_e);
+    }
+    else
+    {
+        std::printf(
+            "  QMID: low=0x%08X high=0x%08X%s\n", cfg.qmid_low, cfg.qmid_high, cfg.qmid_explicit ? " (explicit)" : "");
+        have_bounds = !cfg.qmid_explicit;
+        if (have_bounds)
+        {
+            TileBounds(tile_x, tile_y, cfg.level, lat_n, lon_w, lat_s, lon_e);
+            std::printf("  tile=(%u,%u) level=%d  ~bounds: lat[%.4f..%.4f] lon[%.4f..%.4f] (equirect estimate)\n",
+                tile_x, tile_y, cfg.level, lat_s, lat_n, lon_w, lon_e);
+        }
     }
     auto scenario_name = [](Scenario s) -> const char*
     {
@@ -1601,9 +1934,8 @@ int main(int argc, char** argv)
         }
         return "?";
     };
-    std::printf("  scenario: %s  classes A=%d B=%d C=%d D=%d  raster=%dx%d  region=%d\n",
-        scenario_name(cfg.scenario), cfg.class_a, cfg.class_b, cfg.class_c, cfg.class_d, raster.cols, raster.rows,
-        cfg.region);
+    std::printf("  scenario: %s  classes A=%d B=%d C=%d D=%d  raster=%dx%d  region=%d\n", scenario_name(cfg.scenario),
+        cfg.class_a, cfg.class_b, cfg.class_c, cfg.class_d, raster.cols, raster.rows, cfg.region);
     std::printf("  swept knobs: textureVariation=%d mask{vulcn=%d region=%d variation=%d} maskVariations=0x%llX\n",
         cfg.texture_variation, cfg.mask_vulcn, cfg.mask_region, cfg.mask_variation,
         static_cast<unsigned long long>(static_cast<uint64_t>(cfg.mask_texture_variations)));
@@ -1613,7 +1945,7 @@ int main(int argc, char** argv)
     // straight authored write).
     if (cfg.verify && !cfg.lclookup_in.empty())
     {
-        if (!VerifyPatched(cfg))
+        if (!VerifyPatched(cfg, patch_classes))
         {
             std::fprintf(stderr, "m2_testgen: self-test FAILED\n");
             return 2;
