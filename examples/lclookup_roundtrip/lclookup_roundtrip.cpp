@@ -152,16 +152,7 @@ void WriteTilePointer(BinaryFileStream& out, uint32_t record_offset, uint32_t re
 
 bool WriteBgl(const std::filesystem::path& path, CBglTerrainTextureLookup& lookup)
 {
-    // Pre-create the file so BinaryFileStream's in|out open succeeds.
-    {
-        std::ofstream create(path, std::ios::binary | std::ios::trunc);
-        if (!create)
-        {
-            return false;
-        }
-    }
-
-    BinaryFileStream out(path);
+    BinaryFileStream out(path, std::fstream::out | std::fstream::in | std::fstream::binary | std::fstream::trunc);
     if (!out)
     {
         return false;

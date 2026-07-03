@@ -140,13 +140,16 @@ namespace flightsimlib::io
     class BinaryFileStream final : public IBinaryStream
     {
       public:
-        explicit BinaryFileStream(const std::filesystem::path& filename) :
-            IBinaryStream(m_fstream), m_fstream(filename, std::fstream::out | std::fstream::in | std::fstream::binary)
+        // Default read-only so FSX read-only scenery paths open on Windows.
+        // Writers pass std::fstream::out (see CBglFile::Write, m2_testgen).
+        explicit BinaryFileStream(const std::filesystem::path& filename,
+            std::ios_base::openmode mode = std::fstream::in | std::fstream::binary) :
+            IBinaryStream(m_fstream), m_fstream(filename, mode)
         {
         }
 
         void Open(const std::filesystem::path& filename,
-            std::ios_base::openmode mode = std::fstream::out | std::fstream::in | std::fstream::binary)
+            std::ios_base::openmode mode = std::fstream::in | std::fstream::binary)
         {
             m_fstream.open(filename, mode);
         }

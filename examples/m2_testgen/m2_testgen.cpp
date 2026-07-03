@@ -615,13 +615,8 @@ void EnsureParentDir(const std::filesystem::path& path)
     }
 }
 
-// Truncate/create the file so the (non-truncating) BinaryFileStream ctor opens
-// it empty. Returns false on failure.
-bool TruncateCreate(const std::filesystem::path& path)
-{
-    std::ofstream create(path, std::ios::binary | std::ios::trunc);
-    return static_cast<bool>(create);
-}
+constexpr std::ios_base::openmode kBglWriteMode =
+    std::fstream::out | std::fstream::in | std::fstream::binary | std::fstream::trunc;
 
 // Write the fixed 0x38 file header for a single-layer DirectQmid BGL.
 void WriteHeader(BinaryFileStream& out, int layer_count)
@@ -985,11 +980,7 @@ bool WriteResampleSource(const Config& cfg, const Raster& raster)
 bool WriteLandClassBgl(const Config& cfg, const Raster& raster)
 {
     EnsureParentDir(cfg.out_landclass);
-    if (!TruncateCreate(cfg.out_landclass))
-    {
-        return false;
-    }
-    BinaryFileStream out(cfg.out_landclass);
+    BinaryFileStream out(cfg.out_landclass, kBglWriteMode);
     if (!out)
     {
         return false;
