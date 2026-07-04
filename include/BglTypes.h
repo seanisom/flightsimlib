@@ -143,10 +143,130 @@ struct SBglIndex
 #pragma pack(pop)
 
 
+//******************************************************************************
+// TerrainVectorDb (CVX, layer 0x65) — FSX terrain vector shapes
+//******************************************************************************
+//
+// Decoded per-QMID record model for the 0x65 TerrainVectorDb layer (the
+// FSX "cvx*.bgl" scenery files). See CBglTerrainVectorDb in BglData.h for
+// the on-disk layout; the facts there were validated against a real FSX
+// install (3,273 records across 13 cvx files, all QMID level 11).
+//
+// Points are quantized 0..QuantMax over the record's tile QMID bounding
+// rect, interleaved per point as (x, y): x = longitude axis (west -> east),
+// y = latitude axis (south -> north). DequantizePoint applies the canonical
+// mapping; clients that project into their own grid can consume the raw
+// quantized values directly.
+
+// One GUID-tagged attribute block referenced by a shape. Known GUIDs are
+// the 12 vector *type* GUIDs on IBglTerrainVectorDb (payload 0), plus the
+// attribute GUIDs: slope (payload = 2 floats), texture (payload = 16-byte
+// texture GUID, resolved through terrain.cfg by the client), traffic
+// (payload = lane-count byte + 'T'/'F' direction byte). The type and
+// attribute GUID namespaces overlap (slope == "Water Polygons Slope",
+// traffic == "Freeway Traffic Roads"), so classify by payload / check
+// order, not GUID identity alone. Unknown GUIDs round-trip as opaque
+// payload bytes.
+struct SBglVectorAttribute
+{
+	GUID Guid{};
+	std::vector<uint8_t> Payload;
+};
+
+// One encoded polyline (a polygon ring or a line strip, per the owning
+// shape's DrawMethod).
+struct SBglVectorPolyline
+{
+	uint8_t AltType = 0;    // 0: no altitudes, 1: one float per point, 2: single float (water height)
+	uint8_t MethodType = 2; // point codec the polyline was read with; WriteBinary always re-encodes with 2
+	// 2 * point-count values, interleaved (x, y) as documented above,
+	// 0..QuantMax over the record's tile bounds.
+	std::vector<int32_t> QuantizedPoints;
+	std::vector<float> Altitudes; // AltType 1: one per point; AltType 2: single entry
+};
+
+struct SBglVectorShape
+{
+	int32_t DrawMethod = 0; // observed values 2 and 3 in FSX data; not decoded further here
+	std::vector<SBglVectorAttribute> Attributes; // in per-shape offset order; blocks may be shared on disk
+	std::vector<SBglVectorPolyline> Polylines;
+};
+
+// Geographic bounds of a packed-QMID tile: FSX QMID level L is a
+// 2^L x 2^L grid, longitude west -> east from -180, latitude north -> south
+// from +90 (so V = 0 is the northernmost row).
+struct SBglQmidRect
+{
+	double LonWest = 0.0;
+	double LatSouth = 0.0;
+	double LonEast = 0.0;
+	double LatNorth = 0.0;
+};
+
+struct SBglLatLon
+{
+	double Lat = 0.0;
+	double Lon = 0.0;
+};
+
 class IBglTerrainVectorDb
 {
 public:
+	// Quantized point range over the tile bounds (inclusive: real data uses
+	// the full 0..32768 span, so edge points land exactly on tile borders).
+	static constexpr int32_t QuantMax = 32768;
+
+	// Vector-type GUIDs (SDK-documented; complete set).
+	static constexpr GUID TypeAirportBounds = {
+		0x359C73E8, 0x06BE, 0x4FB2, {0xAB, 0xCB, 0xEC, 0x94, 0x2F, 0x77, 0x61, 0xD0}};
+	static constexpr GUID TypeParks = {0x91CB4A9B, 0x9398, 0x48E6, {0x81, 0xDA, 0x70, 0xAE, 0xA3, 0x29, 0x59, 0x14}};
+	static constexpr GUID TypeWaterPolygonsGps = {
+		0xEA0C44F7, 0x01DE, 0x4D10, {0x97, 0xEB, 0xFB, 0x55, 0x10, 0xEB, 0x7B, 0x72}};
+	static constexpr GUID TypeWaterPolygons = {
+		0x956A42AD, 0xEC8A, 0x41BE, {0xB7, 0xCB, 0xC6, 0x8B, 0x5F, 0xF1, 0x72, 0x7E}};
+	static constexpr GUID TypeExclusions = {
+		0xAC39CDCB, 0xDB78, 0x4628, {0x9A, 0x7C, 0x05, 0x1D, 0xA7, 0xAC, 0x86, 0x4A}};
+	static constexpr GUID TypeShorelines = {
+		0x0CBC8FAD, 0xDF73, 0x40A1, {0xAD, 0x2B, 0xFE, 0x62, 0xF8, 0x00, 0x4F, 0x6F}};
+	static constexpr GUID TypeStreams = {0x714BF912, 0xF9DF, 0x467E, {0x80, 0xAE, 0x28, 0xEB, 0x27, 0x37, 0x4D, 0xBD}};
+	static constexpr GUID TypeUtilities = {
+		0xC7ACE4AE, 0x871D, 0x4938, {0x8B, 0xDC, 0xBB, 0x29, 0xC4, 0xBB, 0xF4, 0xE3}};
+	static constexpr GUID TypeRailways = {0x33239EB4, 0xD2B8, 0x46F5, {0x98, 0xAB, 0x47, 0xB3, 0xD0, 0x92, 0x2E, 0x2A}};
+	static constexpr GUID TypeRoads = {0x560FA8E6, 0x723D, 0x407D, {0xB7, 0x30, 0xAE, 0x08, 0x03, 0x91, 0x02, 0xA5}};
+	static constexpr GUID TypeFreewayTrafficRoads = {
+		0x54B91ED8, 0xBC02, 0x41B7, {0x8C, 0x3B, 0x2B, 0x84, 0x49, 0xFF, 0x85, 0xEC}};
+	static constexpr GUID TypeWaterPolygonsSlope = {
+		0xCEB07D86, 0x3605, 0x44BE, {0xB4, 0x8A, 0x97, 0xF8, 0xD0, 0x1B, 0x74, 0xDE}};
+
+	// Attribute GUIDs. Slope and Traffic share the corresponding type GUIDs
+	// above (namespace overlap — see SBglVectorAttribute).
+	static constexpr GUID AttrSlope = TypeWaterPolygonsSlope;
+	static constexpr GUID AttrTraffic = TypeFreewayTrafficRoads;
+	static constexpr GUID AttrTexture = {
+		0x1B6A15BB, 0x05FB, 0x4401, {0xA8, 0xD1, 0xBB, 0x52, 0x0E, 0x84, 0x90, 0x4C}};
+
 	virtual ~IBglTerrainVectorDb() = default;
+
+	virtual auto GetVersion() const -> int32_t = 0;
+	virtual auto GetPackedQmid() const -> uint32_t = 0;
+	virtual auto GetAddToCells() const -> int32_t = 0;
+	virtual auto GetShapeCount() const -> int = 0;
+	// Shape by index, or nullptr if out of range.
+	virtual auto GetShapeAt(int index) const -> const SBglVectorShape* = 0;
+
+	// --- Authoring (used by the tiny writer / round-trip test) ---
+	virtual auto SetPackedQmid(uint32_t value) -> void = 0;
+	virtual auto SetAddToCells(int32_t value) -> void = 0;
+	virtual auto ClearShapes() -> void = 0;
+	virtual auto AddShape(const SBglVectorShape& shape) -> void = 0;
+
+	// --- Canonical quantized-point mapping (static helpers) ---
+	// Unpack an FSX packed QMID (level marker bit at 2L+1, one interleaved
+	// (v << 1 | u) bit pair per level) into its geographic bounds. Returns
+	// nullopt when the value carries no valid level marker.
+	static auto QmidRectFromPacked(uint32_t packed_qmid) -> std::optional<SBglQmidRect>;
+	// Map one quantized (x, y) pair into lat/lon inside `rect`.
+	static auto DequantizePoint(int32_t x, int32_t y, const SBglQmidRect& rect) -> SBglLatLon;
 };
 	
 class IBglTerrainElevation
