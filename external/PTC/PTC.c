@@ -12,8 +12,77 @@
 /* Route the adaptive bit-plane decode through the corrected decoder
    (entropyBPCFixed, PTCAdaptiveDecoder.c — see the comment there) for A/B
    validation of the elevation path against known-good output. Off by
-   default: byte-identical legacy behavior. */
-#ifdef PTC_FIXED_BPC
+   default: byte-identical legacy behavior.
+
+   PTC_DUAL_BPC (overrides PTC_FIXED_BPC): decode every stream with BOTH
+   codecs, keep the legacy output (rendering stays baseline-identical), and
+   append a diagnostic trail to ptc_dual_bpc.log in the working directory:
+   a heartbeat line proving the PTC path actually ran, plus one line per
+   mismatching call (first 32, then counted). If the log never appears, the
+   data never hits this codec (e.g. LZ1/BitPack-compressed elevations). */
+#ifdef PTC_DUAL_BPC
+#include <stdio.h>
+
+static int entropyBPCDual(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit)
+{
+	static int calls = 0;
+	static int mismatchedCalls = 0;
+	static FILE* dualLog = 0;
+
+	if (!dualLog)
+	{
+		dualLog = fopen("ptc_dual_bpc.log", "a");
+		if (dualLog)
+		{
+			fprintf(dualLog, "--- PTC dual-decode session start ---\n");
+			fflush(dualLog);
+		}
+	}
+
+	int stackBuf[4096];
+	int* fixed = destCount <= 4096 ? stackBuf : (int*)malloc(4 * (size_t)destCount);
+	const int fixedBytes = fixed ? entropyBPCFixed(pCompressed, length, planeCount, fixed, destCount, kInit) : 0;
+	const int legacyBytes = entropyBPC(pCompressed, length, planeCount, pDest, destCount, kInit);
+
+	++calls;
+	int firstDiff = -1;
+	if (fixed)
+	{
+		for (int i = 0; i < destCount; ++i)
+		{
+			if (pDest[i] != fixed[i])
+			{
+				firstDiff = i;
+				break;
+			}
+		}
+	}
+	const int diverged = firstDiff >= 0 || (fixed && fixedBytes != legacyBytes);
+	if (diverged)
+		++mismatchedCalls;
+	if (dualLog)
+	{
+		if (diverged && mismatchedCalls <= 32)
+		{
+			fprintf(dualLog,
+				"call %d: MISMATCH destCount %d planeCount %d bytes legacy %d fixed %d first-diff idx %d legacy %d fixed %d\n",
+				calls, destCount, planeCount, legacyBytes, fixedBytes, firstDiff,
+				firstDiff >= 0 ? pDest[firstDiff] : 0, firstDiff >= 0 ? fixed[firstDiff] : 0);
+			fflush(dualLog);
+		}
+		else if (calls % 4096 == 1)
+		{
+			fprintf(dualLog, "call %d: %d mismatched call(s) so far\n", calls, mismatchedCalls);
+			fflush(dualLog);
+		}
+	}
+	if (fixed && fixed != stackBuf)
+		free(fixed);
+	return legacyBytes;
+}
+
+#define PTC_ENTROPY_BPC entropyBPCDual
+#elif defined(PTC_FIXED_BPC)
 #define PTC_ENTROPY_BPC entropyBPCFixed
 #else
 #define PTC_ENTROPY_BPC entropyBPC
