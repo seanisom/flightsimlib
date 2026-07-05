@@ -8889,6 +8889,7 @@ auto BuildVectorRecordPlan(const std::vector<SBglVectorShape>& shapes) -> SVecto
             {
                 width = std::max(width, BitWidthFor(value));
             }
+            width = std::min(width, 31);
             widths.push_back(static_cast<uint8_t>(width));
             plan.Size += 6 + 1 + static_cast<int32_t>((static_cast<int64_t>(width) * 2 * point_count + 7) / 8);
             if (polyline.AltType == 1)
