@@ -9,6 +9,16 @@
 
 #pragma warning(disable: 6385)
 
+/* Route the adaptive bit-plane decode through the corrected decoder
+   (entropyBPCFixed, PTCAdaptiveDecoder.c — see the comment there) for A/B
+   validation of the elevation path against known-good output. Off by
+   default: byte-identical legacy behavior. */
+#ifdef PTC_FIXED_BPC
+#define PTC_ENTROPY_BPC entropyBPCFixed
+#else
+#define PTC_ENTROPY_BPC entropyBPC
+#endif
+
 // Block order
 // r[0]  r[1]  r[2]  r[3]
 // r[4]  r[5]  r[6]  r[7]
@@ -356,14 +366,14 @@ int decodeTile(PTCImage* image, int tile, int width, int numChannels, int** ppCo
 				case 0:
 					if (numCoefficients <= chunkWidth)
 					{
-						entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, numCoefficients, 1);
+						entropyBytes = PTC_ENTROPY_BPC(pSrc, compressedLength, 0, pDest, numCoefficients, 1);
 					}
 					else
 					{
-						entropyBytes = entropyBPC(pSrc, compressedLength, 0, pDest, chunkWidth, 1);
+						entropyBytes = PTC_ENTROPY_BPC(pSrc, compressedLength, 0, pDest, chunkWidth, 1);
 						if (genFull)
 						{
-							entropyBytes += entropyBPC(pSrc + entropyBytes, compressedLength - entropyBytes, 0, pDest + chunkWidth, numCoefficients - chunkWidth, 1);
+							entropyBytes += PTC_ENTROPY_BPC(pSrc + entropyBytes, compressedLength - entropyBytes, 0, pDest + chunkWidth, numCoefficients - chunkWidth, 1);
 						}
 						else
 						{

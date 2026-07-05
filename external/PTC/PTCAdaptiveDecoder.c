@@ -222,7 +222,167 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 			pDest[i] = val & 0x3FFFFFFF;
 	}
 #pragma warning(pop)
-	
+
+	return bio.bytes;
+}
+
+
+/*
+ entropyBPCFixed: the adaptive bit-plane decoder above with two corrections,
+ both established against real FSX terrain-vector (CVX, 0x65) data — a
+ Method-1 water polygon whose true coordinates are pinned by its own
+ record's Method-2-coded shorelines plus the tile corners reconstructs
+ exactly (29/29 points), and 14,236 records across 40 cvx files then decode
+ fully in range (zero do with the original decoder):
+
+   1. The plane loop stops at planeCount. The loop bound above
+      (planeCount - planes) runs the plane index negative, where the shift
+      count wraps (x86 masks shifts to 5 bits) and corrupts the output.
+   2. In the k > 0 significance branch, run = readBits(k) + 1 means "the
+      run-th next insignificant coefficient is significant" (skip run - 1,
+      mark the next). The loop above marks one position past it. The
+      k == 0 branch (run == 1, mark in place) is consistent with this
+      reading.
+
+ The FSX terrain-vector decoder (CBglTerrainVectorDb, Method-1 points)
+ always uses this version. The elevation path (PTC.c) keeps the original by
+ default; define PTC_FIXED_BPC to route it through this one for A/B
+ validation against known-good elevation output.
+*/
+int entropyBPCFixed(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit)
+{
+	if (length <= 0 || destCount <= 0)
+		return 0;
+
+	BitIO bio =
+	{
+		.pBuffer = pCompressed,
+		.length = length,
+		.acck = 0,
+		.accb = 0,
+		.bytes = 0,
+	};
+
+	unsigned int* dest = (unsigned int*)pDest;
+	memset(dest, 0, 4 * (size_t)destCount);
+
+	const int planes = readBits(&bio, 6);
+	const int unknownCount = readBits(&bio, 2);
+	if (unknownCount)
+	{
+		const int unknownLength = readBits(&bio, 4);
+
+		for (int i = 0; i < unknownCount + 1; ++i)
+		{
+			readBits(&bio, unknownLength);
+		}
+	}
+	flushBitIO(&bio);
+
+	for (int plane = planes - 1; plane >= planeCount; --plane)
+	{
+		const unsigned int localMask = 1u << (plane & 31);
+
+		if (plane != planes - 1)
+		{
+			for (int i = 0; i < destCount; ++i)
+			{
+				if (dest[i] & 0x40000000u)
+				{
+					if (readBit(&bio))
+					{
+						dest[i] |= localMask;
+					}
+				}
+			}
+		}
+
+		int kp = kInit << 3;
+
+		for (int i = 0; i < destCount; ++i)
+		{
+			if (dest[i] & 0x40000000u)
+				continue;
+
+			const int k = kp >> 3;
+			if (k == 0)
+			{
+				if (!readBit(&bio))
+				{
+					kp += 4;
+					if (kp > 96)
+						kp = 96;
+					continue;
+				}
+
+				dest[i] |= 0x40000000u;
+				if (readBit(&bio))
+					dest[i] |= 0x80000000u;
+				dest[i] |= localMask;
+
+				kp -= 3;
+				if (kp < 0)
+					kp = 0;
+			}
+			else if (!readBit(&bio))
+			{
+				int run = 1 << k;
+
+				while (run > 0 && i < destCount)
+				{
+					if (!(dest[i++] & 0x40000000u))
+					{
+						--run;
+					}
+				}
+				--i;
+				kp += 5;
+				if (kp > 96)
+					kp = 96;
+			}
+			else
+			{
+				const int sign = readBit(&bio);
+				int run = readBits(&bio, k) + 1;
+
+				while (run > 0 && i < destCount)
+				{
+					if (!(dest[i] & 0x40000000u))
+					{
+						--run;
+					}
+					if (run == 0)
+						break;
+					++i;
+				}
+
+				if (i >= destCount)
+				{
+					continue;
+				}
+
+				dest[i] |= 0x40000000u;
+				if (sign)
+					dest[i] |= 0x80000000u;
+				dest[i] |= localMask;
+				kp -= 6;
+				if (kp < 0)
+					kp = 0;
+			}
+		}
+
+		flushBitIO(&bio);
+	}
+
+	for (int i = 0; i < destCount; ++i)
+	{
+		const int val = pDest[i];
+		if (val < 0)
+			pDest[i] = -(val & 0x3FFFFFFF);
+		else
+			pDest[i] = val & 0x3FFFFFFF;
+	}
+
 	return bio.bytes;
 }
 

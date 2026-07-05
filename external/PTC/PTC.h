@@ -77,6 +77,10 @@ extern int decodePixels(WriteRowParams* pParams, int** ppSrc, int row);
 
 // PTCAdaptiveDecoder
 extern int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit);
+// Corrected bit-plane decoder (see the comment at its definition); used
+// unconditionally by the FSX terrain-vector decoder, and by the elevation
+// path when PTC_FIXED_BPC is defined.
+extern int entropyBPCFixed(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit);
 extern int entropyRLGR(const unsigned char* pCompressed, int length, int* pDest, int destCount, int range);
 extern int entropyBLC(const unsigned char* pCompressed, int length, unsigned char* pDest, unsigned char* pLines, int blockCount, int width);
 

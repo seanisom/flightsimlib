@@ -8682,6 +8682,12 @@ auto flightsimlib::io::CBglTerrainTextureLookup::SetVectorLookup(
 // CBglTerrainVectorDb (TerrainVectorDb / CVX, layer 0x65)
 //******************************************************************************
 
+// The Method-1 point deltas use the PTC adaptive bit-plane codec with two
+// corrections — see entropyBPCFixed in external/PTC/PTCAdaptiveDecoder.c
+// for the details and the ground-truth validation story.
+extern "C" int entropyBPCFixed(
+    const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit);
+
 namespace
 {
 
@@ -8691,189 +8697,6 @@ using flightsimlib::io::SBglVectorShape;
 // (largest observed record is a few KB).
 constexpr int32_t kMaxVectorBlobSize = 1 << 24;
 constexpr int32_t kMaxVectorCount = 1 << 20;
-
-// MSB-first bit reader over a byte buffer, matching the PTC bitstream
-// framing (PTCAdaptiveDecoder.c BitIO). Reads past the end return 0 bits.
-class CBitReader
-{
-public:
-    CBitReader(const uint8_t* data, size_t size) : m_data(data), m_size(size) { }
-
-    auto ReadBit() -> uint32_t
-    {
-        if (m_bit_count == 0)
-        {
-            if (m_byte_index >= m_size)
-            {
-                return 0;
-            }
-            m_accumulator = m_data[m_byte_index++];
-            m_bit_count = 8;
-        }
-        --m_bit_count;
-        const auto bit = (m_accumulator >> m_bit_count) & 1u;
-        m_accumulator &= (1u << m_bit_count) - 1u;
-        return bit;
-    }
-
-    auto ReadBits(int count) -> uint32_t
-    {
-        uint32_t value = 0;
-        for (auto i = 0; i < count; ++i)
-        {
-            value = (value << 1) | ReadBit();
-        }
-        return value;
-    }
-
-    // Bit-plane passes are byte-aligned: discard any partial byte.
-    auto AlignToByte() -> void
-    {
-        m_bit_count = 0;
-        m_accumulator = 0;
-    }
-
-private:
-    const uint8_t* m_data;
-    size_t m_size;
-    uint32_t m_accumulator = 0;
-    int m_bit_count = 0;
-    size_t m_byte_index = 0;
-};
-
-// Adaptive bit-plane decoder for the Method-1 second-order point deltas.
-//
-// This is the PTC entropyBPC codec (PTCAdaptiveDecoder.c) with two
-// corrections, both established against real FSX vector data (a 29-point
-// water polygon whose true coordinates are pinned by the record's
-// Method-2-coded shorelines plus the tile corners, then confirmed by 366/366
-// Method-1 polylines decoding in range with cross-tile edge continuity):
-//   1. The plane loop runs planes-1 down to 0 — the decompiled loop bound
-//      (planeCount - planes) runs the plane index negative and corrupts the
-//      output via shift-count wrapping.
-//   2. In the k > 0 significance branch, run = ReadBits(k) + 1 means "the
-//      run-th next insignificant coefficient is significant" (skip run - 1,
-//      mark the next) — the decompile marks one position past it. The k == 0
-//      branch (run == 1, mark in place) is consistent with this reading.
-// Layout per pass: header {planes:6, unknownCount:2, [unknownLength:4 +
-// (unknownCount+1) values]}, then per plane (byte-aligned): a refinement
-// bit per already-significant coefficient (skipped on the first plane),
-// then the adaptive significance pass with the k parameter tracked in
-// eighths (kp), exactly as in entropyBPC.
-auto DecodeBitPlaneDeltas(const uint8_t* data, size_t size, std::vector<int32_t>& out) -> void
-{
-    constexpr uint32_t kSignificant = 0x40000000u;
-    constexpr uint32_t kNegative = 0x80000000u;
-
-    const auto count = out.size();
-    std::vector<uint32_t> coefficients(count, 0);
-    CBitReader reader(data, size);
-
-    const auto planes = static_cast<int>(reader.ReadBits(6));
-    const auto unknown_count = static_cast<int>(reader.ReadBits(2));
-    if (unknown_count != 0)
-    {
-        const auto unknown_length = static_cast<int>(reader.ReadBits(4));
-        for (auto i = 0; i < unknown_count + 1; ++i)
-        {
-            reader.ReadBits(unknown_length);
-        }
-    }
-    reader.AlignToByte();
-
-    for (auto plane = planes - 1; plane >= 0 && plane < 31; --plane)
-    {
-        const auto local_mask = 1u << plane;
-
-        if (plane != planes - 1)
-        {
-            for (auto& coefficient : coefficients)
-            {
-                if ((coefficient & kSignificant) != 0 && reader.ReadBit() != 0)
-                {
-                    coefficient |= local_mask;
-                }
-            }
-        }
-
-        auto kp = 1 << 3; // k parameter in eighths, kInit = 1
-        size_t i = 0;
-        while (i < count)
-        {
-            if ((coefficients[i] & kSignificant) != 0)
-            {
-                ++i;
-                continue;
-            }
-            const auto k = kp >> 3;
-            if (k == 0)
-            {
-                if (reader.ReadBit() == 0)
-                {
-                    kp = std::min(kp + 4, 96);
-                    ++i;
-                    continue;
-                }
-                coefficients[i] |= kSignificant | local_mask;
-                if (reader.ReadBit() != 0)
-                {
-                    coefficients[i] |= kNegative;
-                }
-                kp = std::max(kp - 3, 0);
-                ++i;
-            }
-            else if (reader.ReadBit() == 0)
-            {
-                // Zero-run: 1 << k insignificant coefficients stay zero.
-                auto run = 1 << k;
-                while (run > 0 && i < count)
-                {
-                    if ((coefficients[i] & kSignificant) == 0)
-                    {
-                        --run;
-                    }
-                    ++i;
-                }
-                kp = std::min(kp + 5, 96);
-            }
-            else
-            {
-                const auto negative = reader.ReadBit() != 0;
-                auto run = static_cast<int>(reader.ReadBits(k)) + 1;
-                while (run > 0 && i < count)
-                {
-                    if ((coefficients[i] & kSignificant) == 0)
-                    {
-                        --run;
-                    }
-                    if (run == 0)
-                    {
-                        break;
-                    }
-                    ++i;
-                }
-                if (i >= count)
-                {
-                    continue;
-                }
-                coefficients[i] |= kSignificant | local_mask;
-                if (negative)
-                {
-                    coefficients[i] |= kNegative;
-                }
-                kp = std::max(kp - 6, 0);
-                ++i;
-            }
-        }
-        reader.AlignToByte();
-    }
-
-    for (size_t i = 0; i < count; ++i)
-    {
-        const auto magnitude = static_cast<int32_t>(coefficients[i] & 0x3FFFFFFFu);
-        out[i] = (coefficients[i] & kNegative) != 0 ? -magnitude : magnitude;
-    }
-}
 
 // Method 2: width byte, then 2 * point_count width-bit values packed in a
 // little-endian bitstream. Values are absolute quantized coordinates.
@@ -8964,7 +8787,7 @@ auto ReadMethod1Points(flightsimlib::io::BinaryFileStream& in, int32_t point_cou
     std::vector<int32_t> deltas(static_cast<size_t>(delta_count), 0);
     if (payload_bytes > 0)
     {
-        DecodeBitPlaneDeltas(payload.data(), payload.size(), deltas);
+        entropyBPCFixed(payload.data(), payload_bytes, 0, deltas.data(), delta_count, 1);
     }
     auto dx = dx0;
     auto dy = dy0;
