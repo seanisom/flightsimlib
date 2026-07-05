@@ -3710,8 +3710,8 @@ private:
 //     deltas; confirmed against real data).
 //   points, otherwise (Method 1): 20-byte header { X0, Y0, DX0, DY0,
 //     PayloadBytes } + adaptive bit-plane-coded second-order deltas for
-//     points 2..n-1 (the PTC entropyBPC codec with two corrections — see
-//     DecodeBitPlaneDeltas in BglData.cpp).
+//     points 2..n-1 (the PTC entropyBPC codec; see its definition for the
+//     two corrections versus the original decompile).
 // WriteBinary re-encodes every polyline with Method 2 and rebuilds the
 // attribute blob (byte-identical blocks shared), so a read-modify-write of
 // a Method-1 record changes the encoding but not the geometry.

@@ -8682,10 +8682,10 @@ auto flightsimlib::io::CBglTerrainTextureLookup::SetVectorLookup(
 // CBglTerrainVectorDb (TerrainVectorDb / CVX, layer 0x65)
 //******************************************************************************
 
-// The Method-1 point deltas use the PTC adaptive bit-plane codec with two
-// corrections — see entropyBPCFixed in external/PTC/PTCAdaptiveDecoder.c
-// for the details and the ground-truth validation story.
-extern "C" int entropyBPCFixed(
+// The Method-1 point deltas use the PTC adaptive bit-plane codec — see
+// entropyBPC in external/PTC/PTCAdaptiveDecoder.c for the two corrections
+// versus the original decompile and the ground-truth validation story.
+extern "C" int entropyBPC(
     const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit);
 
 namespace
@@ -8787,7 +8787,7 @@ auto ReadMethod1Points(flightsimlib::io::BinaryFileStream& in, int32_t point_cou
     std::vector<int32_t> deltas(static_cast<size_t>(delta_count), 0);
     if (payload_bytes > 0)
     {
-        entropyBPCFixed(payload.data(), payload_bytes, 0, deltas.data(), delta_count, 1);
+        entropyBPC(payload.data(), payload_bytes, 0, deltas.data(), delta_count, 1);
     }
     auto dx = dx0;
     auto dy = dy0;
