@@ -42,6 +42,7 @@
 #include "BglFile.h"
 #include "BinaryStream.h"
 
+#include <algorithm>
 #include <cstring>
 #include <type_traits>
 
@@ -8675,6 +8676,512 @@ auto flightsimlib::io::CBglTerrainTextureLookup::SetVectorLookup(
         return;
     }
     m_vector_lookups[static_cast<size_t>(land_class)][static_cast<size_t>(vector_feature)] = value;
+}
+
+//******************************************************************************
+// CBglTerrainVectorDb (TerrainVectorDb / CVX, layer 0x65)
+//******************************************************************************
+
+// The Method-1 point deltas use the PTC adaptive bit-plane codec — see
+// entropyBPC in external/PTC/PTCAdaptiveDecoder.c for the two corrections
+// versus the original decompile and the ground-truth validation story.
+extern "C" int entropyBPC(
+    const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit);
+
+namespace
+{
+
+using flightsimlib::io::SBglVectorShape;
+
+// Guard rails for corrupt records: no real FSX record comes close to these
+// (largest observed record is a few KB).
+constexpr int32_t kMaxVectorBlobSize = 1 << 24;
+constexpr int32_t kMaxVectorCount = 1 << 20;
+
+// Method 2: width byte, then 2 * point_count width-bit values packed in a
+// little-endian bitstream. Values are absolute quantized coordinates.
+auto ReadMethod2Points(flightsimlib::io::BinaryFileStream& in, int32_t point_count, std::vector<int32_t>& out) -> bool
+{
+    uint8_t width = 0;
+    in >> width;
+    if (width > 31)
+    {
+        return false;
+    }
+    const auto value_count = 2 * static_cast<int64_t>(point_count);
+    const auto num_bytes = static_cast<int32_t>((width * value_count + 7) / 8);
+    std::vector<uint8_t> bits(static_cast<size_t>(num_bytes));
+    if (num_bytes > 0)
+    {
+        in.Read(bits.data(), num_bytes);
+    }
+    if (!in)
+    {
+        return false;
+    }
+    out.assign(static_cast<size_t>(value_count), 0);
+    if (width == 0)
+    {
+        return true;
+    }
+    const uint32_t mask = (width == 31) ? 0x7FFFFFFFu : ((1u << width) - 1u);
+    uint64_t acc = 0;
+    int acc_bits = 0;
+    size_t byte_index = 0;
+    for (auto& value : out)
+    {
+        while (acc_bits < width)
+        {
+            acc |= static_cast<uint64_t>(bits[byte_index++]) << acc_bits;
+            acc_bits += 8;
+        }
+        value = static_cast<int32_t>(acc & mask);
+        acc >>= width;
+        acc_bits -= width;
+    }
+    return true;
+}
+
+// Method 1: 20-byte header {X0, Y0, DX0, DY0, PayloadBytes}, then the
+// second-order deltas of points 2..n-1, entropy-coded with the adaptive
+// bit-plane codec above. Reconstruction: dx += delta_x; x += dx (and
+// likewise for y).
+auto ReadMethod1Points(flightsimlib::io::BinaryFileStream& in, int32_t point_count, std::vector<int32_t>& out) -> bool
+{
+    int32_t x0 = 0;
+    int32_t y0 = 0;
+    int32_t dx0 = 0;
+    int32_t dy0 = 0;
+    int32_t payload_bytes = 0;
+    in >> x0 >> y0 >> dx0 >> dy0 >> payload_bytes;
+    if (!in || payload_bytes < 0 || payload_bytes > kMaxVectorBlobSize)
+    {
+        return false;
+    }
+    std::vector<uint8_t> payload(static_cast<size_t>(payload_bytes));
+    if (payload_bytes > 0)
+    {
+        in.Read(payload.data(), payload_bytes);
+    }
+    if (!in)
+    {
+        return false;
+    }
+
+    out.assign(2 * static_cast<size_t>(point_count), 0);
+    if (point_count >= 1)
+    {
+        out[0] = x0;
+        out[1] = y0;
+    }
+    if (point_count >= 2)
+    {
+        out[2] = x0 + dx0;
+        out[3] = y0 + dy0;
+    }
+    if (point_count <= 2)
+    {
+        return true;
+    }
+    const auto delta_count = 2 * (point_count - 2);
+    std::vector<int32_t> deltas(static_cast<size_t>(delta_count), 0);
+    if (payload_bytes > 0)
+    {
+        entropyBPC(payload.data(), payload_bytes, 0, deltas.data(), delta_count, 1);
+    }
+    auto dx = dx0;
+    auto dy = dy0;
+    for (int32_t i = 0; i < point_count - 2; ++i)
+    {
+        dx += deltas[2 * static_cast<size_t>(i)];
+        dy += deltas[2 * static_cast<size_t>(i) + 1];
+        out[2 * static_cast<size_t>(i) + 4] = out[2 * static_cast<size_t>(i) + 2] + dx;
+        out[2 * static_cast<size_t>(i) + 5] = out[2 * static_cast<size_t>(i) + 3] + dy;
+    }
+    return true;
+}
+
+// Minimal bit width that Method 2 needs for `value` (negative values are
+// out of contract and clamp to 0 — quantized coords are 0..QuantMax).
+auto BitWidthFor(int32_t value) -> int
+{
+    auto width = 0;
+    auto v = static_cast<uint32_t>(value < 0 ? 0 : value);
+    while (v != 0)
+    {
+        ++width;
+        v >>= 1;
+    }
+    return width;
+}
+
+// Shared WriteBinary / CalculateSize layout plan: the deduplicated
+// attribute blob, each shape's blob offsets, and each polyline's Method-2
+// bit width. Attribute blocks that are byte-identical (GUID + payload)
+// share one blob block, mirroring the sharing observed in real files.
+struct SVectorRecordPlan
+{
+    std::vector<uint8_t> Blob;
+    std::vector<std::vector<uint32_t>> ShapeOffsets;  // per shape, per attribute
+    std::vector<std::vector<uint8_t>> PolylineWidths; // per shape, per polyline
+    int32_t TotalAttrRefs = 0;
+    int32_t TotalPoints = 0;
+    int32_t TotalAltPoints = 0; // AltType-1 points only (NPointsAlt semantics)
+    int32_t Size = 0;           // total record size in bytes
+};
+
+auto BuildVectorRecordPlan(const std::vector<SBglVectorShape>& shapes) -> SVectorRecordPlan
+{
+    SVectorRecordPlan plan;
+    plan.Size = 0x20; // DBRecord header
+
+    for (const auto& shape : shapes)
+    {
+        auto& offsets = plan.ShapeOffsets.emplace_back();
+        for (const auto& attribute : shape.Attributes)
+        {
+            // Linear-scan dedup over existing blocks (records carry a
+            // handful of attributes; no map needed).
+            uint32_t found = 0;
+            auto exists = false;
+            uint32_t cursor = 0;
+            while (cursor + 20 <= plan.Blob.size())
+            {
+                const auto payload_size = static_cast<uint32_t>(plan.Blob[cursor + 16]) |
+                                          (static_cast<uint32_t>(plan.Blob[cursor + 17]) << 8) |
+                                          (static_cast<uint32_t>(plan.Blob[cursor + 18]) << 16) |
+                                          (static_cast<uint32_t>(plan.Blob[cursor + 19]) << 24);
+                if (payload_size == attribute.Payload.size() &&
+                    std::memcmp(plan.Blob.data() + cursor, &attribute.Guid, 16) == 0 &&
+                    (payload_size == 0 ||
+                        std::memcmp(plan.Blob.data() + cursor + 20, attribute.Payload.data(), payload_size) == 0))
+                {
+                    found = cursor;
+                    exists = true;
+                    break;
+                }
+                cursor += 20 + payload_size;
+            }
+            if (!exists)
+            {
+                found = static_cast<uint32_t>(plan.Blob.size());
+                const auto* guid_bytes = reinterpret_cast<const uint8_t*>(&attribute.Guid);
+                plan.Blob.insert(plan.Blob.end(), guid_bytes, guid_bytes + 16);
+                const auto payload_size = static_cast<uint32_t>(attribute.Payload.size());
+                plan.Blob.push_back(static_cast<uint8_t>(payload_size & 0xFF));
+                plan.Blob.push_back(static_cast<uint8_t>((payload_size >> 8) & 0xFF));
+                plan.Blob.push_back(static_cast<uint8_t>((payload_size >> 16) & 0xFF));
+                plan.Blob.push_back(static_cast<uint8_t>((payload_size >> 24) & 0xFF));
+                plan.Blob.insert(plan.Blob.end(), attribute.Payload.begin(), attribute.Payload.end());
+            }
+            offsets.push_back(found);
+            ++plan.TotalAttrRefs;
+        }
+
+        plan.Size += 0xA + 4 * static_cast<int32_t>(shape.Attributes.size());
+        auto& widths = plan.PolylineWidths.emplace_back();
+        for (const auto& polyline : shape.Polylines)
+        {
+            const auto point_count = static_cast<int32_t>(polyline.QuantizedPoints.size() / 2);
+            plan.TotalPoints += point_count;
+            auto width = 1;
+            for (const auto value : polyline.QuantizedPoints)
+            {
+                width = std::max(width, BitWidthFor(value));
+            }
+            width = std::min(width, 31);
+            widths.push_back(static_cast<uint8_t>(width));
+            plan.Size += 6 + 1 + static_cast<int32_t>((static_cast<int64_t>(width) * 2 * point_count + 7) / 8);
+            if (polyline.AltType == 1)
+            {
+                plan.Size += 4 * point_count;
+                plan.TotalAltPoints += point_count;
+            }
+            else if (polyline.AltType == 2)
+            {
+                plan.Size += 4;
+            }
+        }
+    }
+    plan.Size += static_cast<int32_t>(plan.Blob.size());
+    return plan;
+}
+
+} // namespace
+
+void flightsimlib::io::CBglTerrainVectorDb::ReadBinary(BinaryFileStream& in)
+{
+    m_shapes.clear();
+
+    int32_t num_entities = 0;
+    int32_t attr_size = 0;
+    int32_t num_attr_offsets = 0;
+    int32_t num_points = 0;
+    int32_t num_points_alt = 0;
+    in >> m_version >> m_packed_qmid >> m_add_to_cells >> num_entities >> attr_size >> num_attr_offsets >> num_points >>
+        num_points_alt;
+    if (!in || num_entities < 0 || num_entities > kMaxVectorCount || attr_size < 0 || attr_size > kMaxVectorBlobSize)
+    {
+        return;
+    }
+
+    std::vector<uint8_t> blob(static_cast<size_t>(attr_size));
+    if (attr_size > 0)
+    {
+        in.Read(blob.data(), attr_size);
+    }
+    if (!in)
+    {
+        return;
+    }
+
+    m_shapes.reserve(static_cast<size_t>(num_entities));
+    for (int32_t entity = 0; entity < num_entities; ++entity)
+    {
+        int32_t num_polylines = 0;
+        int32_t draw_method = 0;
+        uint16_t num_offsets = 0;
+        in >> num_polylines >> draw_method >> num_offsets;
+        if (!in || num_polylines < 0 || num_polylines > kMaxVectorCount)
+        {
+            m_shapes.clear();
+            return;
+        }
+
+        auto& shape = m_shapes.emplace_back();
+        shape.DrawMethod = draw_method;
+        shape.Attributes.reserve(num_offsets);
+        for (uint16_t o = 0; o < num_offsets; ++o)
+        {
+            uint32_t offset = 0;
+            in >> offset;
+            auto& attribute = shape.Attributes.emplace_back();
+            // Resolve the referenced blob block: GUID, payload size at
+            // +0x10, payload at +0x14. Out-of-bounds offsets leave the
+            // attribute empty rather than aborting the record.
+            if (static_cast<size_t>(offset) + 20 <= blob.size())
+            {
+                std::memcpy(&attribute.Guid, blob.data() + offset, 16);
+                uint32_t payload_size = 0;
+                std::memcpy(&payload_size, blob.data() + offset + 16, 4);
+                if (static_cast<size_t>(offset) + 20 + payload_size <= blob.size())
+                {
+                    attribute.Payload.assign(blob.data() + offset + 20, blob.data() + offset + 20 + payload_size);
+                }
+            }
+        }
+        if (!in)
+        {
+            m_shapes.clear();
+            return;
+        }
+
+        shape.Polylines.reserve(static_cast<size_t>(num_polylines));
+        for (int32_t p = 0; p < num_polylines; ++p)
+        {
+            int32_t point_count = 0;
+            uint8_t alt_type = 0;
+            uint8_t method_type = 0;
+            in >> point_count >> alt_type >> method_type;
+            if (!in || point_count < 0 || point_count > kMaxVectorCount)
+            {
+                m_shapes.clear();
+                return;
+            }
+            auto& polyline = shape.Polylines.emplace_back();
+            polyline.AltType = alt_type;
+            polyline.MethodType = method_type;
+            const auto points_ok = (method_type == 2) ? ReadMethod2Points(in, point_count, polyline.QuantizedPoints)
+                                                      : ReadMethod1Points(in, point_count, polyline.QuantizedPoints);
+            if (!points_ok)
+            {
+                m_shapes.clear();
+                return;
+            }
+            if (alt_type == 1)
+            {
+                polyline.Altitudes.assign(static_cast<size_t>(point_count), 0.0F);
+                if (point_count > 0)
+                {
+                    in.Read(polyline.Altitudes.data(), 4 * point_count);
+                }
+            }
+            else if (alt_type == 2)
+            {
+                float altitude = 0.0F;
+                in >> altitude;
+                polyline.Altitudes.assign(1, altitude);
+            }
+            if (!in)
+            {
+                m_shapes.clear();
+                return;
+            }
+        }
+    }
+}
+
+void flightsimlib::io::CBglTerrainVectorDb::WriteBinary(BinaryFileStream& out)
+{
+    const auto plan = BuildVectorRecordPlan(m_shapes);
+
+    out << m_version << m_packed_qmid << m_add_to_cells << static_cast<int32_t>(m_shapes.size())
+        << static_cast<int32_t>(plan.Blob.size()) << plan.TotalAttrRefs << plan.TotalPoints << plan.TotalAltPoints;
+
+    if (!plan.Blob.empty())
+    {
+        out.Write(plan.Blob.data(), static_cast<int>(plan.Blob.size()));
+    }
+
+    for (size_t s = 0; s < m_shapes.size(); ++s)
+    {
+        const auto& shape = m_shapes[s];
+        out << static_cast<int32_t>(shape.Polylines.size()) << shape.DrawMethod
+            << static_cast<uint16_t>(shape.Attributes.size());
+        for (const auto offset : plan.ShapeOffsets[s])
+        {
+            out << offset;
+        }
+        for (size_t p = 0; p < shape.Polylines.size(); ++p)
+        {
+            const auto& polyline = shape.Polylines[p];
+            const auto point_count = static_cast<int32_t>(polyline.QuantizedPoints.size() / 2);
+            out << point_count << polyline.AltType << static_cast<uint8_t>(2);
+
+            const auto width = plan.PolylineWidths[s][p];
+            out << width;
+            const auto mask = (1u << width) - 1u;
+            uint64_t acc = 0;
+            int acc_bits = 0;
+            for (const auto value : polyline.QuantizedPoints)
+            {
+                const auto clamped = static_cast<uint32_t>(value < 0 ? 0 : value) & mask;
+                acc |= static_cast<uint64_t>(clamped) << acc_bits;
+                acc_bits += width;
+                while (acc_bits >= 8)
+                {
+                    out << static_cast<uint8_t>(acc & 0xFF);
+                    acc >>= 8;
+                    acc_bits -= 8;
+                }
+            }
+            if (acc_bits > 0)
+            {
+                out << static_cast<uint8_t>(acc & 0xFF);
+            }
+
+            if (polyline.AltType == 1)
+            {
+                for (int32_t i = 0; i < point_count; ++i)
+                {
+                    const auto altitude =
+                        (static_cast<size_t>(i) < polyline.Altitudes.size()) ? polyline.Altitudes[i] : 0.0F;
+                    out << altitude;
+                }
+            }
+            else if (polyline.AltType == 2)
+            {
+                out << (polyline.Altitudes.empty() ? 0.0F : polyline.Altitudes.front());
+            }
+        }
+    }
+}
+
+bool flightsimlib::io::CBglTerrainVectorDb::Validate()
+{
+    // Every record in real FSX data is version 6; polylines carry an even
+    // interleaved coordinate array by construction.
+    if (m_version != 6)
+    {
+        return false;
+    }
+    for (const auto& shape : m_shapes)
+    {
+        for (const auto& polyline : shape.Polylines)
+        {
+            if (polyline.QuantizedPoints.size() % 2 != 0)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+int flightsimlib::io::CBglTerrainVectorDb::CalculateSize() const { return BuildVectorRecordPlan(m_shapes).Size; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::GetVersion() const -> int32_t { return m_version; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::GetPackedQmid() const -> uint32_t { return m_packed_qmid; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::GetAddToCells() const -> int32_t { return m_add_to_cells; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::GetShapeCount() const -> int { return static_cast<int>(m_shapes.size()); }
+
+auto flightsimlib::io::CBglTerrainVectorDb::GetShapeAt(int index) const -> const SBglVectorShape*
+{
+    if (index < 0 || static_cast<size_t>(index) >= m_shapes.size())
+    {
+        return nullptr;
+    }
+    return &m_shapes[static_cast<size_t>(index)];
+}
+
+auto flightsimlib::io::CBglTerrainVectorDb::SetPackedQmid(uint32_t value) -> void { m_packed_qmid = value; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::SetAddToCells(int32_t value) -> void { m_add_to_cells = value; }
+
+auto flightsimlib::io::CBglTerrainVectorDb::ClearShapes() -> void { m_shapes.clear(); }
+
+auto flightsimlib::io::CBglTerrainVectorDb::AddShape(const SBglVectorShape& shape) -> void
+{
+    m_shapes.push_back(shape);
+}
+
+auto flightsimlib::io::IBglTerrainVectorDb::QmidRectFromPacked(uint32_t packed_qmid) -> std::optional<SBglQmidRect>
+{
+    // Level marker bit at position 2L+1, one interleaved (v << 1 | u) bit
+    // pair per level below it (see newdawn synthetic_imagery_tile_source
+    // PackQmid, the inverse of this).
+    //
+    // The FSX QMID grid at level L is 3 * 2^(L-2) columns x 2^(L-1) rows
+    // (12 x 8 areas at level 4, 96 x 64 cvx files at level 7): longitude
+    // cells of 240/2^(L-1) degrees from -180 eastward, latitude cells of
+    // 180/2^(L-1) degrees from +90 southward. Verified by reconstructing
+    // the world coastline map from every cvx file of a full FSX install —
+    // the continents only render upright under this convention.
+    for (auto level = 15; level >= 2; --level)
+    {
+        if ((packed_qmid >> (2 * level + 1)) != 1u)
+        {
+            continue;
+        }
+        uint32_t u = 0;
+        uint32_t v = 0;
+        for (auto b = 0; b < level; ++b)
+        {
+            const auto pair = (packed_qmid >> (2 * b)) & 3u;
+            u |= (pair & 1u) << b;
+            v |= ((pair >> 1) & 1u) << b;
+        }
+        const auto rows = static_cast<double>(1u << (level - 1));
+        SBglQmidRect rect;
+        rect.LonWest = -180.0 + u * (240.0 / rows);
+        rect.LonEast = rect.LonWest + 240.0 / rows;
+        rect.LatNorth = 90.0 - v * (180.0 / rows);
+        rect.LatSouth = rect.LatNorth - 180.0 / rows;
+        return rect;
+    }
+    return std::nullopt;
+}
+
+auto flightsimlib::io::IBglTerrainVectorDb::DequantizePoint(int32_t x, int32_t y, const SBglQmidRect& rect)
+    -> SBglLatLon
+{
+    SBglLatLon result;
+    result.Lon = rect.LonWest + static_cast<double>(x) * (rect.LonEast - rect.LonWest) / QuantMax;
+    result.Lat = rect.LatSouth + static_cast<double>(y) * (rect.LatNorth - rect.LatSouth) / QuantMax;
+    return result;
 }
 
 //******************************************************************************

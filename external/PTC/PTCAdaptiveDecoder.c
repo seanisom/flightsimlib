@@ -86,6 +86,31 @@ static inline int flushBitIO(BitIO* bio)
 }
 
 
+/*
+ entropyBPC: adaptive bit-plane decoder (the PTC bpc entropy coder).
+
+ Two corrections versus the original decompile, both established against
+ real FSX terrain-vector (CVX, 0x65) data — a Method-1 water polygon whose
+ true coordinates are pinned by its own record's Method-2-coded shorelines
+ plus the tile corners reconstructs exactly (29/29 points), and 14,236
+ records across 40 cvx files then decode fully in range (zero did with the
+ uncorrected decoder):
+
+   1. The plane loop stops at planeCount. The decompiled bound
+      (planeCount - planes) ran the plane index negative, where the shift
+      count wraps (x86 masks shifts to 5 bits) and corrupts the output.
+   2. In the k > 0 significance branch, run = readBits(k) + 1 means "the
+      run-th next insignificant coefficient is significant" (skip run - 1,
+      mark the next). The decompile marked one position past it. The
+      k == 0 branch (run == 1, mark in place) is consistent with this
+      reading.
+
+ Raster (resample) PTC streams never use this coder: the encoder selects
+ RLGR (BLC for 1-bit alpha), confirmed by instrumenting real decodes
+ (entropy-type counts: bpc=0 across full scenes), so these corrections are
+ unobservable on rasters. shp2vec Method-1 terrain-vector points
+ (CBglTerrainVectorDb) are the only known producer of bit-plane streams.
+*/
 int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit)
 {
 	if (length <= 0 || destCount <= 0)
@@ -100,10 +125,6 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 		.bytes = 0,
 	};
 
-// Intellisense false positive (fine on cl)
-#pragma warning(push)
-#pragma warning(disable: 6385)
-	
 	unsigned int* dest = (unsigned int*)pDest;
 	memset(dest, 0, 4 * (size_t)destCount);
 
@@ -120,10 +141,10 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 	}
 	flushBitIO(&bio);
 
-	for (int plane = planes - 1; plane > planeCount - planes; --plane)
+	for (int plane = planes - 1; plane >= planeCount; --plane)
 	{
-		const int localMask = 1 << plane;
-		
+		const unsigned int localMask = 1u << (plane & 31);
+
 		if (plane != planes - 1)
 		{
 			for (int i = 0; i < destCount; ++i)
@@ -161,7 +182,6 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 					dest[i] |= 0x80000000u;
 				dest[i] |= localMask;
 
-				// if k is 0, is this is redundant?
 				kp -= 3;
 				if (kp < 0)
 					kp = 0;
@@ -169,7 +189,7 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 			else if (!readBit(&bio))
 			{
 				int run = 1 << k;
-				
+
 				while (run > 0 && i < destCount)
 				{
 					if (!(dest[i++] & 0x40000000u))
@@ -189,10 +209,13 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 
 				while (run > 0 && i < destCount)
 				{
-					if (!(dest[i++] & 0x40000000u))
+					if (!(dest[i] & 0x40000000u))
 					{
 						--run;
 					}
+					if (run == 0)
+						break;
+					++i;
 				}
 
 				if (i >= destCount)
@@ -221,8 +244,7 @@ int entropyBPC(const unsigned char* pCompressed, int length, int planeCount, int
 		else
 			pDest[i] = val & 0x3FFFFFFF;
 	}
-#pragma warning(pop)
-	
+
 	return bio.bytes;
 }
 

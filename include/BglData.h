@@ -3687,6 +3687,68 @@ private:
 };
 
 //******************************************************************************
+// CBglTerrainVectorDb (TerrainVectorDb / CVX, layer 0x65)
+//******************************************************************************
+
+// Per-QMID terrain-vector record. On-disk layout, all little-endian
+// (validated against a real FSX install: 3,273 records across 13 cvx
+// files — every record version 6, QMID level 11, sizes byte-exact):
+//   DBRecord header (0x20): 8 x i32 — Version (=6), PackedQmid,
+//     AddToCells (observed 0), NEntities, AttrSize, NAttrOffsets,
+//     NPoints, NPointsAlt. NAttrOffsets = total per-shape attribute
+//     references (not distinct blob blocks); NPoints = total points across
+//     all polylines; NPointsAlt = total points of AltType-1 polylines.
+//   attribute blob (AttrSize bytes): GUID-tagged blocks
+//     { Guid (16 B), PayloadSize u32, payload }. Shapes reference blocks
+//     by byte offset into the blob; blocks may be shared between shapes.
+//   NEntities x shape: { NPolylines i32, DrawMethod i32, NOffsets u16 }
+//     (0xA bytes) + NOffsets x u32 blob offsets, then NPolylines x
+//     polyline: { NPoints i32, AltType u8, MethodType u8 } (6 bytes) +
+//     encoded points + (AltType 1: NPoints floats; AltType 2: 1 float).
+//   points, MethodType 2: width byte w, then 2*NPoints w-bit values in a
+//     little-endian bitstream — absolute quantized coords (NOT cumulative
+//     deltas; confirmed against real data).
+//   points, otherwise (Method 1): 20-byte header { X0, Y0, DX0, DY0,
+//     PayloadBytes } + adaptive bit-plane-coded second-order deltas for
+//     points 2..n-1 (the PTC entropyBPC codec; see its definition for the
+//     two corrections versus the original decompile).
+// WriteBinary re-encodes every polyline with Method 2 and rebuilds the
+// attribute blob (byte-identical blocks shared), so a read-modify-write of
+// a Method-1 record changes the encoding but not the geometry.
+class CBglTerrainVectorDb final : public IBglSerializable, public IBglTerrainVectorDb
+{
+public:
+    auto ReadBinary(BinaryFileStream& in) -> void override;
+    auto WriteBinary(BinaryFileStream& out) -> void override;
+    auto Validate() -> bool override;
+    auto CalculateSize() const -> int override;
+
+    auto GetVersion() const -> int32_t override;
+    auto GetPackedQmid() const -> uint32_t override;
+    auto GetAddToCells() const -> int32_t override;
+    auto GetShapeCount() const -> int override;
+    auto GetShapeAt(int index) const -> const SBglVectorShape* override;
+
+    auto SetPackedQmid(uint32_t value) -> void override;
+    auto SetAddToCells(int32_t value) -> void override;
+    auto ClearShapes() -> void override;
+    auto AddShape(const SBglVectorShape& shape) -> void override;
+
+private:
+    // DBRecord header: 8 x i32.
+    static constexpr int s_header_size = 0x20;
+    // Shape header: NPolylines i32 + DrawMethod i32 + NOffsets u16.
+    static constexpr int s_shape_header_size = 0xA;
+    // Polyline header: NPoints i32 + AltType u8 + MethodType u8.
+    static constexpr int s_polyline_header_size = 6;
+
+    int32_t m_version = 6;
+    uint32_t m_packed_qmid = 0;
+    int32_t m_add_to_cells = 0;
+    std::vector<SBglVectorShape> m_shapes;
+};
+
+//******************************************************************************
 // CBglTimeZone
 //******************************************************************************
 

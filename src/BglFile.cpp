@@ -173,6 +173,8 @@ namespace flightsimlib
                            std::make_unique<CBglAirportSummary>(*static_cast<const CBglAirportSummary*>(args)...);
                 break;
             case EBglLayerType::TerrainVectorDb:
+                data = no_copy ? std::make_unique<CBglTerrainVectorDb>() : // NOLINT(bugprone-branch-clone)
+                           std::make_unique<CBglTerrainVectorDb>(*static_cast<const CBglTerrainVectorDb*>(args)...);
                 break;
             case EBglLayerType::TerrainElevation:
                 data = no_copy
@@ -386,10 +388,10 @@ namespace flightsimlib
 
         auto CBglData::AsTerrainVectorDb() -> IBglTerrainVectorDb*
         {
-            // if (m_type == EBglLayerType::TerrainVectorDb)
-            // {
-            //     return dynamic_cast<IBglTerrainVectorDb*>(m_data.get());
-            // }
+            if (m_type == EBglLayerType::TerrainVectorDb)
+            {
+                return static_cast<CBglTerrainVectorDb*>(m_data.get());
+            }
             return nullptr;
         }
 
@@ -787,12 +789,14 @@ namespace flightsimlib
                 m_pointers.resize(qmid_count);
                 const bool is_terrain_layer =
                     CBglLayer::IsTrq1BglLayer(layer_pointer->Type) || CBglLayer::IsRcs1BglLayer(layer_pointer->Type);
-                // LCLookup (0x6F) is not a TRQ1 raster but shares the packed
-                // 16-byte direct-QMID tile-pointer shape and SizeBytes-based
-                // record advance. Gate on this rather than IsTrq1BglLayer so
-                // 0x6F never lands on the AsRasterQuad1 / IsTerrainLayer paths.
-                const bool uses_packed_tile_pointer =
-                    is_terrain_layer || layer_pointer->Type == EBglLayerType::TerrainTextureLookup;
+                // LCLookup (0x6F) and TerrainVectorDb (0x65) are not TRQ1
+                // rasters but share the packed 16-byte direct-QMID
+                // tile-pointer shape and SizeBytes-based record advance. Gate
+                // on this rather than IsTrq1BglLayer so they never land on
+                // the AsRasterQuad1 / IsTerrainLayer paths.
+                const bool uses_packed_tile_pointer = is_terrain_layer ||
+                    layer_pointer->Type == EBglLayerType::TerrainTextureLookup ||
+                    layer_pointer->Type == EBglLayerType::TerrainVectorDb;
                 const auto entry_size =
                     (layer_pointer->TileCount > 0) ? (layer_pointer->SizeBytes / layer_pointer->TileCount) : 0u;
                 for (auto i = 0; i < qmid_count; ++i)
@@ -987,7 +991,8 @@ namespace flightsimlib
         auto CBglDirectQmidLayer::WriteBinaryDataPointers(BinaryFileStream& out) -> bool
         {
             // Mirror ReadAllLayers' packed direct-QMID tile-pointer handling.
-            // Terrain rasters (TRQ1/RCS1) and LCLookup (0x6F) store the packed
+            // Terrain rasters (TRQ1/RCS1), LCLookup (0x6F) and TerrainVectorDb
+            // (0x65) store the packed
             // 16/20-byte form: QmidLow, QmidHigh, [RecordCount only in the
             // 20-byte form], StreamOffset, SizeBytes. The 16-byte form does NOT
             // store RecordCount (it is synthesized as 1 on read), so writing the
@@ -995,7 +1000,8 @@ namespace flightsimlib
             // slot) would corrupt the QmidHigh slot and lose byte-fidelity.
             const auto type = CBglLayer::GetType();
             const bool uses_packed_tile_pointer = CBglLayer::IsTrq1BglLayer(type) ||
-                CBglLayer::IsRcs1BglLayer(type) || type == EBglLayerType::TerrainTextureLookup;
+                CBglLayer::IsRcs1BglLayer(type) || type == EBglLayerType::TerrainTextureLookup ||
+                type == EBglLayerType::TerrainVectorDb;
             const auto entry_size = (m_layer_pointer->TileCount > 0)
                 ? (m_layer_pointer->SizeBytes / m_layer_pointer->TileCount)
                 : 0u;
