@@ -192,9 +192,12 @@ struct SBglVectorShape
 	std::vector<SBglVectorPolyline> Polylines;
 };
 
-// Geographic bounds of a packed-QMID tile: FSX QMID level L is a
-// 2^L x 2^L grid, longitude west -> east from -180, latitude north -> south
-// from +90 (so V = 0 is the northernmost row).
+// Geographic bounds of a packed-QMID tile. The FSX QMID grid at level L is
+// 3 * 2^(L-2) columns x 2^(L-1) rows (12 x 8 at level 4): longitude cells
+// of 240/2^(L-1) degrees, west -> east from -180; latitude cells of
+// 180/2^(L-1) degrees, north -> south from +90 (V = 0 is the northernmost
+// row). Established by reconstructing the world coastline map from a full
+// FSX install's cvx files.
 struct SBglQmidRect
 {
 	double LonWest = 0.0;

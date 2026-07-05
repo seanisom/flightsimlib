@@ -93,9 +93,9 @@ constexpr int kHeaderSize = 0x38;
 constexpr int kLayerPointerSize = 20;
 constexpr int kTilePointerSize = 16; // packed direct-QMID form (no RecordCount)
 
-// A real level-11 QMID (the Jackson Lake tile the M5 survey probed):
-// level 11, u 394, v 525 -> lon [-110.742188, -110.566406],
-// lat [43.769531, 43.857422].
+// A real level-11 QMID (an offshore-Ecuador tile from the file the M5
+// survey probed): level 11, u 394, v 525 -> lon [-87.656250, -87.421875],
+// lat [-2.460938, -2.285156] on the 3 * 2^(L-2) x 2^(L-1) grid.
 constexpr uint32_t kQmidLow = 0x008940E6;
 constexpr uint32_t kQmidHigh = 0;
 
@@ -276,10 +276,10 @@ void VerifyDequantization()
         return;
     }
     auto near = [](double a, double b) { return std::fabs(a - b) < 1e-9; };
-    Check(near(rect->LonWest, -110.742187500), "rect LonWest");
-    Check(near(rect->LonEast, -110.566406250), "rect LonEast");
-    Check(near(rect->LatSouth, 43.769531250), "rect LatSouth");
-    Check(near(rect->LatNorth, 43.857421875), "rect LatNorth");
+    Check(near(rect->LonWest, -87.656250), "rect LonWest");
+    Check(near(rect->LonEast, -87.421875), "rect LonEast");
+    Check(near(rect->LatSouth, -2.460937500), "rect LatSouth");
+    Check(near(rect->LatNorth, -2.285156250), "rect LatNorth");
 
     const auto south_west = IBglTerrainVectorDb::DequantizePoint(0, 0, *rect);
     Check(near(south_west.Lon, rect->LonWest) && near(south_west.Lat, rect->LatSouth), "dequantize (0,0)");

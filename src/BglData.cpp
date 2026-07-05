@@ -9142,7 +9142,14 @@ auto flightsimlib::io::IBglTerrainVectorDb::QmidRectFromPacked(uint32_t packed_q
     // Level marker bit at position 2L+1, one interleaved (v << 1 | u) bit
     // pair per level below it (see newdawn synthetic_imagery_tile_source
     // PackQmid, the inverse of this).
-    for (auto level = 15; level >= 1; --level)
+    //
+    // The FSX QMID grid at level L is 3 * 2^(L-2) columns x 2^(L-1) rows
+    // (12 x 8 areas at level 4, 96 x 64 cvx files at level 7): longitude
+    // cells of 240/2^(L-1) degrees from -180 eastward, latitude cells of
+    // 180/2^(L-1) degrees from +90 southward. Verified by reconstructing
+    // the world coastline map from every cvx file of a full FSX install —
+    // the continents only render upright under this convention.
+    for (auto level = 15; level >= 2; --level)
     {
         if ((packed_qmid >> (2 * level + 1)) != 1u)
         {
@@ -9156,12 +9163,12 @@ auto flightsimlib::io::IBglTerrainVectorDb::QmidRectFromPacked(uint32_t packed_q
             u |= (pair & 1u) << b;
             v |= ((pair >> 1) & 1u) << b;
         }
-        const auto cells = static_cast<double>(1u << level);
+        const auto rows = static_cast<double>(1u << (level - 1));
         SBglQmidRect rect;
-        rect.LonWest = -180.0 + u * (360.0 / cells);
-        rect.LonEast = rect.LonWest + 360.0 / cells;
-        rect.LatNorth = 90.0 - v * (180.0 / cells);
-        rect.LatSouth = rect.LatNorth - 180.0 / cells;
+        rect.LonWest = -180.0 + u * (240.0 / rows);
+        rect.LonEast = rect.LonWest + 240.0 / rows;
+        rect.LatNorth = 90.0 - v * (180.0 / rows);
+        rect.LatSouth = rect.LatNorth - 180.0 / rows;
         return rect;
     }
     return std::nullopt;
