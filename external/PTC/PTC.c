@@ -23,12 +23,9 @@
 #ifdef PTC_DUAL_BPC
 #include <stdio.h>
 
-static int entropyBPCDual(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit)
+static FILE* DualLogGet(void)
 {
-	static int calls = 0;
-	static int mismatchedCalls = 0;
 	static FILE* dualLog = 0;
-
 	if (!dualLog)
 	{
 		dualLog = fopen("ptc_dual_bpc.log", "a");
@@ -38,6 +35,35 @@ static int entropyBPCDual(const unsigned char* pCompressed, int length, int plan
 			fflush(dualLog);
 		}
 	}
+	return dualLog;
+}
+
+/* Positive evidence of which entropy coder each PTC stream selects
+   (Frame.Flags & 3): 0 = bit-plane (the corrected-codec question), 1 =
+   adaptive RLGR, 2 = bi-level (1-bit alpha), 3 = stored. Logged so the
+   file appears whenever the PTC path runs at all, even if the bit-plane
+   branch is never taken. */
+static void DualLogEntropyType(int type)
+{
+	static int counts[4] = {0, 0, 0, 0};
+	static int total = 0;
+	if (type >= 0 && type <= 3)
+		++counts[type];
+	++total;
+	FILE* dualLog = DualLogGet();
+	if (dualLog && (total == 1 || total % 1024 == 0))
+	{
+		fprintf(dualLog, "entropy-type calls: bpc=%d rlgr=%d blc=%d stored=%d\n", counts[0], counts[1], counts[2],
+			counts[3]);
+		fflush(dualLog);
+	}
+}
+
+static int entropyBPCDual(const unsigned char* pCompressed, int length, int planeCount, int* pDest, int destCount, int kInit)
+{
+	static int calls = 0;
+	static int mismatchedCalls = 0;
+	FILE* dualLog = DualLogGet();
 
 	int stackBuf[4096];
 	int* fixed = destCount <= 4096 ? stackBuf : (int*)malloc(4 * (size_t)destCount);
@@ -425,6 +451,10 @@ int decodeTile(PTCImage* image, int tile, int width, int numChannels, int** ppCo
 				int type = (isAlpha ? image->Frame.Flags >> 2 : image->Frame.Flags) & 3;
 				if (isOneBitAlpha)
 					type = 2;
+
+#ifdef PTC_DUAL_BPC
+				DualLogEntropyType(type);
+#endif
 
 				switch (type)
 				{
